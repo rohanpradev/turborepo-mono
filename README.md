@@ -174,7 +174,7 @@ Notes:
 - Traefik uses its default local self-signed certificate unless you wire in a local certificate resolver or custom cert bundle.
 - Next.js public env values are passed as Docker build args so client bundles receive the correct API and Clerk/Stripe keys.
 - Runtime containers are intentionally minimal and shell-less. Prefer `docker debug <container>` over `docker exec ... sh`.
-- The GitHub Actions container workflow also needs `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` secrets so it can authenticate to `dhi.io`.
+- The GitHub Actions container workflow also needs `DOCKER_USERNAME` and `DOCKER_PASSWORD` secrets so it can authenticate to `dhi.io` (`DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` still work as legacy fallback names).
 
 ## Kafka Topics
 
