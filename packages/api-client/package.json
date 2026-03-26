@@ -2,6 +2,9 @@
   "name": "@repo/api-client",
   "type": "module",
   "private": true,
+  "scripts": {
+    "check-types": "tsc --noEmit"
+  },
   "exports": {
     ".": "./src/index.ts"
   },

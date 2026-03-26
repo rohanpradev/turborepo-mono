@@ -4,28 +4,41 @@ on:
   push:
   pull_request:
     types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUN_VERSION: 1.3.11
+  NODE_VERSION: 24
+  REGISTRY: ghcr.io
 
 jobs:
   validate:
-    name: Lint, Typecheck, Test, Build
-    timeout-minutes: 25
+    name: Quality
+    timeout-minutes: 30
     runs-on: ubuntu-latest
 
     steps:
       - name: Check out code
         uses: actions/checkout@v5
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.11
+          bun-version: ${{ env.BUN_VERSION }}
 
       - name: Setup Node.js environment
         uses: actions/setup-node@v5
         with:
-          node-version: 24
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -49,3 +62,100 @@ jobs:
 
       - name: Build
         run: bun run build
+
+  docker-images:
+    name: Docker ${{ matrix.service.name }}
+    needs: validate
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - name: admin
+            dockerfile: docker/Dockerfile.admin
+          - name: client
+            dockerfile: docker/Dockerfile.client
+          - name: product-service
+            dockerfile: docker/Dockerfile.product-service
+          - name: order-service
+            dockerfile: docker/Dockerfile.order-service
+          - name: payment-service
+            dockerfile: docker/Dockerfile.payment-service
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Validate Docker Hardened Images credentials
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME || secrets.DOCKERHUB_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD || secrets.DOCKERHUB_TOKEN }}
+        run: |
+          test -n "$DOCKER_USERNAME" || {
+            echo "Missing DOCKER_USERNAME secret for dhi.io image pulls." >&2
+            exit 1
+          }
+          test -n "$DOCKER_PASSWORD" || {
+            echo "Missing DOCKER_PASSWORD secret for dhi.io image pulls." >&2
+            exit 1
+          }
+
+      - name: Compute image prefix
+        id: image_prefix
+        run: echo "value=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to Docker Hardened Images
+        uses: docker/login-action@v3
+        with:
+          registry: dhi.io
+          username: ${{ secrets.DOCKER_USERNAME || secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD || secrets.DOCKERHUB_TOKEN }}
+
+      - name: Log in to Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ steps.image_prefix.outputs.value }}/${{ matrix.service.name }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.service.dockerfile }}
+          pull: true
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.service.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service.name }}
+          platforms: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
+          provenance: mode=max
+          sbom: true

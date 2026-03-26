@@ -19,6 +19,12 @@ type ProductFilters = {
   limit?: number;
 };
 
+const isNotFoundError = (
+  error: unknown,
+): error is Prisma.PrismaClientKnownRequestError =>
+  error instanceof Prisma.PrismaClientKnownRequestError &&
+  error.code === "P2025";
+
 const toProductRecord = (product: Product): ProductRecord => {
   const images =
     product.images &&
@@ -119,10 +125,7 @@ export const ProductService = {
       });
       return toProductRecord(product);
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2025"
-      ) {
+      if (isNotFoundError(error)) {
         return null;
       }
 
@@ -134,10 +137,7 @@ export const ProductService = {
     try {
       await prisma.product.delete({ where: { id } });
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2025"
-      ) {
+      if (isNotFoundError(error)) {
         return false;
       }
 

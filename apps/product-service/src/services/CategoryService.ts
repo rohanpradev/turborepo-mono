@@ -11,6 +11,19 @@ type StoredCategory = {
   slug: string;
 };
 
+type CategoryCount = {
+  categorySlug: string;
+  _count: {
+    _all: number;
+  };
+};
+
+const isNotFoundError = (
+  error: unknown,
+): error is Prisma.PrismaClientKnownRequestError =>
+  error instanceof Prisma.PrismaClientKnownRequestError &&
+  error.code === "P2025";
+
 const formatCategory = (
   category: StoredCategory,
   productCount?: number,
@@ -48,11 +61,14 @@ export const CategoryService = {
       by: ["categorySlug"],
       _count: { _all: true },
     });
-    const countMap = new Map(
-      counts.map((count) => [count.categorySlug, count._count._all]),
+    const countMap = new Map<string, number>(
+      counts.map((count: CategoryCount): [string, number] => [
+        count.categorySlug,
+        count._count._all,
+      ]),
     );
 
-    return categories.map((category) =>
+    return categories.map((category: StoredCategory) =>
       formatCategory(category, countMap.get(category.slug)),
     );
   },
@@ -72,10 +88,7 @@ export const CategoryService = {
 
       return formatCategory(category, count);
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2025"
-      ) {
+      if (isNotFoundError(error)) {
         return null;
       }
 
@@ -88,10 +101,7 @@ export const CategoryService = {
       await prisma.category.delete({ where: { slug } });
       return true;
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2025"
-      ) {
+      if (isNotFoundError(error)) {
         return false;
       }
 

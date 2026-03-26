@@ -24,6 +24,11 @@ type SeedProduct = {
   categorySlug: string;
 };
 
+type ExistingSeedProduct = {
+  id: number;
+  name: string;
+};
+
 const categories: SeedCategory[] = [
   { name: "T-Shirts", slug: "t-shirts" },
   { name: "Outerwear", slug: "outerwear" },
@@ -187,8 +192,11 @@ const seedProducts = async () => {
     },
   });
 
-  const existingByName = new Map(
-    existingProducts.map((product) => [product.name, product.id]),
+  const existingByName = new Map<string, number>(
+    existingProducts.map((product: ExistingSeedProduct): [string, number] => [
+      product.name,
+      product.id,
+    ]),
   );
   const storedProducts: Product[] = [];
   let createdCount = 0;
