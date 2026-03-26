@@ -1,0 +1,40 @@
+{
+  "name": "ecommerce",
+  "private": true,
+  "scripts": {
+    "build": "bunx turbo run build",
+    "dev": "bunx turbo run dev",
+    "dev:setup": "cd packages/product-db && bun run db:generate && cd ../.. && bun dev",
+    "lint": "biome check .",
+    "lint:fix": "biome check . --write",
+    "format": "biome format . --write",
+    "check-types": "bunx turbo run check-types && bunx tsc -p tsconfig.tests.json --noEmit",
+    "audit": "bun audit --audit-level=moderate",
+    "test": "bun test --preload ./tests/preload.ts",
+    "verify": "bun run lint && bun run check-types && bun run test && bun run build",
+    "knip": "knip"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.8",
+    "@types/bun": "^1.3.11",
+    "@types/node": "^25.5.0",
+    "knip": "^6.0.5",
+    "turbo": "^2.8.20",
+    "typescript": "^6.0.2"
+  },
+  "engines": {
+    "bun": ">=1.3.11",
+    "node": ">=20.9.0"
+  },
+  "packageManager": "bun@1.3.11",
+  "overrides": {
+    "@hono/node-server": "^1.19.11",
+    "effect": "^3.21.0",
+    "hono": "^4.12.9",
+    "lodash": "^4.17.23"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}

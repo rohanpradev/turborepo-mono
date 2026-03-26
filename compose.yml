@@ -1,0 +1,558 @@
+x-runtime-security: &runtime-security
+  init: true
+  restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
+x-app-service: &app-service
+  <<: *runtime-security
+  read_only: true
+  tmpfs:
+    - /tmp:size=64m,mode=1777
+
+x-frontend-build-args: &frontend-build-args
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
+  NEXT_PUBLIC_PRODUCT_SERVICE_URL: ${NEXT_PUBLIC_PRODUCT_SERVICE_URL:-https://api.localhost}
+  NEXT_PUBLIC_ORDER_SERVICE_URL: ${NEXT_PUBLIC_ORDER_SERVICE_URL:-https://api.localhost}
+  NEXT_PUBLIC_PAYMENT_SERVICE_URL: ${NEXT_PUBLIC_PAYMENT_SERVICE_URL:-https://api.localhost}
+
+services:
+  # Docker Hardened Images require an authenticated pull:
+  #   docker login dhi.io
+
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:0.3.0
+    container_name: docker-socket-proxy
+    environment:
+      CONTAINERS: 1
+      EVENTS: 1
+      INFO: 1
+      NETWORKS: 1
+      PING: 1
+      VERSION: 1
+    expose:
+      - "2375"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+
+  traefik:
+    <<: *runtime-security
+    image: dhi.io/traefik:3.6.7-debian13
+    container_name: ecommerce-traefik
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    ports:
+      - "80:8000"
+      - "443:8443"
+    depends_on:
+      - docker-socket-proxy
+    command:
+      - "--entrypoints.web.address=:8000"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
+      - "--entrypoints.websecure.address=:8443"
+      - "--entrypoints.websecure.http.tls=true"
+      - "--entrypoints.traefik.address=:8080"
+      - "--api=true"
+      - "--api.dashboard=true"
+      - "--api.insecure=false"
+      - "--ping=true"
+      - "--ping.entrypoint=traefik"
+      - "--providers.docker=true"
+      - "--providers.docker.endpoint=tcp://docker-socket-proxy:2375"
+      - "--providers.docker.watch=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=ecommerce-network"
+      - "--global.sendanonymoususage=false"
+      - "--log.level=INFO"
+      - "--accesslog=true"
+      - "--metrics.prometheus=true"
+      - "--metrics.prometheus.addEntryPointsLabels=true"
+      - "--metrics.prometheus.addServicesLabels=true"
+      - "--metrics.prometheus.addRoutersLabels=true"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`dashboard.localhost`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.tls=true"
+      - "traefik.http.routers.dashboard.priority=1000"
+      - "traefik.http.middlewares.dashboard-auth.basicauth.users=${TRAEFIK_BASIC_AUTH_USERS_DOCKER:-admin:$$apr1$$l2NjIjPT$$rpBpr/hrawWdK.VRWyKo3/}"
+      - "traefik.http.middlewares.dashboard-auth.basicauth.removeheader=true"
+      - "traefik.http.routers.dashboard.middlewares=dashboard-auth@docker"
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  postgres:
+    <<: *runtime-security
+    image: dhi.io/postgres:18.3-debian13
+    container_name: ecommerce-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-product_db}
+      POSTGRES_INITDB_ARGS: --auth=scram-sha-256
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "pg_isready",
+          "-U",
+          "${POSTGRES_USER:-postgres}",
+          "-d",
+          "${POSTGRES_DB:-product_db}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongodb:
+    init: true
+    restart: unless-stopped
+    image: mongo:8.2.5-noble
+    container_name: ecommerce-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-admin123}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE:-order_db}
+    ports:
+      - "${MONGODB_PORT:-27017}:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mongosh",
+          "--username",
+          "${MONGO_INITDB_ROOT_USERNAME:-admin}",
+          "--password",
+          "${MONGO_INITDB_ROOT_PASSWORD:-admin123}",
+          "--authenticationDatabase",
+          "admin",
+          "--quiet",
+          "--eval",
+          "db.adminCommand('ping').ok",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  product-db-migrate:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.product-service
+      target: builder
+    container_name: ecommerce-product-db-migrate
+    command: ["bun", "run", "--cwd", "packages/product-db", "db:deploy"]
+    environment:
+      DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/product_db?schema=public}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+    restart: "no"
+
+  product-db-seed:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.product-service
+      target: builder
+    container_name: ecommerce-product-db-seed
+    command: ["bun", "run", "apps/product-service/src/scripts/seed.ts"]
+    environment:
+      DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/product_db?schema=public}
+      KAFKA_BROKERS: ${DOCKER_KAFKA_BROKERS:-kafka-broker-1:9092,kafka-broker-2:9092,kafka-broker-3:9092}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      product-db-migrate:
+        condition: service_completed_successfully
+      payment-service:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+    restart: "no"
+
+  kafka-broker-1:
+    <<: *runtime-security
+    image: dhi.io/kafka:4.2.0-debian13-native
+    container_name: kafka-broker-1
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://0.0.0.0:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-1:9092,EXTERNAL://localhost:9094
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-broker-1:9093,2@kafka-broker-2:9093,3@kafka-broker-3:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    ports:
+      - "9094:9094"
+    networks:
+      - ecommerce-network
+
+  kafka-broker-2:
+    <<: *runtime-security
+    image: dhi.io/kafka:4.2.0-debian13-native
+    container_name: kafka-broker-2
+    environment:
+      KAFKA_NODE_ID: 2
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://0.0.0.0:9095
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-2:9092,EXTERNAL://localhost:9095
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-broker-1:9093,2@kafka-broker-2:9093,3@kafka-broker-3:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    ports:
+      - "9095:9095"
+    networks:
+      - ecommerce-network
+
+  kafka-broker-3:
+    <<: *runtime-security
+    image: dhi.io/kafka:4.2.0-debian13-native
+    container_name: kafka-broker-3
+    environment:
+      KAFKA_NODE_ID: 3
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://0.0.0.0:9096
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-3:9092,EXTERNAL://localhost:9096
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-broker-1:9093,2@kafka-broker-2:9093,3@kafka-broker-3:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    ports:
+      - "9096:9096"
+    networks:
+      - ecommerce-network
+
+  kafka-ui:
+    <<: *app-service
+    image: ghcr.io/kafbat/kafka-ui:v1.4.2
+    container_name: kafka-ui
+    environment:
+      KAFKA_CLUSTERS_0_NAME: ecommerce-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka-broker-1:9092,kafka-broker-2:9092,kafka-broker-3:9092
+      KAFKA_CLUSTERS_0_READONLY: true
+      KAFKA_CLUSTERS_0_TOPIC_AUTO_CREATE: false
+    expose:
+      - "8080"
+    depends_on:
+      - kafka-broker-1
+      - kafka-broker-2
+      - kafka-broker-3
+    networks:
+      - ecommerce-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=ecommerce-network"
+      - "traefik.http.routers.kafka-ui.rule=Host(`kafka.localhost`)"
+      - "traefik.http.routers.kafka-ui.entrypoints=websecure"
+      - "traefik.http.routers.kafka-ui.tls=true"
+      - "traefik.http.middlewares.kafka-ui-auth.basicauth.users=${TRAEFIK_BASIC_AUTH_USERS_DOCKER:-admin:$$apr1$$l2NjIjPT$$rpBpr/hrawWdK.VRWyKo3/}"
+      - "traefik.http.middlewares.kafka-ui-auth.basicauth.removeheader=true"
+      - "traefik.http.routers.kafka-ui.middlewares=kafka-ui-auth@docker"
+      - "traefik.http.services.kafka-ui.loadbalancer.server.port=8080"
+
+  product-service:
+    <<: *app-service
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.product-service
+    container_name: ecommerce-product-service
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/product_db?schema=public}
+      CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY:-}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
+      KAFKA_BROKERS: ${DOCKER_KAFKA_BROKERS:-kafka-broker-1:9092,kafka-broker-2:9092,kafka-broker-3:9092}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://shop.localhost,https://admin.localhost,http://localhost:3002,http://localhost:3003}
+    expose:
+      - "3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      product-db-migrate:
+        condition: service_completed_successfully
+      kafka-broker-1:
+        condition: service_started
+      kafka-broker-2:
+        condition: service_started
+      kafka-broker-3:
+        condition: service_started
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bun",
+          "-e",
+          "const response = await fetch('http://127.0.0.1:3000/health/ready'); if (!response.ok) process.exit(1);",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - ecommerce-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=ecommerce-network"
+      - "traefik.http.routers.product-service.rule=Host(`api.localhost`) && (PathPrefix(`/products`) || PathPrefix(`/categories`))"
+      - "traefik.http.routers.product-service.entrypoints=websecure"
+      - "traefik.http.routers.product-service.tls=true"
+      - "traefik.http.routers.product-service.priority=200"
+      - "traefik.http.services.product-service.loadbalancer.server.port=3000"
+
+  order-service:
+    <<: *app-service
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.order-service
+    container_name: ecommerce-order-service
+    environment:
+      NODE_ENV: production
+      PORT: 8001
+      MONGO_URL: ${DOCKER_MONGO_URL:-mongodb://admin:admin123@mongodb:27017/order_db?authSource=admin}
+      CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY:-}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
+      KAFKA_BROKERS: ${DOCKER_KAFKA_BROKERS:-kafka-broker-1:9092,kafka-broker-2:9092,kafka-broker-3:9092}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://shop.localhost,https://admin.localhost,http://localhost:3002,http://localhost:3003}
+    expose:
+      - "8001"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      kafka-broker-1:
+        condition: service_started
+      kafka-broker-2:
+        condition: service_started
+      kafka-broker-3:
+        condition: service_started
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bun",
+          "-e",
+          "const response = await fetch('http://127.0.0.1:8001/health/ready'); if (!response.ok) process.exit(1);",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - ecommerce-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=ecommerce-network"
+      - "traefik.http.routers.order-service.rule=Host(`api.localhost`) && PathPrefix(`/api`) && !PathPrefix(`/api/session`) && !PathPrefix(`/api/webhooks`)"
+      - "traefik.http.routers.order-service.entrypoints=websecure"
+      - "traefik.http.routers.order-service.tls=true"
+      - "traefik.http.routers.order-service.priority=150"
+      - "traefik.http.services.order-service.loadbalancer.server.port=8001"
+
+  payment-service:
+    <<: *app-service
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.payment-service
+    container_name: ecommerce-payment-service
+    environment:
+      NODE_ENV: production
+      PORT: 8002
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      CLIENT_APP_URL: ${CLIENT_APP_URL:-https://shop.localhost}
+      CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY:-}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
+      KAFKA_BROKERS: ${DOCKER_KAFKA_BROKERS:-kafka-broker-1:9092,kafka-broker-2:9092,kafka-broker-3:9092}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://shop.localhost,https://admin.localhost,http://localhost:3002,http://localhost:3003}
+    expose:
+      - "8002"
+    depends_on:
+      kafka-broker-1:
+        condition: service_started
+      kafka-broker-2:
+        condition: service_started
+      kafka-broker-3:
+        condition: service_started
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bun",
+          "-e",
+          "const response = await fetch('http://127.0.0.1:8002/health/ready'); if (!response.ok) process.exit(1);",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - ecommerce-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=ecommerce-network"
+      - "traefik.http.routers.payment-service.rule=Host(`api.localhost`) && PathPrefix(`/api/session`)"
+      - "traefik.http.routers.payment-webhooks.rule=Host(`api.localhost`) && PathPrefix(`/api/webhooks`)"
+      - "traefik.http.routers.payment-service.entrypoints=websecure"
+      - "traefik.http.routers.payment-service.tls=true"
+      - "traefik.http.routers.payment-webhooks.entrypoints=websecure"
+      - "traefik.http.routers.payment-webhooks.tls=true"
+      - "traefik.http.routers.payment-service.service=payment-service"
+      - "traefik.http.routers.payment-webhooks.service=payment-service"
+      - "traefik.http.routers.payment-service.priority=250"
+      - "traefik.http.routers.payment-webhooks.priority=250"
+      - "traefik.http.services.payment-service.loadbalancer.server.port=8002"
+      - "traefik.http.services.payment-service.loadbalancer.server.scheme=http"
+
+  client:
+    <<: *app-service
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.client
+      args:
+        <<: *frontend-build-args
+        NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-}
+    container_name: ecommerce-client
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
+      PRODUCT_SERVICE_INTERNAL_URL: http://product-service:3000
+      ORDER_SERVICE_INTERNAL_URL: http://order-service:8001
+      PAYMENT_SERVICE_INTERNAL_URL: http://payment-service:8002
+      NEXT_PUBLIC_PRODUCT_SERVICE_URL: ${NEXT_PUBLIC_PRODUCT_SERVICE_URL:-https://api.localhost}
+      NEXT_PUBLIC_ORDER_SERVICE_URL: ${NEXT_PUBLIC_ORDER_SERVICE_URL:-https://api.localhost}
+      NEXT_PUBLIC_PAYMENT_SERVICE_URL: ${NEXT_PUBLIC_PAYMENT_SERVICE_URL:-https://api.localhost}
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-}
+    expose:
+      - "3002"
+    depends_on:
+      product-service:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
+      product-db-seed:
+        condition: service_completed_successfully
+    networks:
+      - ecommerce-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=ecommerce-network"
+      - "traefik.http.routers.client.rule=Host(`shop.localhost`)"
+      - "traefik.http.routers.client.entrypoints=websecure"
+      - "traefik.http.routers.client.tls=true"
+      - "traefik.http.services.client.loadbalancer.server.port=3002"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3002').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  admin:
+    <<: *app-service
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.admin
+      args:
+        <<: *frontend-build-args
+    container_name: ecommerce-admin
+    environment:
+      NODE_ENV: production
+      PORT: 3003
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
+      PRODUCT_SERVICE_INTERNAL_URL: http://product-service:3000
+      ORDER_SERVICE_INTERNAL_URL: http://order-service:8001
+      PAYMENT_SERVICE_INTERNAL_URL: http://payment-service:8002
+      NEXT_PUBLIC_PRODUCT_SERVICE_URL: ${NEXT_PUBLIC_PRODUCT_SERVICE_URL:-https://api.localhost}
+      NEXT_PUBLIC_ORDER_SERVICE_URL: ${NEXT_PUBLIC_ORDER_SERVICE_URL:-https://api.localhost}
+      NEXT_PUBLIC_PAYMENT_SERVICE_URL: ${NEXT_PUBLIC_PAYMENT_SERVICE_URL:-https://api.localhost}
+    expose:
+      - "3003"
+    depends_on:
+      product-service:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
+      product-db-seed:
+        condition: service_completed_successfully
+    networks:
+      - ecommerce-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=ecommerce-network"
+      - "traefik.http.routers.admin.rule=Host(`admin.localhost`)"
+      - "traefik.http.routers.admin.entrypoints=websecure"
+      - "traefik.http.routers.admin.tls=true"
+      - "traefik.http.services.admin.loadbalancer.server.port=3003"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3003').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  ecommerce-network:
+    driver: bridge
+    name: ecommerce-network
+
+volumes:
+  postgres_data:
+    driver: local
+  mongodb_data:
+    driver: local
+  mongodb_config:
+    driver: local

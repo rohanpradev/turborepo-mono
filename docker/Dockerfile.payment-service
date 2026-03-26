@@ -1,0 +1,32 @@
+ARG BUN_DEV_IMAGE=oven/bun:1
+ARG BUN_RUNTIME_IMAGE=oven/bun:1-slim
+
+FROM ${BUN_DEV_IMAGE} AS pruner
+ENV CI=1 \
+    TURBO_TELEMETRY_DISABLED=1
+WORKDIR /repo
+COPY . .
+RUN bun install --global turbo@2.8.20
+ENV PATH="/root/.bun/bin:$PATH"
+RUN turbo prune payment-service --docker
+
+FROM ${BUN_DEV_IMAGE} AS builder
+ENV CI=1 \
+    TURBO_TELEMETRY_DISABLED=1 \
+    NODE_ENV=production
+WORKDIR /app
+
+COPY --from=pruner /repo/out/json/ ./
+RUN bun install --frozen-lockfile --production
+COPY --from=pruner /repo/out/full/ ./
+
+FROM ${BUN_RUNTIME_IMAGE} AS runner
+ENV NODE_ENV=production \
+    PORT=8002
+WORKDIR /app
+
+COPY --from=builder /app ./
+
+EXPOSE 8002
+
+CMD ["bun", "run", "apps/payment-service/src/index.ts"]

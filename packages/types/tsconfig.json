@@ -1,0 +1,8 @@
+{
+  "extends": "@repo/typescript-config/internal-package.json",
+  "compilerOptions": {
+    "paths": {
+      "@prisma/*": ["../product-db/generated/prisma/*"]
+    }
+  }
+}

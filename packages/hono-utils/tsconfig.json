@@ -1,0 +1,6 @@
+{
+  "extends": "@repo/typescript-config/internal-package.json",
+  "compilerOptions": {
+    "types": ["bun", "node"]
+  }
+}

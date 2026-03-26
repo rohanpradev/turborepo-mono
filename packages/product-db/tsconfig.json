@@ -1,0 +1,10 @@
+{
+  "extends": "@repo/typescript-config/internal-package.json",
+  "compilerOptions": {
+    "paths": {
+      "@prisma/*": ["./generated/prisma/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["generated/**/*"]
+}

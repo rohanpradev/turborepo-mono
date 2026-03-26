@@ -1,0 +1,32 @@
+ARG BUN_DEV_IMAGE=oven/bun:1
+ARG BUN_RUNTIME_IMAGE=oven/bun:1-slim
+
+FROM ${BUN_DEV_IMAGE} AS pruner
+ENV CI=1 \
+    TURBO_TELEMETRY_DISABLED=1
+WORKDIR /repo
+RUN bun install --global turbo@2.8.20
+COPY . .
+RUN bunx turbo prune product-service --docker
+
+FROM ${BUN_DEV_IMAGE} AS builder
+ENV CI=1 \
+    TURBO_TELEMETRY_DISABLED=1 \
+    NODE_ENV=production
+WORKDIR /app
+
+COPY --from=pruner /repo/out/json/ ./
+RUN bun install --frozen-lockfile
+COPY --from=pruner /repo/out/full/ ./
+RUN bun run --cwd packages/product-db db:generate
+
+FROM ${BUN_RUNTIME_IMAGE} AS runner
+ENV NODE_ENV=production \
+    PORT=3000
+WORKDIR /app
+
+COPY --from=builder /app ./
+
+EXPOSE 3000
+
+CMD ["bun", "run", "apps/product-service/src/index.ts"]
