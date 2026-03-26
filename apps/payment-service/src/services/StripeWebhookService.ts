@@ -1,8 +1,6 @@
-import Stripe from "stripe";
-import { Topics, type PaymentSuccessfulMessage } from "@repo/kafka";
-import {
-  recordIntegrationEvent,
-} from "../observability/integrationEvents";
+import { type PaymentSuccessfulMessage, Topics } from "@repo/kafka";
+import type Stripe from "stripe";
+import { recordIntegrationEvent } from "../observability/integrationEvents";
 import { registerProcessedEvent } from "../observability/processedEvents";
 import { producer } from "../utils/kafka";
 import { getStripeClient, getStripeWebhookSecret } from "../utils/stripe";
@@ -36,7 +34,7 @@ export const StripeWebhookService = {
       };
     }
 
-    let event;
+    let event: Stripe.Event;
 
     try {
       event = await stripe.webhooks.constructEventAsync(
@@ -106,7 +104,7 @@ export const StripeWebhookService = {
     const paymentIntentId =
       typeof session.payment_intent === "string"
         ? session.payment_intent
-        : session.payment_intent?.id ?? session.id;
+        : (session.payment_intent?.id ?? session.id);
     const paymentIntent =
       paymentIntentId && paymentIntentId !== session.id
         ? await stripe.paymentIntents.retrieve(paymentIntentId)
@@ -117,7 +115,7 @@ export const StripeWebhookService = {
       userId:
         typeof session.client_reference_id === "string"
           ? session.client_reference_id
-          : session.metadata?.userId ?? "unknown",
+          : (session.metadata?.userId ?? "unknown"),
       email:
         session.customer_details?.email ??
         session.customer_email ??
@@ -151,7 +149,9 @@ export const StripeWebhookService = {
           quantity: item.quantity ?? 1,
           price:
             item.price?.unit_amount ??
-            Math.floor((item.amount_total ?? 0) / Math.max(item.quantity ?? 1, 1)),
+            Math.floor(
+              (item.amount_total ?? 0) / Math.max(item.quantity ?? 1, 1),
+            ),
         };
       }),
       processedAt: new Date().toISOString(),

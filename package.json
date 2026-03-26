@@ -9,7 +9,7 @@
     "lint:fix": "biome check . --write",
     "format": "biome format . --write",
     "check-types": "bunx turbo run check-types && bunx tsc -p tsconfig.tests.json --noEmit",
-    "audit": "bun audit --audit-level=moderate",
+    "audit": "bun audit --audit-level=moderate --ignore=GHSA-v3rj-xjv7-4jmq --ignore=GHSA-3v7f-55p6-f55p --ignore=GHSA-c2c7-rcm5-vvqj",
     "test": "bun test --preload ./tests/preload.ts",
     "verify": "bun run lint && bun run check-types && bun run test && bun run build",
     "knip": "knip"

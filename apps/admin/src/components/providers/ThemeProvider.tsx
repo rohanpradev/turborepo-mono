@@ -2,10 +2,10 @@
 
 import {
   createContext,
+  type ReactNode,
   useContext,
   useEffect,
   useState,
-  type ReactNode,
 } from "react";
 
 type Theme = "light" | "dark" | "system";
@@ -34,7 +34,11 @@ function getStoredTheme(defaultTheme: Theme) {
   }
 
   const storedTheme = window.localStorage.getItem(STORAGE_KEY);
-  if (storedTheme === "light" || storedTheme === "dark" || storedTheme === "system") {
+  if (
+    storedTheme === "light" ||
+    storedTheme === "dark" ||
+    storedTheme === "system"
+  ) {
     return storedTheme;
   }
 
@@ -62,7 +66,9 @@ function resolveTheme(theme: Theme, enableSystem: boolean): ResolvedTheme {
 function disableTransitionsTemporarily() {
   const style = document.createElement("style");
   style.appendChild(
-    document.createTextNode("*{transition:none!important;animation:none!important;}")
+    document.createTextNode(
+      "*{transition:none!important;animation:none!important;}",
+    ),
   );
 
   document.head.appendChild(style);

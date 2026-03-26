@@ -1,17 +1,18 @@
+import { auth } from "@clerk/nextjs/server";
 import {
+  getOrderServiceServerUrl,
   getPaymentIntegrationEvents,
   getPaymentServiceServerUrl,
   getProductServiceServerUrl,
-  getOrderServiceServerUrl,
   listCategories,
   listOrders,
   listProducts,
   type PaymentIntegrationEventsResponse,
 } from "@repo/api-client";
 import type { CategoryRecord, OrderRecord, ProductRecord } from "@repo/types";
-import { auth } from "@clerk/nextjs/server";
 
-type IntegrationEvent = PaymentIntegrationEventsResponse["data"]["recentEvents"][number];
+type IntegrationEvent =
+  PaymentIntegrationEventsResponse["data"]["recentEvents"][number];
 
 export type AdminPaymentActivity = {
   amountCents: number;
@@ -94,7 +95,9 @@ export const buildPaymentActivities = (
       continue;
     }
 
-    const itemCount = isNumber(event.details?.itemCount) ? event.details.itemCount : 0;
+    const itemCount = isNumber(event.details?.itemCount)
+      ? event.details.itemCount
+      : 0;
 
     activities.set(sessionId, {
       amountCents: isNumber(event.details?.totalAmount)
@@ -127,7 +130,9 @@ export const buildPaymentActivities = (
 
     activities.set(sessionId, {
       ...existing,
-      amountCents: isNumber(event.details?.amount) ? event.details.amount : existing.amountCents,
+      amountCents: isNumber(event.details?.amount)
+        ? event.details.amount
+        : existing.amountCents,
       completedTimestamp: event.timestamp,
       itemCount: isNumber(event.details?.itemCount)
         ? event.details.itemCount
@@ -160,7 +165,10 @@ export const buildCustomerSummaries = (
   const customers = new Map<string, AdminCustomerSummary>();
 
   for (const [userId, userOrders] of ordersByUserId.entries()) {
-    const revenueCents = userOrders.reduce((total, order) => total + order.amount, 0);
+    const revenueCents = userOrders.reduce(
+      (total, order) => total + order.amount,
+      0,
+    );
     const paymentCount = userOrders.length;
     const totalItems = userOrders.reduce(
       (total, order) =>

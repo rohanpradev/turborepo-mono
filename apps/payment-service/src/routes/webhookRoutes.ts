@@ -28,14 +28,16 @@ const stripeWebhookRoute = createRoute({
       content: jsonContent(errorResponseSchema),
     },
     503: {
-      description: "Stripe webhook handling is not configured for this environment.",
+      description:
+        "Stripe webhook handling is not configured for this environment.",
       content: jsonContent(errorResponseSchema),
     },
   },
 });
 
-export const webhookRoutes = createServiceRouter()
-  .openapi(stripeWebhookRoute, async (c) => {
+export const webhookRoutes = createServiceRouter().openapi(
+  stripeWebhookRoute,
+  async (c) => {
     const signature = c.req.header("stripe-signature");
     const payload = Buffer.from(await c.req.raw.arrayBuffer());
 
@@ -45,18 +47,17 @@ export const webhookRoutes = createServiceRouter()
       return c.json(
         {
           success: false as const,
-          error: "Stripe webhook handling is not configured for this environment.",
+          error:
+            "Stripe webhook handling is not configured for this environment.",
         },
         503,
       );
     }
 
     if (result.status === "invalid") {
-      return c.json(
-        { success: false as const, error: result.message },
-        400,
-      );
+      return c.json({ success: false as const, error: result.message }, 400);
     }
 
     return c.json({ received: true }, 200);
-  });
+  },
+);

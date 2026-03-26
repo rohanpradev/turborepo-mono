@@ -83,7 +83,10 @@ const TestPage = async () => {
           <Link href="https://kafka.localhost" className="underline">
             Kafka UI
           </Link>
-          <Link href="https://dashboard.localhost/dashboard/" className="underline">
+          <Link
+            href="https://dashboard.localhost/dashboard/"
+            className="underline"
+          >
             Traefik Dashboard
           </Link>
         </div>

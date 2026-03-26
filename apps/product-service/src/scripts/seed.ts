@@ -1,8 +1,4 @@
-import {
-  ensureTopics,
-  Topics,
-  type ProductCreatedMessage,
-} from "@repo/kafka";
+import { ensureTopics, type ProductCreatedMessage, Topics } from "@repo/kafka";
 import {
   connectProductDB,
   disconnectProductDB,
@@ -53,7 +49,8 @@ const products: SeedProduct[] = [
   },
   {
     name: "Puma Ultra Warm Zip",
-    shortDescription: "Soft zip layer designed for colder starts and late nights.",
+    shortDescription:
+      "Soft zip layer designed for colder starts and late nights.",
     description:
       "The Ultra Warm Zip is an easy outer layer with a structured fit and soft interior. It works as a gym warmup top, a commuter jacket, or a clean weekend layer when the weather drops.",
     price: toUsdCents(59.9),
@@ -67,7 +64,8 @@ const products: SeedProduct[] = [
   },
   {
     name: "Nike Air Essentials Pullover",
-    shortDescription: "Everyday pullover with a heavyweight feel and soft finish.",
+    shortDescription:
+      "Everyday pullover with a heavyweight feel and soft finish.",
     description:
       "A relaxed pullover made for layering, travel, and everyday wear. The Air Essentials Pullover balances warmth and structure, with bold color options that work well across the rest of the seeded catalog.",
     price: toUsdCents(69.9),
@@ -111,7 +109,8 @@ const products: SeedProduct[] = [
   },
   {
     name: "Nike Air Max 270",
-    shortDescription: "Everyday runner with cushioned comfort and a clean upper.",
+    shortDescription:
+      "Everyday runner with cushioned comfort and a clean upper.",
     description:
       "A versatile sneaker with easy cushioning and strong casual styling. The Air Max 270 gives the seeded catalog a footwear option that works for both product browsing and checkout testing.",
     price: toUsdCents(59.9),
@@ -247,7 +246,10 @@ const publishProductEvents = async (storedProducts: Product[]) => {
     );
   } finally {
     await producer.shutdown().catch((shutdownError) => {
-      console.warn("Failed to close Kafka producer after seeding.", shutdownError);
+      console.warn(
+        "Failed to close Kafka producer after seeding.",
+        shutdownError,
+      );
     });
   }
 };

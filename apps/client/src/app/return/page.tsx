@@ -51,34 +51,34 @@ function ReturnContent() {
         {(sessionId || paymentIntentId) && (
           <div className="mb-6 rounded-lg bg-gray-50 p-4">
             <div className="space-y-3">
-                {sessionId && (
-                  <div className="flex flex-col gap-1 border-b border-gray-200 pb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                    <span className="shrink-0 text-sm font-medium text-gray-600 sm:w-32">
-                      Session
-                    </span>
-                    <span className="min-w-0 break-all font-mono text-sm text-gray-900 sm:text-right">
-                      {sessionId}
-                    </span>
-                  </div>
-                )}
-                {paymentIntentId && (
-                  <div className="flex flex-col gap-1 border-b border-gray-200 pb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                    <span className="shrink-0 text-sm font-medium text-gray-600 sm:w-32">
-                      Payment Intent
-                    </span>
-                    <span className="min-w-0 break-all font-mono text-sm text-gray-900 sm:text-right">
-                      {paymentIntentId}
-                    </span>
-                  </div>
-                )}
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+              {sessionId && (
+                <div className="flex flex-col gap-1 border-b border-gray-200 pb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                   <span className="shrink-0 text-sm font-medium text-gray-600 sm:w-32">
-                    Status
+                    Session
                   </span>
-                  <span className="min-w-0 break-words text-sm text-gray-900 sm:text-right">
-                    {status}
+                  <span className="min-w-0 break-all font-mono text-sm text-gray-900 sm:text-right">
+                    {sessionId}
                   </span>
                 </div>
+              )}
+              {paymentIntentId && (
+                <div className="flex flex-col gap-1 border-b border-gray-200 pb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                  <span className="shrink-0 text-sm font-medium text-gray-600 sm:w-32">
+                    Payment Intent
+                  </span>
+                  <span className="min-w-0 break-all font-mono text-sm text-gray-900 sm:text-right">
+                    {paymentIntentId}
+                  </span>
+                </div>
+              )}
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                <span className="shrink-0 text-sm font-medium text-gray-600 sm:w-32">
+                  Status
+                </span>
+                <span className="min-w-0 break-words text-sm text-gray-900 sm:text-right">
+                  {status}
+                </span>
+              </div>
             </div>
           </div>
         )}

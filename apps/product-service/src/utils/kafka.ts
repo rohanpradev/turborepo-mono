@@ -1,12 +1,13 @@
 import {
   createKafkaClient,
   ensureTopics,
+  type KafkaClient,
   KafkaConsumer,
   KafkaProducer,
   Topics,
 } from "@repo/kafka";
 
-export const kafkaClient = createKafkaClient("product-service");
+export const kafkaClient: KafkaClient = createKafkaClient("product-service");
 
 export const ensureProductKafkaTopics = async () =>
   ensureTopics(kafkaClient, [Topics.PRODUCT_CREATED, Topics.PRODUCT_DELETED]);

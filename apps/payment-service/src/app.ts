@@ -38,7 +38,10 @@ const app = createServiceApp<{ Variables: ServiceVariables }>({
   tags: [
     { name: "checkout", description: "Checkout session operations" },
     { name: "webhooks", description: "Stripe webhook handlers" },
-    { name: "ops", description: "Operational diagnostics and event visibility" },
+    {
+      name: "ops",
+      description: "Operational diagnostics and event visibility",
+    },
     { name: "health", description: "Health and service metadata" },
   ],
   theme: "kepler",

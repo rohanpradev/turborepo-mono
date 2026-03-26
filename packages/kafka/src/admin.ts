@@ -23,13 +23,17 @@ export const ensureTopics = async (
 
   try {
     const existingTopics = new Set(await admin.listTopics());
-    const missingTopics = uniqueTopics.filter((topic) => !existingTopics.has(topic));
+    const missingTopics = uniqueTopics.filter(
+      (topic) => !existingTopics.has(topic),
+    );
 
     if (missingTopics.length === 0) {
       return false;
     }
 
-    const topicConfigs: ITopicConfig[] = missingTopics.map((topic) => ({ topic }));
+    const topicConfigs: ITopicConfig[] = missingTopics.map((topic) => ({
+      topic,
+    }));
 
     return await admin.createTopics({
       topics: topicConfigs,

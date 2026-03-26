@@ -76,7 +76,12 @@ const AppSidebar = ({ viewer }: AppSidebarProps) => {
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
               <Link href="/">
-                <Image src="/logo.svg" alt="Flagship logo" width={20} height={20} />
+                <Image
+                  src="/logo.svg"
+                  alt="Flagship logo"
+                  width={20}
+                  height={20}
+                />
                 <span>Flagship Admin</span>
               </Link>
             </SidebarMenuButton>
@@ -112,11 +117,7 @@ const AppSidebar = ({ viewer }: AppSidebarProps) => {
               {opsLinks.map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton asChild>
-                    <a
-                      href={item.href}
-                      rel="noreferrer"
-                      target="_blank"
-                    >
+                    <a href={item.href} rel="noreferrer" target="_blank">
                       <item.icon />
                       <span>{item.label}</span>
                     </a>

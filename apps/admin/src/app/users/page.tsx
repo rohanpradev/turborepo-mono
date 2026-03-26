@@ -19,7 +19,9 @@ const UsersPage = async () => {
 
   const activities = buildPaymentActivities(events);
   const customers = buildCustomerSummaries(activities, orders ?? []);
-  const paidActivities = activities.filter((activity) => activity.status === "paid");
+  const paidActivities = activities.filter(
+    (activity) => activity.status === "paid",
+  );
   const totalRevenueCents = customers.reduce(
     (total, customer) => total + customer.revenueCents,
     0,
@@ -130,7 +132,8 @@ const UsersPage = async () => {
                       {formatCustomerLabel(customer.userId)}
                     </Link>
                     <p className="text-sm text-muted-foreground">
-                      {customer.email ?? "Email unavailable from live event stream"}
+                      {customer.email ??
+                        "Email unavailable from live event stream"}
                     </p>
                   </div>
                   <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium">

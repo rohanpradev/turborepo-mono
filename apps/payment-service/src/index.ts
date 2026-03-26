@@ -1,13 +1,9 @@
-import { recordIntegrationEvent } from "./observability/integrationEvents";
 import { app } from "./app";
+import { recordIntegrationEvent } from "./observability/integrationEvents";
 import { paymentServiceRuntime } from "./runtime";
-import {
-  consumer,
-  ensurePaymentKafkaTopics,
-  producer,
-} from "./utils/kafka";
-import { runKafkaSubscriptions } from "./utils/subscriptions";
+import { consumer, ensurePaymentKafkaTopics, producer } from "./utils/kafka";
 import { isStripeConfigured } from "./utils/stripe";
+import { runKafkaSubscriptions } from "./utils/subscriptions";
 
 const port = +(process.env.PORT ?? 8002);
 let isShuttingDown = false;
@@ -103,7 +99,10 @@ const shutdown = async (signal: string) => {
     },
   });
 
-  const results = await Promise.allSettled([producer.shutdown(), consumer.shutdown()]);
+  const results = await Promise.allSettled([
+    producer.shutdown(),
+    consumer.shutdown(),
+  ]);
   const failed = results.some((result) => result.status === "rejected");
 
   if (failed) {

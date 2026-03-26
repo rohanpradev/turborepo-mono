@@ -1,5 +1,5 @@
-ARG BUN_DEV_IMAGE=oven/bun:1
-ARG BUN_RUNTIME_IMAGE=oven/bun:1-slim
+ARG BUN_DEV_IMAGE=dhi.io/bun:1-dev
+ARG BUN_RUNTIME_IMAGE=dhi.io/bun:1
 
 FROM ${BUN_DEV_IMAGE} AS pruner
 ENV CI=1 \

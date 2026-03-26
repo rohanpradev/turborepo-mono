@@ -65,15 +65,18 @@ const HomePage = async () => {
               : "Unable to load product service health.",
         }),
       ),
-      getOrderServiceHealth(orderServiceUrl, liveFetchOptions).catch((error) => ({
-        error:
-          error instanceof Error
-            ? error.message
-            : "Unable to load order service health.",
-      })),
+      getOrderServiceHealth(orderServiceUrl, liveFetchOptions).catch(
+        (error) => ({
+          error:
+            error instanceof Error
+              ? error.message
+              : "Unable to load order service health.",
+        }),
+      ),
     ]);
 
-  const recentEvents = "data" in paymentEvents ? paymentEvents.data.recentEvents : [];
+  const recentEvents =
+    "data" in paymentEvents ? paymentEvents.data.recentEvents : [];
   const recentPayments = recentEvents.filter(
     (event) => event.type === "payment.successful.published",
   );
@@ -140,7 +143,9 @@ const HomePage = async () => {
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
             Checkout Sessions
           </p>
-          <p className="mt-3 text-3xl font-semibold">{recentCheckouts.length}</p>
+          <p className="mt-3 text-3xl font-semibold">
+            {recentCheckouts.length}
+          </p>
           <p className="mt-2 text-sm text-muted-foreground">
             Stripe checkout sessions created by the current payment-service
             process.
@@ -150,7 +155,9 @@ const HomePage = async () => {
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
             Catalog Snapshot
           </p>
-          <p className="mt-3 text-3xl font-semibold">{featuredProducts.length}</p>
+          <p className="mt-3 text-3xl font-semibold">
+            {featuredProducts.length}
+          </p>
           <p className="mt-2 text-sm text-muted-foreground">
             Latest products currently loaded from the catalog service.
           </p>

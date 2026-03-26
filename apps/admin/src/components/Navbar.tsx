@@ -87,7 +87,9 @@ const Navbar = ({ viewer }: NavbarProps) => {
               <AvatarFallback>{getInitials(viewer.displayName)}</AvatarFallback>
             </Avatar>
             <div className="hidden min-w-0 sm:block">
-              <p className="truncate text-sm font-medium">{viewer.displayName}</p>
+              <p className="truncate text-sm font-medium">
+                {viewer.displayName}
+              </p>
               <p className="truncate text-xs text-muted-foreground">
                 {viewer.email ?? "Signed in via Clerk"}
               </p>

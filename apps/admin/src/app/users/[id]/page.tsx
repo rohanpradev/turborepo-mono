@@ -25,7 +25,9 @@ const UserDetailsPage = async ({ params }: UserDetailsPageProps) => {
   ]);
 
   const activities = buildPaymentActivities(events);
-  const customerActivities = activities.filter((activity) => activity.userId === id);
+  const customerActivities = activities.filter(
+    (activity) => activity.userId === id,
+  );
   const customer = buildCustomerSummaries(customerActivities, orders ?? [])[0];
   const userOrders = (orders ?? []).filter((order) => order.userId === id);
 
@@ -125,7 +127,8 @@ const UserDetailsPage = async ({ params }: UserDetailsPageProps) => {
                       {formatUsdFromCents(activity.amountCents)}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {activity.itemCount} item{activity.itemCount === 1 ? "" : "s"}
+                      {activity.itemCount} item
+                      {activity.itemCount === 1 ? "" : "s"}
                     </p>
                   </div>
                   <span
@@ -205,7 +208,9 @@ const UserDetailsPage = async ({ params }: UserDetailsPageProps) => {
                     ))}
                   </ul>
                   <p className="mt-4 text-xs text-muted-foreground">
-                    {order.createdAt ? formatTimestamp(order.createdAt) : "Unknown order time"}
+                    {order.createdAt
+                      ? formatTimestamp(order.createdAt)
+                      : "Unknown order time"}
                   </p>
                 </article>
               ))

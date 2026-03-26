@@ -1,7 +1,7 @@
 import type { CheckoutSessionPayload } from "@repo/types";
 import { recordIntegrationEvent } from "../observability/integrationEvents";
-import { StripeCatalogService } from "./StripeCatalogService";
 import { getStripeClient } from "../utils/stripe";
+import { StripeCatalogService } from "./StripeCatalogService";
 
 type CreateCheckoutSessionInput = {
   payload: CheckoutSessionPayload;
@@ -16,7 +16,8 @@ export const StripeCheckoutService = {
       recordIntegrationEvent({
         source: "checkout",
         type: "checkout.create.skipped",
-        message: "Checkout session creation skipped because Stripe is not configured.",
+        message:
+          "Checkout session creation skipped because Stripe is not configured.",
         details: {
           userId: input.userId,
         },
@@ -89,7 +90,9 @@ export const StripeCheckoutService = {
     });
 
     if (!session.client_secret) {
-      throw new Error("Stripe did not return a checkout session client secret.");
+      throw new Error(
+        "Stripe did not return a checkout session client secret.",
+      );
     }
 
     recordIntegrationEvent({
@@ -117,7 +120,8 @@ export const StripeCheckoutService = {
       recordIntegrationEvent({
         source: "checkout",
         type: "checkout.status.skipped",
-        message: "Checkout status lookup skipped because Stripe is not configured.",
+        message:
+          "Checkout status lookup skipped because Stripe is not configured.",
         details: {
           sessionId,
         },

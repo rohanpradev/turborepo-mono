@@ -1,4 +1,4 @@
-import { Topics, type ProductCreatedMessage } from "@repo/kafka";
+import { type ProductCreatedMessage, Topics } from "@repo/kafka";
 import { recordIntegrationEvent } from "../observability/integrationEvents";
 import { getStripeClient } from "../utils/stripe";
 
@@ -56,7 +56,8 @@ export const StripeCatalogService = {
       recordIntegrationEvent({
         source: "stripe",
         type: "catalog.sync.skipped",
-        message: "Skipped Stripe catalog sync because Stripe is not configured.",
+        message:
+          "Skipped Stripe catalog sync because Stripe is not configured.",
         details: {
           productId: message.id,
         },
@@ -68,26 +69,25 @@ export const StripeCatalogService = {
     }
 
     const existingProduct = await findStripeProductBySourceId(message.id);
-    const activeProduct =
-      existingProduct
-        ? await stripe.products.update(existingProduct.id, {
-            name: message.name,
-            description: message.description,
-            active: true,
-            metadata: {
-              sourceProductId: message.id,
-              sourceCategorySlug: message.categorySlug ?? "",
-            },
-          })
-        : await stripe.products.create({
-            name: message.name,
-            description: message.description,
-            active: true,
-            metadata: {
-              sourceProductId: message.id,
-              sourceCategorySlug: message.categorySlug ?? "",
-            },
-          });
+    const activeProduct = existingProduct
+      ? await stripe.products.update(existingProduct.id, {
+          name: message.name,
+          description: message.description,
+          active: true,
+          metadata: {
+            sourceProductId: message.id,
+            sourceCategorySlug: message.categorySlug ?? "",
+          },
+        })
+      : await stripe.products.create({
+          name: message.name,
+          description: message.description,
+          active: true,
+          metadata: {
+            sourceProductId: message.id,
+            sourceCategorySlug: message.categorySlug ?? "",
+          },
+        });
 
     const lookupKey = priceLookupKey(message.id);
     const existingPrices = await listProductPrices(lookupKey);

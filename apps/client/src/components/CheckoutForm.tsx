@@ -1,9 +1,6 @@
 "use client";
 
-import {
-  PaymentElement,
-  useCheckout,
-} from "@stripe/react-stripe-js/checkout";
+import { PaymentElement, useCheckout } from "@stripe/react-stripe-js/checkout";
 import { type FormEvent, useState } from "react";
 
 interface ShippingFormInputs {

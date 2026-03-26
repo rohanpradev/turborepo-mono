@@ -2,8 +2,8 @@ import type {
   CategoryRecord,
   CheckoutSessionPayload,
   OrderRecord,
-  ProductListQuery as SharedProductListQuery,
   ProductRecord,
+  ProductListQuery as SharedProductListQuery,
 } from "@repo/types";
 
 export class ApiClientError extends Error {
@@ -165,9 +165,8 @@ export const getProduct = async (baseUrl: string, id: number) => {
 };
 
 export const listCategories = async (baseUrl: string) => {
-  const response = await createProductServiceClient(baseUrl).request(
-    "/categories",
-  );
+  const response =
+    await createProductServiceClient(baseUrl).request("/categories");
   return parseJson<ListCategoriesResponse>(response);
 };
 

@@ -1,17 +1,14 @@
 import {
   getOrderServiceHealth,
   getOrderServiceServerUrl,
-  getOrderServiceUrl,
   getPaymentIntegrationEvents,
   getPaymentServiceHealth,
   getPaymentServiceServerUrl,
   getPaymentServiceUrl,
   getProductServiceHealth,
   getProductServiceServerUrl,
-  getProductServiceUrl,
   type OrderHealthResponse,
   type PaymentHealthResponse,
-  type PaymentIntegrationEventsResponse,
   type ProductHealthResponse,
 } from "@repo/api-client";
 import { formatUsdFromCents } from "@repo/types";
@@ -86,8 +83,7 @@ const PaymentsPage = async () => {
     },
   ] as const;
 
-  const eventPayload =
-    "data" in paymentEvents ? paymentEvents.data : null;
+  const eventPayload = "data" in paymentEvents ? paymentEvents.data : null;
   const recentEvents = eventPayload?.recentEvents ?? [];
   const successfulPayments = recentEvents.filter(
     (event) => event.type === "payment.successful.published",
@@ -127,7 +123,10 @@ const PaymentsPage = async () => {
             <Link href="https://kafka.localhost" className="underline">
               Kafka UI
             </Link>
-            <Link href="https://dashboard.localhost/dashboard/" className="underline">
+            <Link
+              href="https://dashboard.localhost/dashboard/"
+              className="underline"
+            >
               Traefik Dashboard
             </Link>
             <span className="text-muted-foreground">
@@ -254,7 +253,9 @@ const PaymentsPage = async () => {
         <section className="rounded-2xl border bg-card p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-lg font-semibold">Kafka and Stripe Timeline</h2>
+              <h2 className="text-lg font-semibold">
+                Kafka and Stripe Timeline
+              </h2>
               <p className="text-sm text-muted-foreground">
                 Recent upstream Kafka, Stripe, checkout, and webhook events from
                 the payment service.

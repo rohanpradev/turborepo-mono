@@ -15,7 +15,10 @@ const integrationEventSchema = z.object({
   message: z.string(),
   timestamp: z.string(),
   details: z
-    .record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()]))
+    .record(
+      z.string(),
+      z.union([z.string(), z.number(), z.boolean(), z.null()]),
+    )
     .optional(),
 });
 

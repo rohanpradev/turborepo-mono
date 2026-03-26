@@ -1,5 +1,5 @@
-ARG BUN_DEV_IMAGE=oven/bun:1
-ARG NODE_RUNTIME_IMAGE=node:24-bookworm-slim
+ARG BUN_DEV_IMAGE=dhi.io/bun:1-dev
+ARG NODE_RUNTIME_IMAGE=dhi.io/node:24.14.0-debian13
 
 FROM ${BUN_DEV_IMAGE} AS pruner
 ENV CI=1 \
