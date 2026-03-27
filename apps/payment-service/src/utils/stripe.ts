@@ -16,7 +16,9 @@ export const getStripeClient = () => {
   return stripeClient;
 };
 
-export const setStripeClientForTesting = (client: Stripe | null | undefined) => {
+export const setStripeClientForTesting = (
+  client: Stripe | null | undefined,
+) => {
   stripeClient = client;
 };
 

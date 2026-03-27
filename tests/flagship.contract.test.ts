@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { app as orderApp } from "../apps/order-service/src/app.ts";
 import { app as paymentApp } from "../apps/payment-service/src/app.ts";
-import { app as productApp } from "../apps/product-service/src/app.ts";
 import { setStripeClientForTesting } from "../apps/payment-service/src/utils/stripe.ts";
+import { app as productApp } from "../apps/product-service/src/app.ts";
 import {
   ApiClientError,
   listOrders,
