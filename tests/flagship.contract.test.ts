@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { app as orderApp } from "../apps/order-service/src/app.ts";
 import { app as paymentApp } from "../apps/payment-service/src/app.ts";
 import { app as productApp } from "../apps/product-service/src/app.ts";
+import { setStripeClientForTesting } from "../apps/payment-service/src/utils/stripe.ts";
 import {
   ApiClientError,
   listOrders,
@@ -266,13 +267,36 @@ describe("flagship service contracts", () => {
     const payload = (await response.json()) as {
       success: boolean;
       error: string;
+      timestamp?: string;
+      requestId?: string;
+      issues: Array<{ path: Array<string | number>; message: string }>;
+    };
+
+    expect(payload.success).toBe(false);
+    expect(payload.error).toBe("Validation failed");
+    expect(payload.timestamp).toBeString();
+    expect(payload.requestId).toBeString();
+    expect(
+      payload.issues.some((issue) => issue.path.includes("limit")),
+    ).toBeTrue();
+  });
+
+  it("rejects unknown product query parameters to keep the API contract strict", async () => {
+    const response = await productApp.request("/products?unexpected=value");
+    expect(response.status).toBe(422);
+
+    const payload = (await response.json()) as {
+      success: boolean;
+      error: string;
       issues: Array<{ path: Array<string | number>; message: string }>;
     };
 
     expect(payload.success).toBe(false);
     expect(payload.error).toBe("Validation failed");
     expect(
-      payload.issues.some((issue) => issue.path.includes("limit")),
+      payload.issues.some((issue) =>
+        issue.message.toLowerCase().includes("unrecognized"),
+      ),
     ).toBeTrue();
   });
 
@@ -292,7 +316,7 @@ describe("flagship service contracts", () => {
         });
 
         expect(response.status).toBe(503);
-        expect(await response.json()).toEqual({
+        expect(await response.json()).toMatchObject({
           success: false,
           error: "Clerk auth is not configured for this environment.",
         });
@@ -310,7 +334,7 @@ describe("flagship service contracts", () => {
         const response = await orderApp.request("/api/orders");
 
         expect(response.status).toBe(503);
-        expect(await response.json()).toEqual({
+        expect(await response.json()).toMatchObject({
           success: false,
           error: "Clerk auth is not configured for this environment.",
         });
@@ -338,7 +362,7 @@ describe("flagship service contracts", () => {
         );
 
         expect(response.status).toBe(503);
-        expect(await response.json()).toEqual({
+        expect(await response.json()).toMatchObject({
           success: false,
           error: "Clerk auth is not configured for this environment.",
         });
@@ -362,11 +386,54 @@ describe("flagship service contracts", () => {
         });
 
         expect(response.status).toBe(503);
-        expect(await response.json()).toEqual({
+        expect(await response.json()).toMatchObject({
           success: false,
           error:
             "Stripe webhook handling is not configured for this environment.",
         });
+      },
+    );
+  });
+
+  it("returns 404 for unknown checkout sessions instead of leaking a Stripe failure", async () => {
+    await withEnvPatch(
+      {
+        STRIPE_SECRET_KEY: "test-key",
+      },
+      async () => {
+        const fakeStripeClient = {
+          checkout: {
+            sessions: {
+              retrieve: async () => {
+                const error = new Error(
+                  "No such checkout.session: test-session",
+                ) as Error & {
+                  statusCode?: number;
+                  code?: string;
+                };
+                error.statusCode = 404;
+                error.code = "resource_missing";
+                throw error;
+              },
+            },
+          },
+        };
+
+        setStripeClientForTesting(fakeStripeClient as never);
+
+        try {
+          const response = await paymentApp.request(
+            "/api/session/status?sessionId=test-session",
+          );
+
+          expect(response.status).toBe(404);
+          expect(await response.json()).toMatchObject({
+            success: false,
+            error: "Checkout session not found.",
+          });
+        } finally {
+          setStripeClientForTesting(undefined);
+        }
       },
     );
   });
@@ -418,7 +485,7 @@ describe("flagship service contracts", () => {
 
           if (error instanceof ApiClientError) {
             expect(error.status).toBe(503);
-            expect(error.payload).toEqual({
+            expect(error.payload).toMatchObject({
               success: false,
               error: "Clerk auth is not configured for this environment.",
             });

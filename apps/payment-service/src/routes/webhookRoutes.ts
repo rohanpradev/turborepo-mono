@@ -1,4 +1,5 @@
 import {
+  createHttpException,
   createRoute,
   createServiceRouter,
   errorResponseSchema,
@@ -44,18 +45,14 @@ export const webhookRoutes = createServiceRouter().openapi(
     const result = await StripeWebhookService.handleEvent(payload, signature);
 
     if (result.status === "not_configured") {
-      return c.json(
-        {
-          success: false as const,
-          error:
-            "Stripe webhook handling is not configured for this environment.",
-        },
+      throw createHttpException(
         503,
+        "Stripe webhook handling is not configured for this environment.",
       );
     }
 
     if (result.status === "invalid") {
-      return c.json({ success: false as const, error: result.message }, 400);
+      throw createHttpException(400, result.message);
     }
 
     return c.json({ received: true }, 200);

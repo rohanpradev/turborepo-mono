@@ -1,5 +1,6 @@
 import {
   bearerSecurity,
+  createHttpException,
   createListResponseSchema,
   createRoute,
   createServiceRouter,
@@ -16,7 +17,7 @@ import {
   categoryUpdateSchema,
 } from "@repo/types";
 import type { ServiceVariables } from "../middleware/auth";
-import { shouldBeUser } from "../middleware/auth";
+import { shouldBeAdmin } from "../middleware/auth";
 import { CategoryService } from "../services/CategoryService";
 
 const categoryResponseSchema =
@@ -69,7 +70,7 @@ const createCategoryRoute = createRoute({
   tags: ["categories"],
   summary: "Create category",
   security: bearerSecurity,
-  middleware: [shouldBeUser],
+  middleware: [shouldBeAdmin],
   request: {
     body: {
       required: true,
@@ -83,6 +84,10 @@ const createCategoryRoute = createRoute({
     },
     401: {
       description: "The caller is not authenticated.",
+      content: jsonContent(errorResponseSchema),
+    },
+    403: {
+      description: "The caller is authenticated but not authorized.",
       content: jsonContent(errorResponseSchema),
     },
     422: {
@@ -102,7 +107,7 @@ const updateCategoryRoute = createRoute({
   tags: ["categories"],
   summary: "Update category",
   security: bearerSecurity,
-  middleware: [shouldBeUser],
+  middleware: [shouldBeAdmin],
   request: {
     params: categorySlugParamSchema,
     body: {
@@ -117,6 +122,10 @@ const updateCategoryRoute = createRoute({
     },
     401: {
       description: "The caller is not authenticated.",
+      content: jsonContent(errorResponseSchema),
+    },
+    403: {
+      description: "The caller is authenticated but not authorized.",
       content: jsonContent(errorResponseSchema),
     },
     404: {
@@ -140,7 +149,7 @@ const deleteCategoryRoute = createRoute({
   tags: ["categories"],
   summary: "Delete category",
   security: bearerSecurity,
-  middleware: [shouldBeUser],
+  middleware: [shouldBeAdmin],
   request: {
     params: categorySlugParamSchema,
   },
@@ -151,6 +160,10 @@ const deleteCategoryRoute = createRoute({
     },
     401: {
       description: "The caller is not authenticated.",
+      content: jsonContent(errorResponseSchema),
+    },
+    403: {
+      description: "The caller is authenticated but not authorized.",
       content: jsonContent(errorResponseSchema),
     },
     404: {
@@ -180,10 +193,7 @@ export const categoryRoutes = createServiceRouter<{
     const category = await CategoryService.getCategory(slug);
 
     if (!category) {
-      return c.json(
-        { success: false as const, error: "Category not found" },
-        404,
-      );
+      throw createHttpException(404, "Category not found");
     }
 
     return c.json({ success: true as const, data: category }, 200);
@@ -200,10 +210,7 @@ export const categoryRoutes = createServiceRouter<{
     );
 
     if (!category) {
-      return c.json(
-        { success: false as const, error: "Category not found" },
-        404,
-      );
+      throw createHttpException(404, "Category not found");
     }
 
     return c.json({ success: true as const, data: category }, 200);
@@ -213,10 +220,7 @@ export const categoryRoutes = createServiceRouter<{
     const deleted = await CategoryService.deleteCategory(slug);
 
     if (!deleted) {
-      return c.json(
-        { success: false as const, error: "Category not found" },
-        404,
-      );
+      throw createHttpException(404, "Category not found");
     }
 
     return c.json({ success: true as const, message: "Category deleted" }, 200);

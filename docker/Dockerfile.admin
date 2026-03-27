@@ -1,5 +1,5 @@
 ARG BUN_DEV_IMAGE=dhi.io/bun:1-dev
-ARG NODE_RUNTIME_IMAGE=dhi.io/node:24.14.0-debian13
+ARG BUN_RUNTIME_IMAGE=dhi.io/bun:1
 
 FROM ${BUN_DEV_IMAGE} AS pruner
 ENV CI=1 \
@@ -32,7 +32,7 @@ RUN bun install --frozen-lockfile
 COPY --from=pruner /repo/out/full/ ./
 RUN bunx turbo run build --filter=admin...
 
-FROM ${NODE_RUNTIME_IMAGE} AS runner
+FROM ${BUN_RUNTIME_IMAGE} AS runner
 ENV NODE_ENV=production \
     PORT=3003 \
     HOSTNAME=0.0.0.0 \
@@ -45,4 +45,4 @@ COPY --from=builder /app/apps/admin/public ./apps/admin/public
 
 EXPOSE 3003
 
-CMD ["node", "apps/admin/server.js"]
+CMD ["bun", "apps/admin/server.js"]

@@ -1,5 +1,6 @@
 import {
   bearerSecurity,
+  createHttpException,
   createPaginatedListResponseSchema,
   createRoute,
   createServiceRouter,
@@ -17,7 +18,7 @@ import {
   productUpdateSchema,
 } from "@repo/types";
 import type { ServiceVariables } from "../middleware/auth";
-import { shouldBeUser } from "../middleware/auth";
+import { shouldBeAdmin } from "../middleware/auth";
 import { ProductService } from "../services/ProductService";
 
 const productResponseSchema =
@@ -80,7 +81,7 @@ const createProductRoute = createRoute({
   description:
     "Creates a new catalog product and publishes the product.created Kafka event.",
   security: bearerSecurity,
-  middleware: [shouldBeUser],
+  middleware: [shouldBeAdmin],
   request: {
     body: {
       required: true,
@@ -94,6 +95,10 @@ const createProductRoute = createRoute({
     },
     401: {
       description: "The caller is not authenticated.",
+      content: jsonContent(errorResponseSchema),
+    },
+    403: {
+      description: "The caller is authenticated but not authorized.",
       content: jsonContent(errorResponseSchema),
     },
     422: {
@@ -114,7 +119,7 @@ const updateProductRoute = createRoute({
   summary: "Update product",
   description: "Updates an existing product.",
   security: bearerSecurity,
-  middleware: [shouldBeUser],
+  middleware: [shouldBeAdmin],
   request: {
     params: productIdParamSchema,
     body: {
@@ -129,6 +134,10 @@ const updateProductRoute = createRoute({
     },
     401: {
       description: "The caller is not authenticated.",
+      content: jsonContent(errorResponseSchema),
+    },
+    403: {
+      description: "The caller is authenticated but not authorized.",
       content: jsonContent(errorResponseSchema),
     },
     404: {
@@ -154,7 +163,7 @@ const deleteProductRoute = createRoute({
   description:
     "Deletes a product and publishes the product.deleted Kafka event.",
   security: bearerSecurity,
-  middleware: [shouldBeUser],
+  middleware: [shouldBeAdmin],
   request: {
     params: productIdParamSchema,
   },
@@ -165,6 +174,10 @@ const deleteProductRoute = createRoute({
     },
     401: {
       description: "The caller is not authenticated.",
+      content: jsonContent(errorResponseSchema),
+    },
+    403: {
+      description: "The caller is authenticated but not authorized.",
       content: jsonContent(errorResponseSchema),
     },
     404: {
@@ -208,10 +221,7 @@ export const productRoutes = createServiceRouter<{
     const product = await ProductService.getProduct(id);
 
     if (!product) {
-      return c.json(
-        { success: false as const, error: "Product not found" },
-        404,
-      );
+      throw createHttpException(404, "Product not found");
     }
 
     return c.json({ success: true as const, data: product }, 200);
@@ -225,10 +235,7 @@ export const productRoutes = createServiceRouter<{
     const product = await ProductService.updateProduct(id, c.req.valid("json"));
 
     if (!product) {
-      return c.json(
-        { success: false as const, error: "Product not found" },
-        404,
-      );
+      throw createHttpException(404, "Product not found");
     }
 
     return c.json({ success: true as const, data: product }, 200);
@@ -238,10 +245,7 @@ export const productRoutes = createServiceRouter<{
     const deleted = await ProductService.deleteProduct(id);
 
     if (!deleted) {
-      return c.json(
-        { success: false as const, error: "Product not found" },
-        404,
-      );
+      throw createHttpException(404, "Product not found");
     }
 
     return c.json(

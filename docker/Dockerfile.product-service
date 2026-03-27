@@ -6,8 +6,18 @@ ENV CI=1 \
     TURBO_TELEMETRY_DISABLED=1
 WORKDIR /repo
 RUN bun install --global turbo@2.8.20
+ENV PATH="/root/.bun/bin:$PATH"
 COPY . .
-RUN bunx turbo prune product-service --docker
+RUN turbo prune product-service --docker
+
+FROM ${BUN_DEV_IMAGE} AS prod-deps
+ENV CI=1 \
+    TURBO_TELEMETRY_DISABLED=1 \
+    NODE_ENV=production
+WORKDIR /app
+
+COPY --from=pruner /repo/out/json/ ./
+RUN bun install --frozen-lockfile --production
 
 FROM ${BUN_DEV_IMAGE} AS builder
 ENV CI=1 \
@@ -25,7 +35,15 @@ ENV NODE_ENV=production \
     PORT=3000
 WORKDIR /app
 
-COPY --from=builder /app ./
+COPY --from=prod-deps /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/bun.lock ./bun.lock
+COPY --from=builder /app/apps/product-service ./apps/product-service
+COPY --from=builder /app/packages/hono-utils ./packages/hono-utils
+COPY --from=builder /app/packages/kafka ./packages/kafka
+COPY --from=builder /app/packages/product-db ./packages/product-db
+COPY --from=builder /app/packages/types ./packages/types
+COPY --from=builder /app/packages/typescript-config ./packages/typescript-config
 
 EXPOSE 3000
 

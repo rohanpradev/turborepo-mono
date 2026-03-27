@@ -8,6 +8,33 @@ type CreateCheckoutSessionInput = {
   userId: string;
 };
 
+type CheckoutSessionStatus = {
+  sessionId: string;
+  status: string;
+  paymentStatus: string;
+  customerEmail: string | null;
+  paymentIntentId: string | null;
+};
+
+export type CheckoutSessionStatusResult =
+  | { kind: "not_configured" }
+  | { kind: "not_found"; message: string }
+  | { kind: "ok"; data: CheckoutSessionStatus };
+
+const isStripeResourceMissingError = (
+  error: unknown,
+): error is {
+  statusCode: number;
+  code: string;
+  message?: string;
+} =>
+  typeof error === "object" &&
+  error !== null &&
+  "statusCode" in error &&
+  "code" in error &&
+  (error as { statusCode?: unknown }).statusCode === 404 &&
+  (error as { code?: unknown }).code === "resource_missing";
+
 export const StripeCheckoutService = {
   async createCheckoutSession(input: CreateCheckoutSessionInput) {
     const stripe = getStripeClient();
@@ -113,7 +140,9 @@ export const StripeCheckoutService = {
     };
   },
 
-  async getCheckoutSessionStatus(sessionId: string) {
+  async getCheckoutSessionStatus(
+    sessionId: string,
+  ): Promise<CheckoutSessionStatusResult> {
     const stripe = getStripeClient();
 
     if (!stripe) {
@@ -126,38 +155,59 @@ export const StripeCheckoutService = {
           sessionId,
         },
       });
-      return null;
+      return { kind: "not_configured" } as const;
     }
 
-    const session = await stripe.checkout.sessions.retrieve(sessionId, {
-      expand: ["payment_intent"],
-    });
+    try {
+      const session = await stripe.checkout.sessions.retrieve(sessionId, {
+        expand: ["payment_intent"],
+      });
 
-    const paymentIntent =
-      typeof session.payment_intent === "string"
-        ? null
-        : session.payment_intent;
+      const paymentIntent =
+        typeof session.payment_intent === "string"
+          ? null
+          : session.payment_intent;
 
-    const status = {
-      sessionId: session.id,
-      status: session.status ?? "open",
-      paymentStatus: session.payment_status ?? "unpaid",
-      customerEmail:
-        session.customer_details?.email ?? session.customer_email ?? null,
-      paymentIntentId: paymentIntent?.id ?? null,
-    };
+      const status = {
+        sessionId: session.id,
+        status: session.status ?? "open",
+        paymentStatus: session.payment_status ?? "unpaid",
+        customerEmail:
+          session.customer_details?.email ?? session.customer_email ?? null,
+        paymentIntentId: paymentIntent?.id ?? null,
+      };
 
-    recordIntegrationEvent({
-      source: "checkout",
-      type: "checkout.session.status.loaded",
-      message: "Loaded Stripe checkout session status.",
-      details: {
-        sessionId: status.sessionId,
-        status: status.status,
-        paymentStatus: status.paymentStatus,
-      },
-    });
+      recordIntegrationEvent({
+        source: "checkout",
+        type: "checkout.session.status.loaded",
+        message: "Loaded Stripe checkout session status.",
+        details: {
+          sessionId: status.sessionId,
+          status: status.status,
+          paymentStatus: status.paymentStatus,
+        },
+      });
 
-    return status;
+      return { kind: "ok", data: status } as const;
+    } catch (error) {
+      if (isStripeResourceMissingError(error)) {
+        recordIntegrationEvent({
+          source: "checkout",
+          type: "checkout.session.status.missing",
+          message: "Stripe checkout session was not found.",
+          details: {
+            sessionId,
+            stripeMessage: error.message ?? null,
+          },
+        });
+
+        return {
+          kind: "not_found",
+          message: "Checkout session not found.",
+        } as const;
+      }
+
+      throw error;
+    }
   },
 };

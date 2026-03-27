@@ -11,8 +11,6 @@ let isShuttingDown = false;
 const bootstrap = async () => {
   try {
     await ensurePaymentKafkaTopics();
-    console.log("Kafka topics ready");
-
     await producer.start();
     paymentServiceRuntime.markReady("kafka.producer");
     recordIntegrationEvent({
@@ -21,7 +19,26 @@ const bootstrap = async () => {
       message: "Kafka producer connected for payment events.",
     });
     console.log("Kafka producer connected");
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Kafka producer bootstrap failed.";
 
+    paymentServiceRuntime.markNotReady("kafka.producer", message);
+    recordIntegrationEvent({
+      source: "service",
+      type: "kafka.producer.failed",
+      message: "Payment service Kafka producer bootstrap failed.",
+      details: {
+        reason: message,
+      },
+    });
+    console.error("Failed to initialize payment Kafka producer:", error);
+    process.exit(1);
+  }
+
+  try {
     await runKafkaSubscriptions();
     paymentServiceRuntime.markReady("kafka.consumer");
     recordIntegrationEvent({
@@ -30,45 +47,44 @@ const bootstrap = async () => {
       message: "Kafka consumer connected for product catalog sync.",
     });
     console.log("Kafka subscriptions started");
-
-    if (isStripeConfigured()) {
-      paymentServiceRuntime.markReady("stripe", "Stripe API keys configured.");
-      recordIntegrationEvent({
-        source: "service",
-        type: "stripe.ready",
-        message: "Stripe integration is configured.",
-      });
-    } else {
-      paymentServiceRuntime.markDisabled(
-        "stripe",
-        "Stripe API keys are not configured for this environment.",
-      );
-      recordIntegrationEvent({
-        source: "service",
-        type: "stripe.disabled",
-        message: "Stripe integration is disabled in this environment.",
-      });
-    }
   } catch (error) {
     const message =
       error instanceof Error
         ? error.message
-        : "Payment service bootstrap failed.";
+        : "Kafka consumer bootstrap failed.";
 
-    paymentServiceRuntime.markNotReady("kafka.producer", message);
     paymentServiceRuntime.markNotReady("kafka.consumer", message);
-    paymentServiceRuntime.markNotReady("stripe", message);
     recordIntegrationEvent({
       source: "service",
-      type: "bootstrap.failed",
-      message: "Payment service bootstrap failed.",
+      type: "kafka.consumer.failed",
+      message: "Payment service Kafka consumer bootstrap failed.",
       details: {
         reason: message,
       },
     });
-    console.error("Failed to initialize payment service dependencies:", error);
+    console.error("Failed to initialize payment Kafka consumer:", error);
     process.exit(1);
   }
+
+  if (isStripeConfigured()) {
+    paymentServiceRuntime.markReady("stripe", "Stripe API keys configured.");
+    recordIntegrationEvent({
+      source: "service",
+      type: "stripe.ready",
+      message: "Stripe integration is configured.",
+    });
+    return;
+  }
+
+  paymentServiceRuntime.markDisabled(
+    "stripe",
+    "Stripe API keys are not configured for this environment.",
+  );
+  recordIntegrationEvent({
+    source: "service",
+    type: "stripe.disabled",
+    message: "Stripe integration is disabled in this environment.",
+  });
 };
 
 const shutdown = async (signal: string) => {

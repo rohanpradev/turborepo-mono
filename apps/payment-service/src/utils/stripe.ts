@@ -16,5 +16,9 @@ export const getStripeClient = () => {
   return stripeClient;
 };
 
+export const setStripeClientForTesting = (client: Stripe | null | undefined) => {
+  stripeClient = client;
+};
+
 export const getStripeWebhookSecret = () =>
   process.env.STRIPE_WEBHOOK_SECRET || null;

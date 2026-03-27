@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "check-types": "bun run db:generate && tsc --noEmit",
+    "check-types": "tsc --noEmit",
     "db:generate": "bunx --bun prisma generate",
     "db:migrate": "bunx --bun prisma migrate dev",
     "db:deploy": "bunx --bun prisma migrate deploy"

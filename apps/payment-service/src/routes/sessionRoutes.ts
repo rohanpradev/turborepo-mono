@@ -1,5 +1,6 @@
 import {
   bearerSecurity,
+  createHttpException,
   createRoute,
   createServiceRouter,
   createSuccessResponseSchema,
@@ -81,6 +82,10 @@ const getCheckoutSessionStatusRoute = createRoute({
       description: "Checkout session status retrieved successfully.",
       content: jsonContent(checkoutSessionStatusResponseSchema),
     },
+    404: {
+      description: "Checkout session was not found.",
+      content: jsonContent(errorResponseSchema),
+    },
     422: {
       description: "The query parameters were invalid.",
       content: jsonContent(validationErrorResponseSchema),
@@ -102,31 +107,29 @@ export const sessionRoutes = createServiceRouter<{
     });
 
     if (!session) {
-      return c.json(
-        {
-          success: false as const,
-          error: "Stripe is not configured for this environment.",
-        },
+      throw createHttpException(
         503,
+        "Stripe is not configured for this environment.",
       );
     }
 
     return c.json({ success: true as const, data: session }, 200);
   })
   .openapi(getCheckoutSessionStatusRoute, async (c) => {
-    const status = await StripeCheckoutService.getCheckoutSessionStatus(
+    const statusResult = await StripeCheckoutService.getCheckoutSessionStatus(
       c.req.valid("query").sessionId,
     );
 
-    if (!status) {
-      return c.json(
-        {
-          success: false as const,
-          error: "Stripe is not configured for this environment.",
-        },
+    if (statusResult.kind === "not_configured") {
+      throw createHttpException(
         503,
+        "Stripe is not configured for this environment.",
       );
     }
 
-    return c.json({ success: true as const, data: status }, 200);
+    if (statusResult.kind === "not_found") {
+      throw createHttpException(404, statusResult.message);
+    }
+
+    return c.json({ success: true as const, data: statusResult.data }, 200);
   });

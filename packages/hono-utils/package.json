@@ -8,7 +8,9 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
+    "@hono/clerk-auth": "^3.1.0",
     "@hono/zod-openapi": "^1.2.3",
+    "@repo/types": "workspace:*",
     "@scalar/hono-api-reference": "^0.10.4",
     "hono": "^4.12.9",
     "zod": "^4.3.6"

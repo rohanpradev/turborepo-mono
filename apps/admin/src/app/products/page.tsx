@@ -1,4 +1,5 @@
 import { formatUsdFromCents } from "@repo/types";
+import Image from "next/image";
 import Link from "next/link";
 import {
   getStorefrontAssetUrl,
@@ -130,11 +131,15 @@ const ProductsPage = async () => {
                 className="overflow-hidden rounded-2xl border border-dashed"
               >
                 <div className="aspect-[4/3] bg-muted">
-                  <img
+                  <Image
                     src={getStorefrontAssetUrl(
                       Object.values(product.images)[0] ?? "/logo.svg",
                     )}
                     alt={product.name}
+                    width={640}
+                    height={480}
+                    unoptimized
+                    sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw"
                     className="h-full w-full object-cover"
                   />
                 </div>

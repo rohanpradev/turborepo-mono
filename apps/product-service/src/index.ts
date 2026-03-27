@@ -11,27 +11,28 @@ const bootstrap = async () => {
     await connectProductDB();
     productServiceRuntime.markReady("database");
     console.log("Connected to product database");
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Product database bootstrap failed.";
+    productServiceRuntime.markNotReady("database", message);
+    console.error("Failed to initialize product database:", error);
+    process.exit(1);
+  }
 
+  try {
     await ensureProductKafkaTopics();
-    console.log("Kafka topics ready");
-
     await producer.start();
     productServiceRuntime.markReady("kafka.producer");
     console.log("Kafka producer connected");
   } catch (error) {
-    productServiceRuntime.markNotReady(
-      "database",
+    const message =
       error instanceof Error
         ? error.message
-        : "Product database bootstrap failed.",
-    );
-    productServiceRuntime.markNotReady(
-      "kafka.producer",
-      error instanceof Error
-        ? error.message
-        : "Kafka producer bootstrap failed.",
-    );
-    console.error("Failed to initialize product service dependencies:", error);
+        : "Kafka producer bootstrap failed.";
+    productServiceRuntime.markNotReady("kafka.producer", message);
+    console.error("Failed to initialize product Kafka producer:", error);
     process.exit(1);
   }
 };

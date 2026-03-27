@@ -2,22 +2,22 @@ import z from "zod";
 
 export const productSortSchema = z.enum(["asc", "desc", "oldest", "newest"]);
 
-export const productIdParamSchema = z.object({
+export const productIdParamSchema = z.strictObject({
   id: z.coerce.number().int().positive(),
 });
 
-export const categorySlugParamSchema = z.object({
+export const categorySlugParamSchema = z.strictObject({
   slug: z.string().min(1),
 });
 
-export const productListQuerySchema = z.object({
+export const productListQuerySchema = z.strictObject({
   sort: productSortSchema.optional(),
   category: z.string().min(1).optional(),
   search: z.string().min(1).optional(),
   limit: z.coerce.number().int().positive().max(100).optional(),
 });
 
-const productBaseSchema = z.object({
+const productBaseSchema = z.strictObject({
   name: z.string().min(1),
   shortDescription: z.string().min(1).max(60),
   description: z.string().min(1),
@@ -52,7 +52,7 @@ export const productUpdateSchema = productBaseSchema
     message: "At least one field must be updated.",
   });
 
-export const categoryPayloadSchema = z.object({
+export const categoryPayloadSchema = z.strictObject({
   name: z.string().min(1),
   slug: z.string().min(1),
 });
@@ -90,23 +90,23 @@ export const cartItemSchema = productRecordSchema.extend({
   selectedColor: z.string().min(1),
 });
 
-export const checkoutShippingInfoSchema = z.object({
+export const checkoutShippingInfoSchema = z.strictObject({
   email: z.string().email(),
   name: z.string().min(1),
-  address: z.object({
+  address: z.strictObject({
     line1: z.string().min(1),
     city: z.string().min(1),
     country: z.string().min(2),
   }),
 });
 
-export const checkoutSessionPayloadSchema = z.object({
+export const checkoutSessionPayloadSchema = z.strictObject({
   cart: z.array(cartItemSchema).min(1),
   totalAmount: z.number().nonnegative(),
   shippingInfo: checkoutShippingInfoSchema,
 });
 
-export const checkoutSessionStatusQuerySchema = z.object({
+export const checkoutSessionStatusQuerySchema = z.strictObject({
   sessionId: z.string().min(1),
 });
 

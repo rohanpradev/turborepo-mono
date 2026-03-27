@@ -9,6 +9,7 @@ import {
   listProducts,
 } from "@repo/api-client";
 import { formatUsdFromCents } from "@repo/types";
+import Image from "next/image";
 import Link from "next/link";
 import { getStorefrontAssetUrl } from "@/lib/admin-data";
 
@@ -310,12 +311,15 @@ const HomePage = async () => {
                     className="flex items-center gap-3 rounded-xl border border-dashed p-3"
                   >
                     <div className="relative h-14 w-14 overflow-hidden rounded-md bg-muted">
-                      <img
+                      <Image
                         src={getStorefrontAssetUrl(
                           Object.values(product.images)[0] ?? "/logo.svg",
                         )}
                         alt={product.name}
-                        className="h-full w-full object-cover"
+                        fill
+                        unoptimized
+                        sizes="56px"
+                        className="object-cover"
                       />
                     </div>
                     <div className="min-w-0 flex-1">

@@ -7,26 +7,50 @@ import { runKafkaSubscriptions } from "./utils/subscriptions";
 const port = +(process.env.PORT ?? 8001);
 let isShuttingDown = false;
 
-connectOrderDB()
-  .then(async () => {
+const bootstrap = async () => {
+  try {
+    await connectOrderDB();
     orderServiceRuntime.markReady("database");
     console.log("Connected to MongoDB");
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "MongoDB bootstrap failed.";
+    orderServiceRuntime.markNotReady("database", message);
+    console.error("Failed to initialize MongoDB:", error);
+    process.exit(1);
+  }
+
+  try {
     await ensureOrderKafkaTopics();
-    console.log("Kafka topics ready");
     await producer.start();
     orderServiceRuntime.markReady("kafka.producer");
     console.log("Kafka producer connected");
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Kafka producer bootstrap failed.";
+    orderServiceRuntime.markNotReady("kafka.producer", message);
+    console.error("Failed to initialize Kafka producer:", error);
+    process.exit(1);
+  }
+
+  try {
     await runKafkaSubscriptions();
     orderServiceRuntime.markReady("kafka.consumer");
     console.log("Kafka subscriptions started");
-  })
-  .catch((error: Error) => {
-    orderServiceRuntime.markNotReady("database", error.message);
-    orderServiceRuntime.markNotReady("kafka.producer", error.message);
-    orderServiceRuntime.markNotReady("kafka.consumer", error.message);
-    console.error("Failed to initialize services:", error);
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Kafka consumer bootstrap failed.";
+    orderServiceRuntime.markNotReady("kafka.consumer", message);
+    console.error("Failed to initialize Kafka consumer:", error);
     process.exit(1);
-  });
+  }
+};
+
+void bootstrap();
 
 const shutdown = async (signal: string) => {
   if (isShuttingDown) {

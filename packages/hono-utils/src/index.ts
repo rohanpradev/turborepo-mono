@@ -1,3 +1,4 @@
+import { clerkMiddleware, getAuth } from "@hono/clerk-auth";
 import type { Hook } from "@hono/zod-openapi";
 import {
   createRoute,
@@ -5,12 +6,15 @@ import {
   OpenAPIHono,
   z,
 } from "@hono/zod-openapi";
+import type { CustomJwtSessionClaims } from "@repo/types";
 import { Scalar } from "@scalar/hono-api-reference";
-import type { Env } from "hono";
+import type { Context, Env } from "hono";
 import { cors } from "hono/cors";
 import { createMiddleware } from "hono/factory";
+import { HTTPException } from "hono/http-exception";
 import { logger } from "hono/logger";
 import { secureHeaders } from "hono/secure-headers";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 
 extendZodWithOpenApi(z);
 
@@ -41,6 +45,14 @@ type CreateServiceAppOptions = {
   description: string;
   tags: Array<ServiceTag>;
   theme?: ScalarTheme;
+};
+
+type CreateClerkServiceAuthOptions = {
+  publicPaths?: Array<string>;
+};
+
+export type AuthenticatedServiceVariables = {
+  userId: string;
 };
 
 type ServiceDependencyDefinition<TName extends string = string> = {
@@ -83,6 +95,7 @@ export const errorResponseSchema = z
     success: z.literal(false),
     error: z.string(),
     timestamp: z.string().optional(),
+    requestId: z.string().optional(),
   })
   .openapi("ErrorResponse");
 
@@ -98,6 +111,8 @@ export const validationErrorResponseSchema = z
   .object({
     success: z.literal(false),
     error: z.string(),
+    timestamp: z.string().optional(),
+    requestId: z.string().optional(),
     issues: z.array(validationIssueSchema),
   })
   .openapi("ValidationErrorResponse");
@@ -177,6 +192,82 @@ const defaultCorsOrigins = [
   "https://admin.localhost",
 ];
 
+const getClerkConfig = () =>
+  (process.env.CLERK_PUBLISHABLE_KEY ||
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) &&
+  process.env.CLERK_SECRET_KEY
+    ? {
+        publishableKey:
+          process.env.CLERK_PUBLISHABLE_KEY ||
+          process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+        secretKey: process.env.CLERK_SECRET_KEY,
+      }
+    : null;
+
+const generateRequestId = () => {
+  const bunRuntime = globalThis as typeof globalThis & {
+    Bun?: {
+      randomUUIDv7?: () => string;
+    };
+  };
+
+  return typeof bunRuntime.Bun?.randomUUIDv7 === "function"
+    ? bunRuntime.Bun.randomUUIDv7()
+    : crypto.randomUUID();
+};
+
+const normalizeRequestId = (value?: string | null) => {
+  const trimmed = value?.trim();
+
+  if (!trimmed || trimmed.length > 255) {
+    return null;
+  }
+
+  return trimmed;
+};
+
+export const getRequestId = (c: Context) =>
+  normalizeRequestId(c.res.headers.get("x-request-id")) ??
+  normalizeRequestId(c.req.header("x-request-id"));
+
+export const createErrorPayload = <
+  TAdditional extends Record<string, unknown> = Record<string, never>,
+>(
+  c: Context,
+  error: string,
+  additional?: TAdditional,
+) => ({
+  success: false as const,
+  error,
+  timestamp: new Date().toISOString(),
+  requestId: getRequestId(c) ?? undefined,
+  ...(additional ?? {}),
+});
+
+export const createErrorResponse = <
+  TAdditional extends Record<string, unknown> = Record<string, never>,
+>(
+  c: Context,
+  status: number,
+  error: string,
+  additional?: TAdditional,
+) => c.json(createErrorPayload(c, error, additional), status as never);
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+export const createHttpException = <
+  TAdditional extends Record<string, unknown> = Record<string, never>,
+>(
+  status: ContentfulStatusCode,
+  error: string,
+  additional?: TAdditional,
+) =>
+  new HTTPException(status, {
+    message: error,
+    cause: additional,
+  });
+
 export const getCorsOrigins = () => {
   const configuredOrigins = process.env.CORS_ALLOWED_ORIGINS?.split(",")
     .map((origin: string) => origin.trim())
@@ -192,18 +283,13 @@ const createValidationHook =
       return;
     }
 
-    return c.json(
-      {
-        success: false as const,
-        error: "Validation failed",
-        issues: result.error.issues.map((issue) => ({
-          path: issue.path,
-          message: issue.message,
-          code: issue.code,
-        })),
-      },
-      422,
-    );
+    return createErrorResponse(c, 422, "Validation failed", {
+      issues: result.error.issues.map((issue) => ({
+        path: issue.path,
+        message: issue.message,
+        code: issue.code,
+      })),
+    });
   };
 
 export const createServiceRouter = <E extends Env = Env>() =>
@@ -213,19 +299,90 @@ export const createServiceRouter = <E extends Env = Env>() =>
 
 export const createRequestIdMiddleware = () =>
   createMiddleware(async (c, next) => {
-    const bunRuntime = globalThis as typeof globalThis & {
-      Bun?: {
-        randomUUIDv7?: () => string;
-      };
-    };
     const id =
-      typeof bunRuntime.Bun?.randomUUIDv7 === "function"
-        ? bunRuntime.Bun.randomUUIDv7()
-        : crypto.randomUUID();
+      normalizeRequestId(c.req.header("x-request-id")) ?? generateRequestId();
 
+    c.header("x-request-id", id);
     await next();
     c.header("x-request-id", id);
   });
+
+export const createClerkServiceAuth = <
+  TVariables extends
+    AuthenticatedServiceVariables = AuthenticatedServiceVariables,
+>({
+  publicPaths = [],
+}: CreateClerkServiceAuthOptions = {}) => {
+  const isPublicPath = (path: string) => publicPaths.includes(path);
+
+  const clerkAuthMiddleware = createMiddleware(async (c, next) => {
+    if (isPublicPath(c.req.path)) {
+      await next();
+      return;
+    }
+
+    const clerkConfig = getClerkConfig();
+
+    if (!clerkConfig) {
+      await next();
+      return;
+    }
+
+    return clerkMiddleware(clerkConfig)(c, next);
+  });
+
+  const requireUser = createMiddleware<{ Variables: TVariables }>(
+    async (c, next) => {
+      if (!getClerkConfig()) {
+        throw createHttpException(
+          503,
+          "Clerk auth is not configured for this environment.",
+        );
+      }
+
+      const auth = getAuth(c);
+
+      if (!auth?.userId) {
+        throw createHttpException(401, "Unauthorized");
+      }
+
+      c.set("userId", auth.userId);
+      await next();
+    },
+  );
+
+  const requireAdmin = createMiddleware<{ Variables: TVariables }>(
+    async (c, next) => {
+      if (!getClerkConfig()) {
+        throw createHttpException(
+          503,
+          "Clerk auth is not configured for this environment.",
+        );
+      }
+
+      const auth = getAuth(c);
+
+      if (!auth?.userId) {
+        throw createHttpException(401, "Unauthorized");
+      }
+
+      const claims = auth.sessionClaims as CustomJwtSessionClaims | undefined;
+
+      if (claims?.metadata?.role !== "admin") {
+        throw createHttpException(403, "Forbidden");
+      }
+
+      c.set("userId", auth.userId);
+      await next();
+    },
+  );
+
+  return {
+    clerkAuthMiddleware,
+    requireUser,
+    requireAdmin,
+  };
+};
 
 export const createServiceRuntime = <
   TService extends string,
@@ -418,27 +575,20 @@ export const createServiceApp = <E extends Env = Env>({
   app.use("*", createRequestIdMiddleware());
   app.use("*", secureHeaders());
   app.use("*", logger());
-  app.notFound((c) =>
-    c.json(
-      {
-        success: false as const,
-        error: "Route not found",
-        timestamp: new Date().toISOString(),
-      },
-      404,
-    ),
-  );
+  app.notFound((c) => createErrorResponse(c, 404, "Route not found"));
   app.onError((error, c) => {
+    if (error instanceof HTTPException) {
+      return createErrorResponse(
+        c,
+        error.status,
+        error.message,
+        isRecord(error.cause) ? error.cause : undefined,
+      );
+    }
+
     console.error(`[${title}]`, error);
 
-    return c.json(
-      {
-        success: false as const,
-        error: "Internal server error",
-        timestamp: new Date().toISOString(),
-      },
-      500,
-    );
+    return createErrorResponse(c, 500, "Internal server error");
   });
 
   app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
