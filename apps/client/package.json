@@ -9,7 +9,7 @@
     "check-types": "next typegen && tsc --noEmit"
   },
   "dependencies": {
-    "@clerk/nextjs": "^7.0.6",
+    "@clerk/nextjs": "^7.0.7",
     "@hookform/resolvers": "^5.2.2",
     "@repo/api-client": "workspace:*",
     "@stripe/react-stripe-js": "^5.6.1",
