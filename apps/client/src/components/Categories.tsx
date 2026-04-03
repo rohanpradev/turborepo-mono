@@ -2,6 +2,7 @@
 
 import { ShoppingBasket } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useTransition } from "react";
 
 type CategoryItem = {
   name: string;
@@ -12,6 +13,7 @@ const Categories = ({ categories }: { categories: Array<CategoryItem> }) => {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  const [isPending, startTransition] = useTransition();
   const selectedCategory = searchParams.get("category") ?? "all";
 
   const options = [
@@ -31,22 +33,25 @@ const Categories = ({ categories }: { categories: Array<CategoryItem> }) => {
       params.set("category", value);
     }
 
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    });
   };
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-2 bg-gray-100 p-2 rounded-lg mb-4 text-sm">
+    <div className="mb-4 grid grid-cols-2 gap-2 rounded-lg bg-gray-100 p-2 text-sm sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
       {options.map((category) => (
         <button
           type="button"
-          className={`flex items-center justify-center gap-2 cursor-pointer px-2 py-1 rounded-md ${
+          className={`flex min-h-10 items-center justify-center gap-2 rounded-md px-2 py-2 text-center ${
             category.slug === selectedCategory ? "bg-white" : "text-gray-500"
           }`}
           key={category.slug}
+          disabled={isPending}
           onClick={() => handleChange(category.slug)}
         >
           <ShoppingBasket className="w-4 h-4" />
-          {category.name}
+          <span className="line-clamp-2">{category.name}</span>
         </button>
       ))}
     </div>

@@ -19,6 +19,30 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Trendlama - Best Clothes",
   description: "Trendlama is the best place to find the best clothes",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_CLIENT_APP_URL ??
+      process.env.CLIENT_APP_URL ??
+      "http://localhost:3002",
+  ),
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: "Trendlama - Best Clothes",
+    description: "Trendlama is the best place to find the best clothes",
+    images: [
+      {
+        url: "/featured.png",
+        alt: "Featured TrendLama products",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Trendlama - Best Clothes",
+    description: "Trendlama is the best place to find the best clothes",
+    images: ["/featured.png"],
+  },
 };
 
 const isClerkConfigured = Boolean(

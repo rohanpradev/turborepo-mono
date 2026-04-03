@@ -2,7 +2,7 @@
 
 import { useAuth } from "@clerk/nextjs";
 import { createCheckoutSession, getPaymentServiceUrl } from "@repo/api-client";
-import { CheckoutProvider } from "@stripe/react-stripe-js/checkout";
+import { CheckoutElementsProvider } from "@stripe/react-stripe-js/checkout";
 import { loadStripe } from "@stripe/stripe-js";
 import { useEffect, useState } from "react";
 import useCartStore from "@/stores/cartStore";
@@ -149,9 +149,12 @@ const AuthenticatedStripePaymentForm = ({
 
   return (
     <div id="checkout">
-      <CheckoutProvider stripe={stripePromise} options={{ clientSecret }}>
+      <CheckoutElementsProvider
+        stripe={stripePromise}
+        options={{ clientSecret }}
+      >
         <CheckoutForm shippingForm={shippingForm} />
-      </CheckoutProvider>
+      </CheckoutElementsProvider>
     </div>
   );
 };

@@ -1,7 +1,7 @@
 # E-Commerce Microservices Makefile
 # Manage all services, databases, and the hardened local Docker stack.
 
-.PHONY: help ensure-env install dev stop clean setup setup-base generate-client kafka-ui db-setup db-migrate db-generate db-studio db-seed local-env-file local-db-migrate local-db-seed local-urls local-dev local-fresh-dev lint type-check format audit test verify build build-client build-admin logs-product logs-order logs-payment status docker-build docker-up docker-up-build docker-down docker-down-volumes docker-logs docker-logs-traefik docker-logs-product docker-logs-order docker-logs-payment docker-logs-client docker-logs-admin docker-ps docker-restart docker-restart-service docker-rebuild-service docker-shell-traefik docker-shell-product docker-shell-order docker-shell-payment docker-infra-only docker-infra-local docker-clean docker-prune docker-kill-all docker-setup docker-fresh-start quick-start quick-stop restart docker-quick-start
+.PHONY: help ensure-env install dev stop clean clean-all setup setup-base generate-client kafka-ui db-setup db-migrate db-generate db-studio db-seed local-env-file local-db-migrate local-db-seed local-urls local-dev local-fresh-dev lint type-check format audit test verify build build-client build-admin logs-product logs-order logs-payment status docker-build docker-up docker-up-build docker-down docker-down-volumes docker-logs docker-logs-traefik docker-logs-product docker-logs-order docker-logs-payment docker-logs-client docker-logs-admin docker-logs-stripe docker-ps docker-restart docker-restart-service docker-rebuild-service docker-shell-traefik docker-shell-product docker-shell-order docker-shell-payment docker-infra-only docker-infra-local docker-stripe-up docker-stripe-down docker-clean docker-prune docker-kill-all docker-setup docker-fresh-start quick-start quick-stop restart docker-quick-start
 
 .DEFAULT_GOAL := help
 
@@ -200,11 +200,18 @@ build-admin: ## Build the admin dashboard
 clean: ## Clean build artifacts and caches
 	@echo "$(RED)Cleaning build artifacts...$(NC)"
 	@bunx turbo daemon stop || true
-	rm -rf node_modules
-	rm -rf **/node_modules
-	rm -rf **/.turbo
-	rm -rf .turbo
-	rm -rf **/.next
+	@find . -type d \( \
+		-name node_modules -o \
+		-name .next -o \
+		-name .turbo -o \
+		-name out -o \
+		-name coverage -o \
+		-name dist -o \
+		-name build -o \
+		-name .cache \
+	\) -prune -exec rm -rf {} +
+	@find . -type f -name '*.tsbuildinfo' -delete
+	@rm -f $(LOCAL_ENV_FILE)
 	@echo "$(GREEN)Cleanup complete$(NC)"
 
 clean-all: clean docker-clean ## Clean everything including Docker data
@@ -243,6 +250,7 @@ status: ## Show service status and URLs
 	@echo "  Order API:         https://api.localhost/api/orders"
 	@echo "  Payment API:       https://api.localhost/api/session"
 	@echo "  Kafka UI:          https://kafka.localhost"
+	@echo "  Stripe CLI Logs:   make docker-logs-stripe"
 	@echo "  Ops Auth:          admin / local-dev"
 
 local-urls: ## Show localhost URLs for local apps plus Docker infrastructure
@@ -275,12 +283,14 @@ docker-up: ensure-env ## Start all services with Docker Compose
 	docker login dhi.io
 	docker compose up -d
 	@echo "$(GREEN)All services started$(NC)"
+	@echo "$(YELLOW)Stripe CLI is included by default. Use 'make docker-logs-stripe' to inspect webhook forwarding status.$(NC)"
 
 docker-up-build: ensure-env ## Build and start all services with Docker Compose
 	@echo "$(BLUE)Building and starting all services...$(NC)"
 	docker login dhi.io
 	docker compose up -d --build
 	@echo "$(GREEN)All services started$(NC)"
+	@echo "$(YELLOW)Stripe CLI is included by default. Use 'make docker-logs-stripe' to inspect webhook forwarding status.$(NC)"
 
 docker-down: ## Stop all Docker services
 	@echo "$(BLUE)Stopping Docker services...$(NC)"
@@ -312,6 +322,9 @@ docker-logs-client: ## View client logs
 
 docker-logs-admin: ## View admin logs
 	docker compose logs -f admin
+
+docker-logs-stripe: ## View Stripe CLI logs
+	docker compose logs -f stripe-cli
 
 docker-ps: ## Show running Docker containers
 	docker compose ps
@@ -352,9 +365,19 @@ docker-infra-local: ensure-env ## Start only database and Kafka infrastructure f
 	docker compose up -d postgres mongodb kafka-broker-1 kafka-broker-2 kafka-broker-3
 	@echo "$(GREEN)Local development infrastructure started$(NC)"
 
-docker-clean: ## Remove all Docker images, containers, and volumes
+docker-stripe-up: ensure-env ## Start the Stripe CLI listener for webhook forwarding
+	@echo "$(BLUE)Starting Stripe CLI webhook forwarding...$(NC)"
+	docker compose up -d stripe-cli
+	@echo "$(YELLOW)Stripe webhook secret sync is automatic. Use 'make docker-logs-stripe' to confirm the listener is ready.$(NC)"
+
+docker-stripe-down: ## Stop the Stripe CLI listener
+	@echo "$(BLUE)Stopping Stripe CLI webhook forwarding...$(NC)"
+	docker compose stop stripe-cli
+	@echo "$(GREEN)Stripe CLI stopped$(NC)"
+
+docker-clean: ## Remove project Docker containers, network, volumes, and local images
 	@echo "$(RED)Cleaning all Docker resources...$(NC)"
-	docker compose down -v --rmi all
+	docker compose down -v --remove-orphans --rmi local
 	@echo "$(GREEN)Docker resources cleaned$(NC)"
 
 docker-prune: ## Prune unused Docker resources

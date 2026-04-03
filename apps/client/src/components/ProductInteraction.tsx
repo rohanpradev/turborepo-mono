@@ -2,7 +2,7 @@
 
 import { Minus, Plus, ShoppingCart } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "react-toastify";
 import useCartStore from "@/stores/cartStore";
 import type { ProductType } from "@/types";
@@ -20,13 +20,16 @@ const ProductInteraction = ({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [quantity, setQuantity] = useState(1);
+  const [isPending, startTransition] = useTransition();
 
   const { addToCart } = useCartStore();
 
   const handleTypeChange = (type: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set(type, value);
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    });
   };
 
   const handleQuantityChange = (type: "increment" | "decrement") => {
@@ -53,7 +56,7 @@ const ProductInteraction = ({
       {/* SIZE */}
       <div className="flex flex-col gap-2 text-xs">
         <span className="text-gray-500">Size</span>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {product.sizes.map((size) => (
             <button
               type="button"
@@ -61,6 +64,7 @@ const ProductInteraction = ({
                 selectedSize === size ? "border-gray-600" : "border-gray-300"
               }`}
               key={size}
+              disabled={isPending}
               aria-pressed={selectedSize === size}
               onClick={() => handleTypeChange("size", size)}
             >
@@ -80,7 +84,7 @@ const ProductInteraction = ({
       {/* COLOR */}
       <div className="flex flex-col gap-2 text-sm">
         <span className="text-gray-500">Color</span>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {product.colors.map((color) => (
             <button
               type="button"
@@ -88,6 +92,7 @@ const ProductInteraction = ({
                 selectedColor === color ? "border-gray-300" : "border-white"
               }`}
               key={color}
+              disabled={isPending}
               aria-label={`Select ${color} color`}
               aria-pressed={selectedColor === color}
               onClick={() => handleTypeChange("color", color)}
@@ -119,21 +124,23 @@ const ProductInteraction = ({
         </div>
       </div>
       {/* BUTTONS */}
-      <button
-        type="button"
-        onClick={handleAddToCart}
-        className="bg-gray-800 text-white px-4 py-2 rounded-md shadow-lg flex items-center justify-center gap-2 cursor-pointer text-sm font-medium"
-      >
-        <Plus className="w-4 h-4" />
-        Add to Cart
-      </button>
-      <button
-        type="button"
-        className="ring-1 ring-gray-400 shadow-lg text-gray-800 px-4 py-2 rounded-md flex items-center justify-center cursor-pointer gap-2 text-sm font-medium"
-      >
-        <ShoppingCart className="w-4 h-4" />
-        Buy this Item
-      </button>
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <button
+          type="button"
+          onClick={handleAddToCart}
+          className="flex w-full items-center justify-center gap-2 rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white shadow-lg cursor-pointer"
+        >
+          <Plus className="w-4 h-4" />
+          Add to Cart
+        </button>
+        <button
+          type="button"
+          className="flex w-full items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-gray-800 shadow-lg ring-1 ring-gray-400 cursor-pointer"
+        >
+          <ShoppingCart className="w-4 h-4" />
+          Buy this Item
+        </button>
+      </div>
     </div>
   );
 };

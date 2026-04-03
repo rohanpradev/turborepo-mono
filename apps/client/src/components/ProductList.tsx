@@ -10,7 +10,7 @@ import Filter from "./Filter";
 import ProductCard from "./ProductCard";
 
 type ProductListProps = {
-  category: string;
+  category?: string;
   params: "homepage" | "products";
 };
 

@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from "node:fs";
 import Stripe from "stripe";
 
 let stripeClient: Stripe | null | undefined;
@@ -22,5 +23,20 @@ export const setStripeClientForTesting = (
   stripeClient = client;
 };
 
-export const getStripeWebhookSecret = () =>
-  process.env.STRIPE_WEBHOOK_SECRET || null;
+export const getStripeWebhookSecret = () => {
+  const envSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
+
+  if (envSecret) {
+    return envSecret;
+  }
+
+  const secretFile = process.env.STRIPE_WEBHOOK_SECRET_FILE?.trim();
+
+  if (!secretFile || !existsSync(secretFile)) {
+    return null;
+  }
+
+  const fileSecret = readFileSync(secretFile, "utf8").trim();
+
+  return fileSecret || null;
+};

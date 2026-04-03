@@ -52,7 +52,10 @@ const CheckoutForm = ({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-2xl mx-auto p-6 space-y-6">
+    <form
+      onSubmit={handleSubmit}
+      className="mx-auto w-full max-w-2xl space-y-6 px-0 py-2 sm:p-6"
+    >
       <div className="space-y-4">
         <h2 className="text-2xl font-semibold">Shipping Information</h2>
         <div className="bg-gray-50 p-4 rounded-lg space-y-2">

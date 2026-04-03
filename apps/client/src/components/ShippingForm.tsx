@@ -26,7 +26,7 @@ const ShippingForm = ({
 
   return (
     <form
-      className="flex flex-col gap-4"
+      className="flex w-full flex-col gap-4"
       onSubmit={handleSubmit(handleShippingForm)}
     >
       <div className="flex flex-col gap-1">

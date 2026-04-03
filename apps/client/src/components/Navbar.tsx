@@ -12,8 +12,8 @@ const isClerkConfigured = Boolean(
 
 const Navbar = () => {
   return (
-    <nav className="w-full flex items-center justify-between border-b border-gray-200 pb-4">
-      <Link href="/" className="flex items-center">
+    <nav className="flex w-full flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-4">
+      <Link href="/" className="flex min-w-0 items-center gap-2">
         <Image
           src="/logo.png"
           alt="TrendLama"
@@ -21,22 +21,31 @@ const Navbar = () => {
           height={36}
           className="w-6 h-6 md:w-9 md:h-9"
         />
-        <p className="hidden md:block text-md font-medium tracking-wider">
+        <p className="truncate text-sm font-medium tracking-[0.2em] md:text-md">
           TRENDLAMA.
         </p>
       </Link>
-      <div className="flex items-center gap-6">
+      <div className="flex flex-wrap items-center justify-end gap-3 sm:gap-4 md:gap-6">
         <SearchBar />
-        <Link href="/">
+        <Link href="/" className="rounded-full p-1 text-gray-600">
           <Home className="w-4 h-4 text-gray-600" />
         </Link>
-        <Bell className="w-4 h-4 text-gray-600" />
+        <button
+          type="button"
+          aria-label="Notifications"
+          className="rounded-full p-1 text-gray-600"
+        >
+          <Bell className="w-4 h-4 text-gray-600" />
+        </button>
         <ShoppingCartIcon />
         {isClerkConfigured ? (
           <>
             <Show when="signed-out">
               <SignInButton mode="modal">
-                <button type="button" className="text-sm text-gray-600">
+                <button
+                  type="button"
+                  className="rounded-md px-2 py-1 text-sm text-gray-600"
+                >
                   Sign in
                 </button>
               </SignInButton>
@@ -46,7 +55,10 @@ const Navbar = () => {
             </Show>
           </>
         ) : (
-          <Link href="/sign-in" className="text-sm text-gray-600">
+          <Link
+            href="/sign-in"
+            className="rounded-md px-2 py-1 text-sm text-gray-600"
+          >
             Sign in
           </Link>
         )}

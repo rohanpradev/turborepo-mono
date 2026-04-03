@@ -1,5 +1,6 @@
 import { getProduct, getProductServiceServerUrl } from "@repo/api-client";
 import { formatUsdFromCents } from "@repo/types";
+import type { Metadata } from "next";
 import Image from "next/image";
 import ProductInteraction from "@/components/ProductInteraction";
 
@@ -16,7 +17,7 @@ export const generateMetadata = async ({
   params,
 }: {
   params: Promise<{ id: string }>;
-}) => {
+}): Promise<Metadata> => {
   const { id } = await params;
   const product = await loadProduct(Number(id));
 
@@ -53,16 +54,18 @@ const ProductPage = async ({
     "";
 
   return (
-    <div className="flex flex-col gap-4 lg:flex-row md:gap-12 mt-12">
-      <div className="w-full lg:w-5/12 relative aspect-[2/3]">
+    <div className="mt-8 flex flex-col gap-6 md:gap-12 lg:mt-12 lg:flex-row">
+      <div className="relative aspect-[2/3] w-full overflow-hidden rounded-md bg-gray-50 lg:w-5/12">
         <Image
           src={selectedImage}
           alt={product.name}
           fill
+          priority
           className="object-contain rounded-md"
+          sizes="(min-width: 1024px) 40vw, 100vw"
         />
       </div>
-      <div className="w-full lg:w-7/12 flex flex-col gap-4">
+      <div className="flex w-full flex-col gap-4 lg:w-7/12">
         <h1 className="text-2xl font-medium">{product.name}</h1>
         <p className="text-gray-500">{product.description}</p>
         <h2 className="text-2xl font-semibold">
@@ -73,7 +76,7 @@ const ProductPage = async ({
           selectedSize={selectedSize}
           selectedColor={selectedColor}
         />
-        <div className="flex items-center gap-2 mt-4">
+        <div className="mt-4 flex flex-wrap items-center gap-2">
           <Image
             src="/klarna.png"
             alt="klarna"

@@ -40,7 +40,7 @@ const createCheckoutSessionRoute = createRoute({
   tags: ["checkout"],
   summary: "Create checkout session",
   description:
-    "Creates a Stripe Checkout Session in custom UI mode and returns its client secret.",
+    "Creates a Stripe Checkout Session for the embedded Elements checkout flow and returns its client secret.",
   security: bearerSecurity,
   middleware: [shouldBeUser],
   request: {

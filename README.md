@@ -50,12 +50,28 @@ bun run build
 
 ## Docker
 
-This repo uses Docker Hardened Images, so authenticate first:
+This repo uses Docker Hardened Images. The preferred startup path is:
 
 ```bash
-docker login dhi.io
-docker compose up --build
+make docker-up-build
 ```
+
+### Stripe CLI webhook forwarding
+
+This repo now includes the Stripe CLI container in the default Docker stack, based on Stripe's official Docker image docs.
+
+1. Set `STRIPE_SECRET_KEY` in `.env`. `STRIPE_API_KEY` is optional and, if omitted, the Stripe CLI container falls back to `STRIPE_SECRET_KEY`.
+2. Start the Docker stack. The Stripe CLI starts with it by default:
+
+```bash
+make docker-up
+```
+
+The Stripe CLI forwards events to `http://payment-service:8002/api/webhooks/stripe` inside the Compose network by default. On startup it captures the `whsec_...` signing secret from Stripe CLI output, writes it into a shared runtime volume, and `payment-service` reads that value automatically for webhook verification. No manual secret copy or service restart is required for the Docker flow.
+
+Local webhook forwarding should bypass Traefik and go straight to HTTP on the payment service. Using `https://api.localhost/api/webhooks/stripe` can fail because Stripe and the Stripe CLI don't trust the local Traefik certificate by default. For host-based local development, use `http://localhost:8002/api/webhooks/stripe`. For the Docker stack, keep the default internal target `http://payment-service:8002/api/webhooks/stripe`.
+
+Override `STRIPE_WEBHOOK_FORWARD_TO`, `STRIPE_DEVICE_NAME`, or `STRIPE_CLI_EVENTS` in `.env` if needed. `STRIPE_WEBHOOK_SECRET` is still supported for non-Docker or manually managed webhook setups.
 
 Main routes:
 

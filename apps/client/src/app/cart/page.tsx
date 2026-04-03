@@ -96,11 +96,11 @@ const CartContent = () => {
   );
 
   return (
-    <div className="flex flex-col gap-8 items-center justify-center mt-12">
+    <div className="mt-8 flex flex-col items-center justify-center gap-8 sm:mt-12">
       {/* TITLE */}
-      <h1 className="text-2xl font-medium">Your Shopping Cart</h1>
+      <h1 className="text-center text-2xl font-medium">Your Shopping Cart</h1>
       {/* STEPS */}
-      <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-16">
+      <div className="flex w-full flex-col items-stretch gap-4 sm:items-center lg:flex-row lg:justify-center lg:gap-16">
         {steps.map((step) => (
           <div
             className={`flex items-center gap-2 border-b-2 pb-4 ${
@@ -126,56 +126,58 @@ const CartContent = () => {
         ))}
       </div>
       {/* STEPS & DETAILS */}
-      <div className="w-full flex flex-col lg:flex-row gap-16">
+      <div className="flex w-full flex-col gap-8 lg:flex-row lg:gap-16">
         {/* STEPS */}
-        <div className="w-full lg:w-7/12 shadow-lg border-1 border-gray-100 p-8 rounded-lg flex flex-col gap-8">
+        <div className="flex w-full flex-col gap-6 rounded-lg border-1 border-gray-100 p-4 shadow-lg sm:p-6 lg:w-7/12 lg:gap-8 lg:p-8">
           {activeStep === 1 ? (
-            cart.map((item) => (
-              // SINGLE CART ITEM
-              <div
-                className="flex items-center justify-between"
-                key={item.id + item.selectedSize + item.selectedColor}
-              >
-                {/* IMAGE AND DETAILS */}
-                <div className="flex gap-8">
-                  {/* IMAGE */}
-                  <div className="relative w-32 h-32 bg-gray-50 rounded-lg overflow-hidden">
-                    <Image
-                      src={item.images[item.selectedColor]}
-                      alt={item.name}
-                      fill
-                      className="object-contain"
-                    />
-                  </div>
-                  {/* ITEM DETAILS */}
-                  <div className="flex flex-col justify-between">
-                    <div className="flex flex-col gap-1">
-                      <p className="text-sm font-medium">{item.name}</p>
-                      <p className="text-xs text-gray-500">
-                        Quantity: {item.quantity}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Size: {item.selectedSize}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Color: {item.selectedColor}
+            cart.length > 0 ? (
+              cart.map((item) => (
+                <div
+                  className="flex flex-col gap-4 rounded-lg border border-gray-100 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4"
+                  key={item.id + item.selectedSize + item.selectedColor}
+                >
+                  <div className="flex gap-4 sm:gap-6">
+                    <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-gray-50 sm:h-32 sm:w-32">
+                      <Image
+                        src={item.images[item.selectedColor]}
+                        alt={item.name}
+                        fill
+                        className="object-contain"
+                        sizes="(min-width: 640px) 128px, 96px"
+                      />
+                    </div>
+                    <div className="flex min-w-0 flex-1 flex-col justify-between gap-3">
+                      <div className="flex flex-col gap-1">
+                        <p className="text-sm font-medium">{item.name}</p>
+                        <p className="text-xs text-gray-500">
+                          Quantity: {item.quantity}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Size: {item.selectedSize}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Color: {item.selectedColor}
+                        </p>
+                      </div>
+                      <p className="font-medium">
+                        {formatUsdFromCents(item.price)}
                       </p>
                     </div>
-                    <p className="font-medium">
-                      {formatUsdFromCents(item.price)}
-                    </p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => removeFromCart(item)}
+                    className="flex h-9 w-full items-center justify-center rounded-full bg-red-100 text-red-400 transition-all duration-300 hover:bg-red-200 sm:h-8 sm:w-8"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
                 </div>
-                {/* DELETE BUTTON */}
-                <button
-                  type="button"
-                  onClick={() => removeFromCart(item)}
-                  className="w-8 h-8 rounded-full bg-red-100 hover:bg-red-200 transition-all duration-300 text-red-400 flex items-center justify-center cursor-pointer"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
+              ))
+            ) : (
+              <div className="rounded-lg border border-dashed border-gray-300 px-4 py-10 text-center text-sm text-gray-500">
+                Your cart is empty.
               </div>
-            ))
+            )
           ) : activeStep === 2 ? (
             <ShippingForm setShippingForm={setShippingForm} />
           ) : activeStep === 3 && shippingForm ? (
@@ -187,7 +189,7 @@ const CartContent = () => {
           )}
         </div>
         {/* DETAILS */}
-        <div className="w-full lg:w-5/12 shadow-lg border-1 border-gray-100 p-8 rounded-lg flex flex-col gap-8 h-max">
+        <div className="flex h-max w-full flex-col gap-8 rounded-lg border-1 border-gray-100 p-4 shadow-lg sm:p-6 lg:sticky lg:top-6 lg:w-5/12 lg:p-8">
           <h2 className="font-semibold">Cart Details</h2>
           <div className="flex flex-col gap-4">
             <div className="flex justify-between text-sm">
