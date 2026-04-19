@@ -1,10 +1,25 @@
 x-runtime-security: &runtime-security
   init: true
   restart: unless-stopped
+  stop_grace_period: 30s
   security_opt:
     - no-new-privileges:true
   cap_drop:
     - ALL
+
+x-kafka-broker-env: &kafka-broker-env
+  KAFKA_PROCESS_ROLES: broker,controller
+  KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-broker-1:9093,2@kafka-broker-2:9093,3@kafka-broker-3:9093
+  KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+  KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+  KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+  KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+  KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+  KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+  KAFKA_MIN_INSYNC_REPLICAS: 2
+  KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+  KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+  KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
 
 services:
   # Docker Hardened Images require an authenticated pull:
@@ -15,17 +30,23 @@ services:
     image: dhi.io/kafka:4.2.0-debian13-native
     container_name: kafka-broker-1
     environment:
+      <<: *kafka-broker-env
       KAFKA_NODE_ID: 1
-      KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://0.0.0.0:9094
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-1:9092,EXTERNAL://localhost:9094
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-broker-1:9093,2@kafka-broker-2:9093,3@kafka-broker-3:9093
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
     ports:
       - "9094:9094"
+    volumes:
+      - kafka-broker-1-data:/opt/kafka/logs
+    healthcheck:
+      # Docker Hardened Kafka does not expose the classic Kafka shell scripts on PATH.
+      # A local TCP probe is the most reliable readiness check for the broker process.
+      test:
+        ["CMD", "/usr/bin/bash", "-ec", "exec 3<>/dev/tcp/127.0.0.1/9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
     networks:
       - kafka-network
 
@@ -34,17 +55,23 @@ services:
     image: dhi.io/kafka:4.2.0-debian13-native
     container_name: kafka-broker-2
     environment:
+      <<: *kafka-broker-env
       KAFKA_NODE_ID: 2
-      KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://0.0.0.0:9095
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-2:9092,EXTERNAL://localhost:9095
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-broker-1:9093,2@kafka-broker-2:9093,3@kafka-broker-3:9093
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
     ports:
       - "9095:9095"
+    volumes:
+      - kafka-broker-2-data:/opt/kafka/logs
+    healthcheck:
+      # Docker Hardened Kafka does not expose the classic Kafka shell scripts on PATH.
+      # A local TCP probe is the most reliable readiness check for the broker process.
+      test:
+        ["CMD", "/usr/bin/bash", "-ec", "exec 3<>/dev/tcp/127.0.0.1/9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
     networks:
       - kafka-network
 
@@ -53,17 +80,23 @@ services:
     image: dhi.io/kafka:4.2.0-debian13-native
     container_name: kafka-broker-3
     environment:
+      <<: *kafka-broker-env
       KAFKA_NODE_ID: 3
-      KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://0.0.0.0:9096
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-3:9092,EXTERNAL://localhost:9096
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-broker-1:9093,2@kafka-broker-2:9093,3@kafka-broker-3:9093
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
     ports:
       - "9096:9096"
+    volumes:
+      - kafka-broker-3-data:/opt/kafka/logs
+    healthcheck:
+      # Docker Hardened Kafka does not expose the classic Kafka shell scripts on PATH.
+      # A local TCP probe is the most reliable readiness check for the broker process.
+      test:
+        ["CMD", "/usr/bin/bash", "-ec", "exec 3<>/dev/tcp/127.0.0.1/9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
     networks:
       - kafka-network
 
@@ -82,12 +115,20 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - kafka-broker-1
-      - kafka-broker-2
-      - kafka-broker-3
+      kafka-broker-1:
+        condition: service_healthy
+      kafka-broker-2:
+        condition: service_healthy
+      kafka-broker-3:
+        condition: service_healthy
     networks:
       - kafka-network
 
 networks:
   kafka-network:
     driver: bridge
+
+volumes:
+  kafka-broker-1-data:
+  kafka-broker-2-data:
+  kafka-broker-3-data:

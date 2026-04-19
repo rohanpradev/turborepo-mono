@@ -1,6 +1,6 @@
 import { formatUsdFromCents } from "@repo/types";
+import type { Metadata } from "next";
 import Image from "next/image";
-import Link from "next/link";
 import {
   getStorefrontAssetUrl,
   getStorefrontProductUrl,
@@ -8,6 +8,12 @@ import {
 } from "@/lib/admin-data";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Products",
+  description:
+    "Live catalog operations view with category mix, storefront links, and current product inventory.",
+};
 
 const ProductsPage = async () => {
   const { categories, products } = await loadCatalogSnapshot();
@@ -172,13 +178,14 @@ const ProductsPage = async () => {
                     <p className="line-clamp-2 text-sm text-muted-foreground">
                       {product.description}
                     </p>
-                    <Link
+                    <a
                       href={getStorefrontProductUrl(product.id)}
                       className="shrink-0 text-sm underline"
+                      rel="noreferrer"
                       target="_blank"
                     >
                       View
-                    </Link>
+                    </a>
                   </div>
                 </div>
               </article>

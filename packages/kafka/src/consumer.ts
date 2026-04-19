@@ -118,8 +118,16 @@ export class KafkaConsumer {
       await this.kafkaConsumer.subscribe(subscribeTopics);
 
       await this.kafkaConsumer.run({
+        eachBatchAutoResolve: false,
         eachBatch: async (eachBatchPayload: EachBatchPayload) => {
-          const { batch } = eachBatchPayload;
+          const {
+            batch,
+            commitOffsetsIfNecessary,
+            heartbeat,
+            isRunning,
+            isStale,
+            resolveOffset,
+          } = eachBatchPayload;
           const handler = this.handlers.get(batch.topic);
 
           if (!handler) {
@@ -128,12 +136,18 @@ export class KafkaConsumer {
           }
 
           for (const message of batch.messages) {
+            if (!isRunning() || isStale()) {
+              break;
+            }
+
             const prefix = `${batch.topic}[${batch.partition} | ${message.offset}] / ${message.timestamp}`;
             try {
               const value = message.value?.toString();
               if (value) {
                 const parsedMessage = JSON.parse(value);
                 await handler(parsedMessage);
+                resolveOffset(message.offset);
+                await heartbeat();
                 console.log(`- ${prefix} processed successfully`);
               }
             } catch (error) {
@@ -141,6 +155,8 @@ export class KafkaConsumer {
               throw error;
             }
           }
+
+          await commitOffsetsIfNecessary();
         },
       });
       this.started = true;
@@ -166,7 +182,10 @@ export class KafkaConsumer {
   }
 
   private createKafkaConsumer(): Consumer {
-    return this.kafka.consumer({ groupId: this.groupId });
+    return this.kafka.consumer({
+      groupId: this.groupId,
+      allowAutoTopicCreation: false,
+    });
   }
 }
 

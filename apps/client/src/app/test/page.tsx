@@ -10,7 +10,18 @@ import {
   getProductServiceServerUrl,
   getProductServiceUrl,
 } from "@repo/api-client";
-import Link from "next/link";
+import type { Metadata } from "next";
+import { connection } from "next/server";
+
+export const metadata: Metadata = {
+  title: "Diagnostics",
+  description:
+    "Live service health, documentation links, and payment integration events for the storefront stack.",
+};
+
+const liveFetchOptions = {
+  cache: "no-store" as const,
+};
 
 const services = [
   {
@@ -34,8 +45,11 @@ const services = [
 ] as const;
 
 const TestPage = async () => {
+  await connection();
+
   const paymentEvents = await getPaymentIntegrationEvents(
     getPaymentServiceServerUrl(),
+    liveFetchOptions,
   ).catch((error) => ({
     error:
       error instanceof Error
@@ -47,7 +61,10 @@ const TestPage = async () => {
   const snapshots = await Promise.all(
     services.map(async (service) => {
       try {
-        const health = await service.health(service.serverBaseUrl);
+        const health = await service.health(
+          service.serverBaseUrl,
+          liveFetchOptions,
+        );
 
         return {
           name: service.name,
@@ -80,15 +97,15 @@ const TestPage = async () => {
           stack.
         </p>
         <div className="flex flex-wrap gap-3 pt-2 text-sm">
-          <Link href="https://kafka.localhost" className="underline">
+          <a href="https://kafka.localhost" className="underline">
             Kafka UI
-          </Link>
-          <Link
+          </a>
+          <a
             href="https://dashboard.localhost/dashboard/"
             className="underline"
           >
             Traefik Dashboard
-          </Link>
+          </a>
         </div>
       </div>
 
@@ -133,12 +150,12 @@ const TestPage = async () => {
             </p>
           </div>
           {"data" in paymentEvents && paymentEvents.data ? (
-            <Link
+            <a
               href={paymentEvents.data.kafkaUiUrl}
               className="text-sm font-medium text-black underline"
             >
               Open Kafka UI
-            </Link>
+            </a>
           ) : null}
         </div>
 

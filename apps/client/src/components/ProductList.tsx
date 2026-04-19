@@ -3,7 +3,8 @@ import {
   listCategories,
   listProducts,
 } from "@repo/api-client";
-import type { CategoryRecord, ProductRecord } from "@repo/types";
+import type { CategoryRecord, ProductRecord, ProductSort } from "@repo/types";
+import type { Route } from "next";
 import Link from "next/link";
 import Categories from "./Categories";
 import Filter from "./Filter";
@@ -11,13 +12,25 @@ import ProductCard from "./ProductCard";
 
 type ProductListProps = {
   category?: string;
+  search?: string;
+  sort?: string;
   params: "homepage" | "products";
 };
 
-const ProductList = async ({ category, params }: ProductListProps) => {
+const ProductList = async ({
+  category,
+  search,
+  sort,
+  params,
+}: ProductListProps) => {
   let products: Array<ProductRecord> = [];
   let categories: Array<Pick<CategoryRecord, "name" | "slug">> = [];
   let loadError: string | null = null;
+  const normalizedSearch = search?.trim() || undefined;
+  const normalizedSort =
+    sort && ["asc", "desc", "oldest", "newest"].includes(sort)
+      ? (sort as ProductSort)
+      : undefined;
 
   try {
     const baseUrl = getProductServiceServerUrl();
@@ -27,6 +40,8 @@ const ProductList = async ({ category, params }: ProductListProps) => {
       listProducts(baseUrl, {
         category: normalizedCategory,
         limit: params === "homepage" ? 8 : 24,
+        search: normalizedSearch,
+        sort: normalizedSort,
       }),
       listCategories(baseUrl),
     ]);
@@ -39,6 +54,24 @@ const ProductList = async ({ category, params }: ProductListProps) => {
         ? error.message
         : "Unable to load products right now.";
   }
+
+  const viewAllParams = new URLSearchParams();
+
+  if (category) {
+    viewAllParams.set("category", category);
+  }
+
+  if (normalizedSearch) {
+    viewAllParams.set("search", normalizedSearch);
+  }
+
+  if (normalizedSort && normalizedSort !== "newest") {
+    viewAllParams.set("sort", normalizedSort);
+  }
+
+  const viewAllHref = viewAllParams.size
+    ? (`/products?${viewAllParams.toString()}` as Route)
+    : ("/products" as Route);
 
   return (
     <div className="w-full">
@@ -63,7 +96,7 @@ const ProductList = async ({ category, params }: ProductListProps) => {
 
       {params === "homepage" && (
         <Link
-          href={category ? `/products/?category=${category}` : "/products"}
+          href={viewAllHref}
           className="flex justify-end mt-4 underline text-sm text-gray-500"
         >
           View all products

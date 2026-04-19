@@ -9,7 +9,6 @@
     "@repo/hono-utils": "workspace:*",
     "@repo/kafka": "workspace:*",
     "@repo/types": "workspace:*",
-    "hono": "^4.12.14",
     "stripe": "^22.0.2"
   },
   "devDependencies": {

@@ -1,6 +1,7 @@
 x-runtime-security: &runtime-security
   init: true
   restart: unless-stopped
+  stop_grace_period: 30s
   security_opt:
     - no-new-privileges:true
   cap_drop:
@@ -17,6 +18,20 @@ x-frontend-build-args: &frontend-build-args
   NEXT_PUBLIC_PRODUCT_SERVICE_URL: ${NEXT_PUBLIC_PRODUCT_SERVICE_URL:-https://api.localhost}
   NEXT_PUBLIC_ORDER_SERVICE_URL: ${NEXT_PUBLIC_ORDER_SERVICE_URL:-https://api.localhost}
   NEXT_PUBLIC_PAYMENT_SERVICE_URL: ${NEXT_PUBLIC_PAYMENT_SERVICE_URL:-https://api.localhost}
+
+x-kafka-broker-env: &kafka-broker-env
+  KAFKA_PROCESS_ROLES: broker,controller
+  KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-broker-1:9093,2@kafka-broker-2:9093,3@kafka-broker-3:9093
+  KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+  KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+  KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+  KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+  KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+  KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+  KAFKA_MIN_INSYNC_REPLICAS: 2
+  KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+  KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+  KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
 
 services:
   # Docker Hardened Images require an authenticated pull:
@@ -70,6 +85,8 @@ services:
       - "--providers.docker.watch=true"
       - "--providers.docker.exposedbydefault=false"
       - "--providers.docker.network=ecommerce-network"
+      - "--providers.file.directory=/etc/traefik/dynamic"
+      - "--providers.file.watch=true"
       - "--global.sendanonymoususage=false"
       - "--log.level=INFO"
       - "--accesslog=true"
@@ -77,6 +94,9 @@ services:
       - "--metrics.prometheus.addEntryPointsLabels=true"
       - "--metrics.prometheus.addServicesLabels=true"
       - "--metrics.prometheus.addRoutersLabels=true"
+    volumes:
+      - ./docker/certs:/certs:ro
+      - ./docker/traefik/dynamic.yml:/etc/traefik/dynamic/dynamic.yml:ro
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.dashboard.rule=Host(`dashboard.localhost`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))"
@@ -128,6 +148,7 @@ services:
   mongodb:
     init: true
     restart: unless-stopped
+    stop_grace_period: 30s
     image: mongo:8.2.5-noble
     container_name: ecommerce-mongodb
     environment:
@@ -202,17 +223,23 @@ services:
     image: dhi.io/kafka:4.2.0-debian13-native
     container_name: kafka-broker-1
     environment:
+      <<: *kafka-broker-env
       KAFKA_NODE_ID: 1
-      KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://0.0.0.0:9094
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-1:9092,EXTERNAL://localhost:9094
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-broker-1:9093,2@kafka-broker-2:9093,3@kafka-broker-3:9093
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
     ports:
       - "9094:9094"
+    volumes:
+      - kafka-broker-1-data:/opt/kafka/logs
+    healthcheck:
+      # Docker Hardened Kafka does not expose the classic Kafka shell scripts on PATH.
+      # A local TCP probe is the most reliable readiness check for the broker process.
+      test:
+        ["CMD", "/usr/bin/bash", "-ec", "exec 3<>/dev/tcp/127.0.0.1/9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
     networks:
       - ecommerce-network
 
@@ -221,17 +248,23 @@ services:
     image: dhi.io/kafka:4.2.0-debian13-native
     container_name: kafka-broker-2
     environment:
+      <<: *kafka-broker-env
       KAFKA_NODE_ID: 2
-      KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://0.0.0.0:9095
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-2:9092,EXTERNAL://localhost:9095
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-broker-1:9093,2@kafka-broker-2:9093,3@kafka-broker-3:9093
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
     ports:
       - "9095:9095"
+    volumes:
+      - kafka-broker-2-data:/opt/kafka/logs
+    healthcheck:
+      # Docker Hardened Kafka does not expose the classic Kafka shell scripts on PATH.
+      # A local TCP probe is the most reliable readiness check for the broker process.
+      test:
+        ["CMD", "/usr/bin/bash", "-ec", "exec 3<>/dev/tcp/127.0.0.1/9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
     networks:
       - ecommerce-network
 
@@ -240,17 +273,23 @@ services:
     image: dhi.io/kafka:4.2.0-debian13-native
     container_name: kafka-broker-3
     environment:
+      <<: *kafka-broker-env
       KAFKA_NODE_ID: 3
-      KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://0.0.0.0:9096
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-3:9092,EXTERNAL://localhost:9096
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-broker-1:9093,2@kafka-broker-2:9093,3@kafka-broker-3:9093
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
     ports:
       - "9096:9096"
+    volumes:
+      - kafka-broker-3-data:/opt/kafka/logs
+    healthcheck:
+      # Docker Hardened Kafka does not expose the classic Kafka shell scripts on PATH.
+      # A local TCP probe is the most reliable readiness check for the broker process.
+      test:
+        ["CMD", "/usr/bin/bash", "-ec", "exec 3<>/dev/tcp/127.0.0.1/9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
     networks:
       - ecommerce-network
 
@@ -266,9 +305,12 @@ services:
     expose:
       - "8080"
     depends_on:
-      - kafka-broker-1
-      - kafka-broker-2
-      - kafka-broker-3
+      kafka-broker-1:
+        condition: service_healthy
+      kafka-broker-2:
+        condition: service_healthy
+      kafka-broker-3:
+        condition: service_healthy
     networks:
       - ecommerce-network
     labels:
@@ -305,11 +347,11 @@ services:
       product-db-migrate:
         condition: service_completed_successfully
       kafka-broker-1:
-        condition: service_started
+        condition: service_healthy
       kafka-broker-2:
-        condition: service_started
+        condition: service_healthy
       kafka-broker-3:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test:
         [
@@ -354,11 +396,11 @@ services:
       mongodb:
         condition: service_healthy
       kafka-broker-1:
-        condition: service_started
+        condition: service_healthy
       kafka-broker-2:
-        condition: service_started
+        condition: service_healthy
       kafka-broker-3:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test:
         [
@@ -406,11 +448,11 @@ services:
       - stripe_runtime:/var/run/stripe:ro
     depends_on:
       kafka-broker-1:
-        condition: service_started
+        condition: service_healthy
       kafka-broker-2:
-        condition: service_started
+        condition: service_healthy
       kafka-broker-3:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test:
         [
@@ -444,12 +486,12 @@ services:
   stripe-cli:
     init: true
     restart: unless-stopped
-    image: stripe/stripe-cli:latest
+    stop_grace_period: 30s
+    image: stripe/stripe-cli:v1.40.6@sha256:3e12b2ac71ddd17a9b0b042bd1a58087b9465f7853f5395382c426456c9a889a
     container_name: ecommerce-stripe-cli
     environment:
       STRIPE_API_KEY: ${STRIPE_API_KEY:-}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
-      STRIPE_DEVICE_NAME: ${STRIPE_DEVICE_NAME:-ecommerce-docker}
       STRIPE_WEBHOOK_FORWARD_TO: ${STRIPE_WEBHOOK_FORWARD_TO:-http://payment-service:8002/api/webhooks/stripe}
       STRIPE_CLI_EVENTS: ${STRIPE_CLI_EVENTS:-checkout.session.completed,payment_intent.succeeded,payment_intent.payment_failed}
       STRIPE_WEBHOOK_SECRET_FILE: /var/run/stripe/webhook-secret
@@ -462,6 +504,12 @@ services:
     volumes:
       - ./docker/stripe-cli-listen.sh:/stripe/stripe-cli-listen.sh:ro
       - stripe_runtime:/var/run/stripe
+    healthcheck:
+      test: ["CMD-SHELL", "test -s /var/run/stripe/webhook-secret"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
     networks:
       - ecommerce-network
 
@@ -472,11 +520,14 @@ services:
       dockerfile: docker/Dockerfile.client
       args:
         <<: *frontend-build-args
+        NEXT_PUBLIC_CLIENT_APP_URL: ${NEXT_PUBLIC_CLIENT_APP_URL:-https://shop.localhost}
         NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-}
     container_name: ecommerce-client
     environment:
       NODE_ENV: production
       PORT: 3002
+      CLIENT_APP_URL: ${CLIENT_APP_URL:-https://shop.localhost}
+      NEXT_PUBLIC_CLIENT_APP_URL: ${NEXT_PUBLIC_CLIENT_APP_URL:-https://shop.localhost}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
       CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
       PRODUCT_SERVICE_INTERNAL_URL: http://product-service:3000
@@ -510,9 +561,9 @@ services:
       test:
         [
           "CMD",
-          "node",
+          "bun",
           "-e",
-          "fetch('http://127.0.0.1:3002').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));",
+          "const response = await fetch('http://127.0.0.1:3002/api/health'); if (!response.ok) process.exit(1);",
         ]
       interval: 30s
       timeout: 10s
@@ -526,10 +577,14 @@ services:
       dockerfile: docker/Dockerfile.admin
       args:
         <<: *frontend-build-args
+        NEXT_PUBLIC_ADMIN_APP_URL: ${NEXT_PUBLIC_ADMIN_APP_URL:-https://admin.localhost}
     container_name: ecommerce-admin
     environment:
       NODE_ENV: production
       PORT: 3003
+      ADMIN_APP_URL: ${ADMIN_APP_URL:-https://admin.localhost}
+      CLIENT_APP_URL: ${CLIENT_APP_URL:-https://shop.localhost}
+      NEXT_PUBLIC_ADMIN_APP_URL: ${NEXT_PUBLIC_ADMIN_APP_URL:-https://admin.localhost}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
       CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
       PRODUCT_SERVICE_INTERNAL_URL: http://product-service:3000
@@ -562,9 +617,9 @@ services:
       test:
         [
           "CMD",
-          "node",
+          "bun",
           "-e",
-          "fetch('http://127.0.0.1:3003').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));",
+          "const response = await fetch('http://127.0.0.1:3003/api/health'); if (!response.ok) process.exit(1);",
         ]
       interval: 30s
       timeout: 10s
@@ -584,4 +639,10 @@ volumes:
   mongodb_config:
     driver: local
   stripe_runtime:
+    driver: local
+  kafka-broker-1-data:
+    driver: local
+  kafka-broker-2-data:
+    driver: local
+  kafka-broker-3-data:
     driver: local

@@ -1,7 +1,9 @@
 import { Show, SignInButton } from "@clerk/nextjs";
 import { Bell, Home } from "lucide-react";
+import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { Suspense } from "react";
 import ProfileButton from "./ProfileButton";
 import SearchBar from "./SearchBar";
 import ShoppingCartIcon from "./ShoppingCartIcon";
@@ -26,7 +28,16 @@ const Navbar = () => {
         </p>
       </Link>
       <div className="flex flex-wrap items-center justify-end gap-3 sm:gap-4 md:gap-6">
-        <SearchBar />
+        <Suspense
+          fallback={
+            <div className="hidden min-w-0 sm:flex items-center gap-2 rounded-md ring-1 ring-gray-200 px-2 py-1 shadow-md md:min-w-56">
+              <div className="h-4 w-4 rounded-full bg-gray-200" />
+              <div className="h-4 flex-1 rounded bg-gray-100" />
+            </div>
+          }
+        >
+          <SearchBar />
+        </Suspense>
         <Link href="/" className="rounded-full p-1 text-gray-600">
           <Home className="w-4 h-4 text-gray-600" />
         </Link>
@@ -56,7 +67,7 @@ const Navbar = () => {
           </>
         ) : (
           <Link
-            href="/sign-in"
+            href={"/sign-in" as Route}
             className="rounded-md px-2 py-1 text-sm text-gray-600"
           >
             Sign in

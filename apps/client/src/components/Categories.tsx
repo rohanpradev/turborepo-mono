@@ -1,6 +1,7 @@
 "use client";
 
 import { ShoppingBasket } from "lucide-react";
+import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 
@@ -34,7 +35,11 @@ const Categories = ({ categories }: { categories: Array<CategoryItem> }) => {
     }
 
     startTransition(() => {
-      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+      const nextPath = params.size
+        ? `${pathname}?${params.toString()}`
+        : pathname;
+
+      router.push(nextPath as Route, { scroll: false });
     });
   };
 

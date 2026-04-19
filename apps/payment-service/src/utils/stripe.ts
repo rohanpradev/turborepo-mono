@@ -11,7 +11,9 @@ export const getStripeClient = () => {
   }
 
   if (stripeClient === undefined) {
-    stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY as string);
+    stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+      maxNetworkRetries: 2,
+    });
   }
 
   return stripeClient;

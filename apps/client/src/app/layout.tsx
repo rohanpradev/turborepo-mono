@@ -16,20 +16,36 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const createMetadataBase = (value: string | undefined, fallback: string) => {
+  try {
+    return new URL(value ?? fallback);
+  } catch {
+    return new URL(fallback);
+  }
+};
+
+const metadataBase = createMetadataBase(
+  process.env.NEXT_PUBLIC_CLIENT_APP_URL ?? process.env.CLIENT_APP_URL,
+  "http://localhost:3002",
+);
+
 export const metadata: Metadata = {
-  title: "Trendlama - Best Clothes",
+  title: {
+    default: "TrendLama",
+    template: "%s | TrendLama",
+  },
+  applicationName: "TrendLama",
   description: "Trendlama is the best place to find the best clothes",
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_CLIENT_APP_URL ??
-      process.env.CLIENT_APP_URL ??
-      "http://localhost:3002",
-  ),
+  metadataBase,
   alternates: {
     canonical: "/",
   },
   openGraph: {
-    title: "Trendlama - Best Clothes",
+    title: "TrendLama",
     description: "Trendlama is the best place to find the best clothes",
+    siteName: "TrendLama",
+    type: "website",
+    url: "/",
     images: [
       {
         url: "/featured.png",
@@ -39,7 +55,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Trendlama - Best Clothes",
+    title: "TrendLama",
     description: "Trendlama is the best place to find the best clothes",
     images: ["/featured.png"],
   },

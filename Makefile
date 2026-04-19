@@ -1,7 +1,7 @@
 # E-Commerce Microservices Makefile
 # Manage all services, databases, and the hardened local Docker stack.
 
-.PHONY: help ensure-env install dev stop clean clean-all setup setup-base generate-client kafka-ui db-setup db-migrate db-generate db-studio db-seed local-env-file local-db-migrate local-db-seed local-urls local-dev local-fresh-dev lint type-check format audit test verify build build-client build-admin logs-product logs-order logs-payment status docker-build docker-up docker-up-build docker-down docker-down-volumes docker-logs docker-logs-traefik docker-logs-product docker-logs-order docker-logs-payment docker-logs-client docker-logs-admin docker-logs-stripe docker-ps docker-restart docker-restart-service docker-rebuild-service docker-shell-traefik docker-shell-product docker-shell-order docker-shell-payment docker-infra-only docker-infra-local docker-stripe-up docker-stripe-down docker-clean docker-prune docker-kill-all docker-setup docker-fresh-start quick-start quick-stop restart docker-quick-start
+.PHONY: help ensure-env install dev stop clean clean-all setup setup-base generate-client kafka-ui db-setup db-migrate db-generate db-studio db-seed local-env-file local-db-migrate local-db-seed local-urls local-dev local-fresh-dev lint type-check format audit test verify build build-client build-admin logs-product logs-order logs-payment status docker-auth docker-certs docker-build docker-up docker-up-build docker-down docker-down-volumes docker-logs docker-logs-traefik docker-logs-product docker-logs-order docker-logs-payment docker-logs-client docker-logs-admin docker-logs-stripe docker-ps docker-restart docker-restart-service docker-rebuild-service docker-shell-traefik docker-shell-product docker-shell-order docker-shell-payment docker-infra-only docker-infra-local docker-stripe-up docker-stripe-down docker-clean docker-prune docker-kill-all docker-setup docker-fresh-start quick-start quick-stop restart docker-quick-start
 
 .DEFAULT_GOAL := help
 
@@ -12,7 +12,7 @@ RED := \033[0;31m
 NC := \033[0m
 
 LOCAL_DATABASE_URL := postgresql://postgres:postgres@localhost:5432/product_db?schema=public
-LOCAL_MONGO_URL := mongodb://admin:admin123@localhost:27017/order_db?authSource=admin
+LOCAL_MONGO_URL := mongodb://admin:admin123@127.0.0.1:27017/order_db?authSource=admin
 LOCAL_KAFKA_BROKERS := localhost:9094,localhost:9095,localhost:9096
 LOCAL_PRODUCT_SERVICE_URL := http://localhost:3000
 LOCAL_ORDER_SERVICE_URL := http://localhost:8001
@@ -21,6 +21,12 @@ LOCAL_STRIPE_WEBHOOK_URL := http://localhost:8002/api/webhooks/stripe
 LOCAL_CLIENT_APP_URL := http://localhost:3002
 LOCAL_CORS_ALLOWED_ORIGINS := http://localhost:3002,http://localhost:3003
 LOCAL_ENV_FILE := /tmp/ecommerce-local-dev.env
+DOCKER_COMPOSE ?= docker compose
+DOCKER_WAIT_TIMEOUT ?= 180
+DHI_CHECK_IMAGE ?= dhi.io/bun:1
+LOCAL_TLS_CERT_DIR ?= docker/certs
+LOCAL_TLS_CERT_FILE ?= $(LOCAL_TLS_CERT_DIR)/localhost.pem
+LOCAL_TLS_KEY_FILE ?= $(LOCAL_TLS_CERT_DIR)/localhost-key.pem
 
 ##@ General
 
@@ -240,7 +246,7 @@ status: ## Show service status and URLs
 	@echo "$(BLUE)Service Status:$(NC)"
 	@echo ""
 	@echo "$(YELLOW)Docker Compose:$(NC)"
-	@docker compose ps || echo "  $(RED)Not running$(NC)"
+	@$(DOCKER_COMPOSE) ps || echo "  $(RED)Not running$(NC)"
 	@echo ""
 	@echo "$(YELLOW)Service URLs:$(NC)"
 	@echo "  Traefik Dashboard: https://dashboard.localhost/dashboard/"
@@ -272,73 +278,82 @@ local-urls: ## Show localhost URLs for local apps plus Docker infrastructure
 
 ##@ Docker
 
-docker-build: ensure-env ## Build all Docker images
+docker-auth: ## Verify Docker Hardened Images access without prompting
+	@echo "$(BLUE)Checking Docker Hardened Images access...$(NC)"
+	@docker pull $(DHI_CHECK_IMAGE) >/dev/null
+	@echo "$(GREEN)Docker Hardened Images access verified$(NC)"
+
+docker-certs: ## Generate locally trusted TLS certificates for Traefik
+	@echo "$(BLUE)Generating local TLS certificates...$(NC)"
+	@mkdir -p $(LOCAL_TLS_CERT_DIR)
+	@docker/generate-local-certs.sh $(LOCAL_TLS_CERT_DIR)
+	@echo "$(GREEN)Local TLS certificates are ready$(NC)"
+
+docker-build: ensure-env docker-auth docker-certs ## Build all Docker images
 	@echo "$(BLUE)Building Docker images...$(NC)"
-	docker login dhi.io
-	docker compose build
+	$(DOCKER_COMPOSE) build --pull
 	@echo "$(GREEN)Docker images built$(NC)"
 
-docker-up: ensure-env ## Start all services with Docker Compose
+docker-up: ensure-env docker-auth docker-certs ## Start all services with Docker Compose
 	@echo "$(BLUE)Starting all services with Docker...$(NC)"
-	docker login dhi.io
-	docker compose up -d
+	$(DOCKER_COMPOSE) up -d --remove-orphans --wait --wait-timeout $(DOCKER_WAIT_TIMEOUT)
 	@echo "$(GREEN)All services started$(NC)"
 	@echo "$(YELLOW)Stripe CLI is included by default. Use 'make docker-logs-stripe' to inspect webhook forwarding status.$(NC)"
 
-docker-up-build: ensure-env ## Build and start all services with Docker Compose
+docker-up-build: ensure-env docker-auth docker-certs ## Build and start all services with Docker Compose
 	@echo "$(BLUE)Building and starting all services...$(NC)"
-	docker login dhi.io
-	docker compose up -d --build
+	$(DOCKER_COMPOSE) up -d --build --remove-orphans --wait --wait-timeout $(DOCKER_WAIT_TIMEOUT)
 	@echo "$(GREEN)All services started$(NC)"
 	@echo "$(YELLOW)Stripe CLI is included by default. Use 'make docker-logs-stripe' to inspect webhook forwarding status.$(NC)"
 
 docker-down: ## Stop all Docker services
 	@echo "$(BLUE)Stopping Docker services...$(NC)"
-	docker compose down
+	$(DOCKER_COMPOSE) down --remove-orphans
 	@echo "$(GREEN)Docker services stopped$(NC)"
 
 docker-down-volumes: ## Stop all Docker services and remove volumes
 	@echo "$(RED)Stopping Docker services and removing volumes...$(NC)"
-	docker compose down -v
+	$(DOCKER_COMPOSE) down -v --remove-orphans
 	@echo "$(GREEN)Docker services stopped and volumes removed$(NC)"
 
 docker-logs: ## View logs from all Docker services
-	docker compose logs -f
+	$(DOCKER_COMPOSE) logs -f
 
 docker-logs-traefik: ## View Traefik logs
-	docker compose logs -f traefik
+	$(DOCKER_COMPOSE) logs -f traefik
 
 docker-logs-product: ## View product service logs
-	docker compose logs -f product-service
+	$(DOCKER_COMPOSE) logs -f product-service
 
 docker-logs-order: ## View order service logs
-	docker compose logs -f order-service
+	$(DOCKER_COMPOSE) logs -f order-service
 
 docker-logs-payment: ## View payment service logs
-	docker compose logs -f payment-service
+	$(DOCKER_COMPOSE) logs -f payment-service
 
 docker-logs-client: ## View client logs
-	docker compose logs -f client
+	$(DOCKER_COMPOSE) logs -f client
 
 docker-logs-admin: ## View admin logs
-	docker compose logs -f admin
+	$(DOCKER_COMPOSE) logs -f admin
 
 docker-logs-stripe: ## View Stripe CLI logs
-	docker compose logs -f stripe-cli
+	$(DOCKER_COMPOSE) logs -f stripe-cli
 
 docker-ps: ## Show running Docker containers
-	docker compose ps
+	$(DOCKER_COMPOSE) ps
 
 docker-restart: docker-down docker-up ## Restart all Docker services
 
 docker-restart-service: ## Restart a specific service (SERVICE=product-service)
 	@echo "$(BLUE)Restarting $(SERVICE)...$(NC)"
-	docker compose restart $(SERVICE)
+	$(DOCKER_COMPOSE) restart $(SERVICE)
+	$(DOCKER_COMPOSE) up -d --wait --wait-timeout $(DOCKER_WAIT_TIMEOUT) --no-deps $(SERVICE)
 	@echo "$(GREEN)$(SERVICE) restarted$(NC)"
 
-docker-rebuild-service: ## Rebuild and restart a specific service (SERVICE=product-service)
+docker-rebuild-service: ensure-env docker-auth ## Rebuild and restart a specific service (SERVICE=product-service)
 	@echo "$(BLUE)Rebuilding $(SERVICE)...$(NC)"
-	docker compose up -d --no-deps --build $(SERVICE)
+	$(DOCKER_COMPOSE) up -d --no-deps --build --wait --wait-timeout $(DOCKER_WAIT_TIMEOUT) $(SERVICE)
 	@echo "$(GREEN)$(SERVICE) rebuilt and restarted$(NC)"
 
 docker-shell-traefik: ## DHI runtime images do not include a shell
@@ -353,31 +368,29 @@ docker-shell-order: ## DHI runtime images do not include a shell
 docker-shell-payment: ## DHI runtime images do not include a shell
 	@echo "$(YELLOW)Payment service now runs on a shell-less hardened image. Use 'docker debug ecommerce-payment-service' when interactive inspection is needed.$(NC)"
 
-docker-infra-only: ensure-env ## Start only infrastructure services
+docker-infra-only: ensure-env docker-auth docker-certs ## Start only infrastructure services
 	@echo "$(BLUE)Starting infrastructure...$(NC)"
-	docker login dhi.io
-	docker compose up -d traefik postgres mongodb kafka-broker-1 kafka-broker-2 kafka-broker-3 kafka-ui
+	$(DOCKER_COMPOSE) up -d --wait --wait-timeout $(DOCKER_WAIT_TIMEOUT) traefik postgres mongodb kafka-broker-1 kafka-broker-2 kafka-broker-3 kafka-ui
 	@echo "$(GREEN)Infrastructure started$(NC)"
 
-docker-infra-local: ensure-env ## Start only database and Kafka infrastructure for local HTTP app development
+docker-infra-local: ensure-env docker-auth ## Start only database and Kafka infrastructure for local HTTP app development
 	@echo "$(BLUE)Starting local development infrastructure...$(NC)"
-	docker login dhi.io
-	docker compose up -d postgres mongodb kafka-broker-1 kafka-broker-2 kafka-broker-3
+	$(DOCKER_COMPOSE) up -d --wait --wait-timeout $(DOCKER_WAIT_TIMEOUT) postgres mongodb kafka-broker-1 kafka-broker-2 kafka-broker-3
 	@echo "$(GREEN)Local development infrastructure started$(NC)"
 
 docker-stripe-up: ensure-env ## Start the Stripe CLI listener for webhook forwarding
 	@echo "$(BLUE)Starting Stripe CLI webhook forwarding...$(NC)"
-	docker compose up -d stripe-cli
+	$(DOCKER_COMPOSE) up -d --wait --wait-timeout $(DOCKER_WAIT_TIMEOUT) stripe-cli
 	@echo "$(YELLOW)Stripe webhook secret sync is automatic. Use 'make docker-logs-stripe' to confirm the listener is ready.$(NC)"
 
 docker-stripe-down: ## Stop the Stripe CLI listener
 	@echo "$(BLUE)Stopping Stripe CLI webhook forwarding...$(NC)"
-	docker compose stop stripe-cli
+	$(DOCKER_COMPOSE) stop stripe-cli
 	@echo "$(GREEN)Stripe CLI stopped$(NC)"
 
 docker-clean: ## Remove project Docker containers, network, volumes, and local images
 	@echo "$(RED)Cleaning all Docker resources...$(NC)"
-	docker compose down -v --remove-orphans --rmi local
+	$(DOCKER_COMPOSE) down -v --remove-orphans --rmi local
 	@echo "$(GREEN)Docker resources cleaned$(NC)"
 
 docker-prune: ## Prune unused Docker resources
@@ -390,13 +403,13 @@ docker-kill-all: ## Kill every running Docker container on the machine
 	@docker ps -q | xargs -r docker kill
 	@echo "$(GREEN)All running Docker containers stopped$(NC)"
 
-docker-setup: setup-base ## Run setup and start the full Docker stack
+docker-setup: setup-base docker-certs ## Run setup and start the full Docker stack
 	@echo "$(BLUE)Starting the full Docker setup...$(NC)"
 	@$(MAKE) docker-up-build
 
-docker-fresh-start: ensure-env ## Rebuild the Docker stack from a clean project state
+docker-fresh-start: ensure-env docker-certs ## Rebuild the Docker stack from a clean project state
 	@echo "$(RED)Resetting the project Docker stack...$(NC)"
-	docker compose down -v --remove-orphans --rmi local
+	$(DOCKER_COMPOSE) down -v --remove-orphans --rmi local
 	@$(MAKE) docker-up-build
 
 ##@ Quick Commands

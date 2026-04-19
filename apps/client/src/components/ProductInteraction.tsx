@@ -1,6 +1,7 @@
 "use client";
 
 import { Minus, Plus, ShoppingCart } from "lucide-react";
+import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "react-toastify";
@@ -28,7 +29,8 @@ const ProductInteraction = ({
     const params = new URLSearchParams(searchParams.toString());
     params.set(type, value);
     startTransition(() => {
-      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+      const nextPath = `${pathname}?${params.toString()}`;
+      router.push(nextPath as Route, { scroll: false });
     });
   };
 

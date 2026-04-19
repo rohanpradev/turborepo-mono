@@ -12,7 +12,13 @@ import {
   type ProductHealthResponse,
 } from "@repo/api-client";
 import { formatUsdFromCents } from "@repo/types";
-import Link from "next/link";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Payments",
+  description:
+    "Live checkout, Stripe, Kafka, and downstream order flow visibility for the commerce stack.",
+};
 
 const liveFetchOptions = {
   cache: "no-store" as const,
@@ -120,15 +126,15 @@ const PaymentsPage = async () => {
             </p>
           </div>
           <div className="flex flex-wrap gap-3 text-sm">
-            <Link href="https://kafka.localhost" className="underline">
+            <a href="https://kafka.localhost" className="underline">
               Kafka UI
-            </Link>
-            <Link
+            </a>
+            <a
               href="https://dashboard.localhost/dashboard/"
               className="underline"
             >
               Traefik Dashboard
-            </Link>
+            </a>
             <span className="text-muted-foreground">
               Public payment endpoint: {paymentServicePublicUrl}
             </span>

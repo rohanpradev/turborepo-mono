@@ -1,7 +1,7 @@
 "use client";
 
 import { PaymentElement, useCheckout } from "@stripe/react-stripe-js/checkout";
-import { type FormEvent, useState } from "react";
+import { type SubmitEvent, useState } from "react";
 
 interface ShippingFormInputs {
   email: string;
@@ -20,7 +20,7 @@ const CheckoutForm = ({
   const [message, setMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (checkoutState.type !== "success") {

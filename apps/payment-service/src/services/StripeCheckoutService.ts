@@ -101,8 +101,8 @@ export const StripeCheckoutService = {
     );
 
     const session = await stripe.checkout.sessions.create({
-      // Stripe's docs still refer to this flow as custom checkout in some places,
-      // but stripe-node v22 exposes the renamed "elements" ui_mode enum.
+      // Stripe's current SDK models the embedded checkout flow as the
+      // "elements" UI mode.
       ui_mode: "elements",
       mode: "payment",
       line_items: lineItems,
