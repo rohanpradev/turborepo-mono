@@ -1,7 +1,7 @@
 import { connectProductDB, disconnectProductDB } from "@repo/product-db";
-import { app } from "./app";
-import { productServiceRuntime } from "./runtime";
-import { ensureProductKafkaTopics, producer } from "./utils/kafka";
+import { app } from "@/app";
+import { productServiceRuntime } from "@/runtime";
+import { ensureProductKafkaTopics, producer } from "@/utils/kafka";
 
 const port = +(process.env.PORT ?? 3000);
 let isShuttingDown = false;

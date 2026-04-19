@@ -1,12 +1,14 @@
 import { Show, SignInButton } from "@clerk/nextjs";
 import { Bell, Home } from "lucide-react";
 import type { Route } from "next";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
-import ProfileButton from "./ProfileButton";
-import SearchBar from "./SearchBar";
-import ShoppingCartIcon from "./ShoppingCartIcon";
+import SearchBar from "@/components/SearchBar";
+import ShoppingCartIcon from "@/components/ShoppingCartIcon";
+
+const ProfileButton = dynamic(() => import("@/components/ProfileButton"));
 
 const isClerkConfigured = Boolean(
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,

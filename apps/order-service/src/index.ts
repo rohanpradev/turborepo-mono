@@ -1,8 +1,8 @@
 import { connectOrderDB, disconnectOrderDB } from "@repo/order-db";
-import { app } from "./app";
-import { orderServiceRuntime } from "./runtime";
-import { consumer, ensureOrderKafkaTopics } from "./utils/kafka";
-import { runKafkaSubscriptions } from "./utils/subscriptions";
+import { app } from "@/app";
+import { orderServiceRuntime } from "@/runtime";
+import { consumer, ensureOrderKafkaTopics } from "@/utils/kafka";
+import { runKafkaSubscriptions } from "@/utils/subscriptions";
 
 const port = +(process.env.PORT ?? 8001);
 let isShuttingDown = false;

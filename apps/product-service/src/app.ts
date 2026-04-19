@@ -5,10 +5,10 @@ import {
   jsonContent,
   z,
 } from "@repo/hono-utils";
-import { clerkAuthMiddleware, type ServiceVariables } from "./middleware/auth";
-import { categoryRoutes } from "./routes/categoryRoutes";
-import { healthRoutes } from "./routes/healthRoutes";
-import { productRoutes } from "./routes/productRoutes";
+import { clerkAuthMiddleware, type ServiceVariables } from "@/middleware/auth";
+import { categoryRoutes } from "@/routes/categoryRoutes";
+import { healthRoutes } from "@/routes/healthRoutes";
+import { productRoutes } from "@/routes/productRoutes";
 
 const serviceInfoSchema = z.object({
   message: z.string(),

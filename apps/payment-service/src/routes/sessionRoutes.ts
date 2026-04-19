@@ -13,9 +13,9 @@ import {
   checkoutSessionPayloadSchema,
   checkoutSessionStatusQuerySchema,
 } from "@repo/types";
-import type { ServiceVariables } from "../middleware/auth";
-import { shouldBeUser } from "../middleware/auth";
-import { StripeCheckoutService } from "../services/StripeCheckoutService";
+import type { ServiceVariables } from "@/middleware/auth";
+import { shouldBeUser } from "@/middleware/auth";
+import { StripeCheckoutService } from "@/services/StripeCheckoutService";
 
 const createCheckoutSessionResponseSchema = createSuccessResponseSchema(
   z.object({

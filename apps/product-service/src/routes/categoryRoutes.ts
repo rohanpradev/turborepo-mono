@@ -16,9 +16,9 @@ import {
   categorySlugParamSchema,
   categoryUpdateSchema,
 } from "@repo/types";
-import type { ServiceVariables } from "../middleware/auth";
-import { shouldBeAdmin } from "../middleware/auth";
-import { CategoryService } from "../services/CategoryService";
+import type { ServiceVariables } from "@/middleware/auth";
+import { shouldBeAdmin } from "@/middleware/auth";
+import { CategoryService } from "@/services/CategoryService";
 
 const categoryResponseSchema =
   createSuccessResponseSchema(categoryRecordSchema).openapi("CategoryResponse");

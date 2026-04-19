@@ -6,9 +6,9 @@ import {
 import type { CategoryRecord, ProductRecord, ProductSort } from "@repo/types";
 import type { Route } from "next";
 import Link from "next/link";
-import Categories from "./Categories";
-import Filter from "./Filter";
-import ProductCard from "./ProductCard";
+import Categories from "@/components/Categories";
+import Filter from "@/components/Filter";
+import ProductCard from "@/components/ProductCard";
 
 type ProductListProps = {
   category?: string;

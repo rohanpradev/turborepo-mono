@@ -1,6 +1,6 @@
 import { type TopicHandler, Topics } from "@repo/kafka";
-import { consumer } from "./kafka";
-import { createOrder } from "./order";
+import { consumer } from "@/utils/kafka";
+import { createOrder } from "@/utils/order";
 
 export const runKafkaSubscriptions = async () => {
   const handlers: Array<TopicHandler<typeof Topics.PAYMENT_SUCCESSFUL>> = [

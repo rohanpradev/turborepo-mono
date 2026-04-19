@@ -20,7 +20,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarSeparator,
-} from "./ui/sidebar";
+} from "@/components/ui/sidebar";
 
 type AppSidebarProps = {
   viewer: {

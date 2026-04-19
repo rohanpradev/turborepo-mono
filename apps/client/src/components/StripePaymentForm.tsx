@@ -6,7 +6,7 @@ import { CheckoutElementsProvider } from "@stripe/react-stripe-js/checkout";
 import { loadStripe } from "@stripe/stripe-js";
 import { useEffect, useState } from "react";
 import useCartStore from "@/stores/cartStore";
-import CheckoutForm from "./CheckoutForm";
+import CheckoutForm from "@/components/CheckoutForm";
 
 const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 type LoadedStripe = Awaited<ReturnType<typeof loadStripe>>;

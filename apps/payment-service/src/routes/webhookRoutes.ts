@@ -6,7 +6,7 @@ import {
   jsonContent,
   z,
 } from "@repo/hono-utils";
-import { StripeWebhookService } from "../services/StripeWebhookService";
+import { StripeWebhookService } from "@/services/StripeWebhookService";
 
 const webhookResponseSchema = z
   .object({

@@ -6,7 +6,7 @@ import {
   z,
 } from "@repo/hono-utils";
 import { Topics } from "@repo/kafka";
-import { listIntegrationEvents } from "../observability/integrationEvents";
+import { listIntegrationEvents } from "@/observability/integrationEvents";
 
 const integrationEventSchema = z.object({
   id: z.string(),

@@ -1,6 +1,6 @@
 import { type ProductCreatedMessage, Topics } from "@repo/kafka";
-import { recordIntegrationEvent } from "../observability/integrationEvents";
-import { getStripeClient } from "../utils/stripe";
+import { recordIntegrationEvent } from "@/observability/integrationEvents";
+import { getStripeClient } from "@/utils/stripe";
 
 const priceLookupKey = (productId: string) => `catalog:${productId}:usd`;
 

@@ -6,7 +6,7 @@ import {
   prisma,
 } from "@repo/product-db";
 import { toUsdCents } from "@repo/types";
-import { kafkaClient, producer } from "../utils/kafka";
+import { kafkaClient, producer } from "@/utils/kafka";
 
 type SeedCategory = {
   name: string;
