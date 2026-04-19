@@ -33,20 +33,88 @@ An end-to-end commerce platform built as a Bun-first Turborepo with typed Hono m
 - `packages/order-db`: MongoDB models and connection helpers
 - `packages/kafka`: typed Kafka client, producers, consumers, and topic helpers
 
-## Local development
+## Prerequisites
+
+- `Bun >= 1.3.11`
+- `Node >= 20.9.0`
+- `Docker` with Compose
+- `mkcert` for locally trusted `*.localhost` certificates
+- `docker login dhi.io` for Docker Hardened Images
+
+Start by listing the supported workflows:
+
+```bash
+make help
+```
+
+## Startup commands
+
+### Recommended full Docker stack
+
+Use this when you want the full production-style local setup with Traefik, both Next.js apps, all services, databases, Kafka, and Stripe CLI webhook forwarding:
+
+```bash
+make setup
+make docker-up-build
+```
+
+Useful follow-up commands:
+
+```bash
+make status
+make docker-ps
+make docker-logs
+make docker-down
+```
+
+### Recommended local app development
+
+Use this when you want the apps and services running locally over HTTP, while Postgres, MongoDB, and Kafka run in Docker:
+
+```bash
+make local-dev
+```
+
+This target will:
+
+- create `.env` if needed
+- install dependencies
+- generate Prisma client
+- start Docker infra for Postgres, MongoDB, and Kafka
+- create a merged local env file
+- run Prisma migrations
+- seed the product catalog
+- print the local URLs
+- start the Turbo dev processes
+
+If you want the raw commands instead of the curated target:
+
+```bash
+make setup-base
+make docker-infra-local
+make local-env-file
+make local-db-migrate
+make local-db-seed
+bun --env-file=/tmp/ecommerce-local-dev.env run dev
+```
+
+### Direct Bun/Turbo workflow
+
+This works if your infra and env are already prepared:
 
 ```bash
 bun install
 bun run dev
 ```
 
-Quality gates:
+## Quality gates
 
 ```bash
-bun run check-types
-bun run test
-bun run test:coverage
-bun run build
+make lint
+make type-check
+make test
+make build
+make verify
 ```
 
 ## Docker
@@ -57,11 +125,29 @@ This repo uses Docker Hardened Images. The preferred startup path is:
 make docker-up-build
 ```
 
-The first Docker start runs `mkcert` to generate a locally trusted Traefik
-certificate for `*.localhost`. If you ever rotate or delete the certs, rerun:
+The Docker-related targets you will actually use most often are:
+
+```bash
+make docker-build
+make docker-up
+make docker-up-build
+make docker-down
+make docker-down-volumes
+make docker-logs
+make docker-logs-stripe
+make docker-rebuild-service SERVICE=product-service
+```
+
+The first Docker start runs `mkcert` to generate a locally trusted Traefik certificate for `*.localhost`. If you ever rotate or delete the certs, rerun:
 
 ```bash
 make docker-certs
+```
+
+If you only need the infra for local app development:
+
+```bash
+make docker-infra-local
 ```
 
 The Docker builds use Turborepo pruning plus Docker ignore files to keep build
@@ -86,7 +172,7 @@ This repo now includes the Stripe CLI container in the default Docker stack, bas
 2. Start the Docker stack. The Stripe CLI starts with it by default:
 
 ```bash
-make docker-up
+make docker-up-build
 ```
 
 The Stripe CLI forwards events to `http://payment-service:8002/api/webhooks/stripe` inside the Compose network by default. On startup it captures the `whsec_...` signing secret from Stripe CLI output, writes it into a shared runtime volume, and `payment-service` reads that value automatically for webhook verification. No manual secret copy or service restart is required for the Docker flow.
