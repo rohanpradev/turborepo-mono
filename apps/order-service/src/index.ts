@@ -1,7 +1,7 @@
 import { connectOrderDB, disconnectOrderDB } from "@repo/order-db";
 import { app } from "./app";
 import { orderServiceRuntime } from "./runtime";
-import { consumer, ensureOrderKafkaTopics, producer } from "./utils/kafka";
+import { consumer, ensureOrderKafkaTopics } from "./utils/kafka";
 import { runKafkaSubscriptions } from "./utils/subscriptions";
 
 const port = +(process.env.PORT ?? 8001);
@@ -22,20 +22,6 @@ const bootstrap = async () => {
 
   try {
     await ensureOrderKafkaTopics();
-    await producer.start();
-    orderServiceRuntime.markReady("kafka.producer");
-    console.log("Kafka producer connected");
-  } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Kafka producer bootstrap failed.";
-    orderServiceRuntime.markNotReady("kafka.producer", message);
-    console.error("Failed to initialize Kafka producer:", error);
-    process.exit(1);
-  }
-
-  try {
     await runKafkaSubscriptions();
     orderServiceRuntime.markReady("kafka.consumer");
     console.log("Kafka subscriptions started");
@@ -64,17 +50,12 @@ const shutdown = async (signal: string) => {
     `Shutdown triggered by ${signal}.`,
   );
   orderServiceRuntime.markNotReady(
-    "kafka.producer",
-    `Shutdown triggered by ${signal}.`,
-  );
-  orderServiceRuntime.markNotReady(
     "kafka.consumer",
     `Shutdown triggered by ${signal}.`,
   );
 
   const results = await Promise.allSettled([
     consumer.shutdown(),
-    producer.shutdown(),
     disconnectOrderDB(),
   ]);
   const failed = results.some((result) => result.status === "rejected");

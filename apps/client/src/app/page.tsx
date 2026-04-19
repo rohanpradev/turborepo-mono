@@ -1,12 +1,23 @@
 import Image from "next/image";
 import ProductList from "@/components/ProductList";
 
+const getSingleParam = (value?: string | Array<string>) =>
+  Array.isArray(value) ? value[0] : value;
+
 const Homepage = async ({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string }>;
+  searchParams: Promise<{
+    category?: string | Array<string>;
+    search?: string | Array<string>;
+    sort?: string | Array<string>;
+  }>;
 }) => {
-  const category = (await searchParams).category;
+  const resolvedSearchParams = await searchParams;
+  const category = getSingleParam(resolvedSearchParams.category);
+  const search = getSingleParam(resolvedSearchParams.search);
+  const sort = getSingleParam(resolvedSearchParams.sort);
+
   return (
     <div className="">
       <div className="relative aspect-[3/1] mb-12">
@@ -18,7 +29,12 @@ const Homepage = async ({
           sizes="(min-width: 1280px) 72rem, 100vw"
         />
       </div>
-      <ProductList category={category} params="homepage" />
+      <ProductList
+        category={category}
+        search={search}
+        sort={sort}
+        params="homepage"
+      />
     </div>
   );
 };

@@ -9,8 +9,7 @@
     "@repo/hono-utils": "workspace:*",
     "@repo/kafka": "workspace:*",
     "@repo/product-db": "workspace:*",
-    "@repo/types": "workspace:*",
-    "hono": "^4.12.14"
+    "@repo/types": "workspace:*"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

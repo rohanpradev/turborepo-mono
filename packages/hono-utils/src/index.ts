@@ -9,6 +9,7 @@ import {
 import type { CustomJwtSessionClaims } from "@repo/types";
 import { Scalar } from "@scalar/hono-api-reference";
 import type { Context, Env } from "hono";
+import { compress } from "hono/compress";
 import { cors } from "hono/cors";
 import { createMiddleware } from "hono/factory";
 import { HTTPException } from "hono/http-exception";
@@ -575,6 +576,7 @@ export const createServiceApp = <E extends Env = Env>({
   app.use("*", createRequestIdMiddleware());
   app.use("*", secureHeaders());
   app.use("*", logger());
+  app.use("*", compress());
   app.notFound((c) => createErrorResponse(c, 404, "Route not found"));
   app.onError((error, c) => {
     if (error instanceof HTTPException) {

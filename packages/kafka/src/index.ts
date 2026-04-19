@@ -1,5 +1,14 @@
-export { ensureTopics } from "./admin";
-export { createKafkaClient, type KafkaClient } from "./client";
+export {
+  buildTopicConfigs,
+  ensureTopics,
+  type KafkaTopicDefaults,
+  readKafkaTopicDefaults,
+} from "./admin";
+export {
+  createKafkaClient,
+  type KafkaClient,
+  readKafkaBrokers,
+} from "./client";
 export {
   createConsumer,
   KafkaConsumer,

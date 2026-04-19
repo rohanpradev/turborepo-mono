@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 
@@ -8,12 +9,22 @@ const Filter = () => {
   const router = useRouter();
   const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
+  const selectedSort = searchParams.get("sort") ?? "newest";
 
   const handleFilter = (value: string) => {
     const params = new URLSearchParams(searchParams);
-    params.set("sort", value);
+
+    if (value === "newest") {
+      params.delete("sort");
+    } else {
+      params.set("sort", value);
+    }
+
     startTransition(() => {
-      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+      const nextPath = params.size
+        ? `${pathname}?${params.toString()}`
+        : pathname;
+      router.push(nextPath as Route, { scroll: false });
     });
   };
 
@@ -25,6 +36,7 @@ const Filter = () => {
         id="sort"
         className="rounded-sm p-2 ring-1 ring-gray-200 shadow-md sm:w-auto"
         disabled={isPending}
+        value={selectedSort}
         onChange={(e) => handleFilter(e.target.value)}
       >
         <option value="newest">Newest</option>

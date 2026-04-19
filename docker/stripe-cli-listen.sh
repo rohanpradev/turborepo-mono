@@ -18,11 +18,20 @@ fi
 secret_file="${STRIPE_WEBHOOK_SECRET_FILE:-/var/run/stripe/webhook-secret}"
 secret_dir=$(dirname "$secret_file")
 mkdir -p "$secret_dir"
+umask 077
 
-stripe listen \
-  --forward-to "$STRIPE_WEBHOOK_FORWARD_TO" \
-  --events "${STRIPE_CLI_EVENTS:-checkout.session.completed,payment_intent.succeeded,payment_intent.payment_failed}" \
-  2>&1 | awk -v secret_file="$secret_file" '
+log_pipe=$(mktemp -u /tmp/stripe-listen.XXXXXX)
+mkfifo "$log_pipe"
+
+cleanup() {
+  rm -f "$log_pipe"
+  rm -f "$secret_file"
+}
+
+trap cleanup EXIT HUP INT TERM
+rm -f "$secret_file"
+
+awk -v secret_file="$secret_file" '
 {
   print;
   if (match($0, /whsec_[A-Za-z0-9]+/)) {
@@ -33,4 +42,14 @@ stripe listen \
   }
   fflush();
 }
-'
+' < "$log_pipe" &
+awk_pid=$!
+
+stripe_status=0
+stripe listen \
+  --forward-to "$STRIPE_WEBHOOK_FORWARD_TO" \
+  --events "${STRIPE_CLI_EVENTS:-checkout.session.completed,payment_intent.succeeded,payment_intent.payment_failed}" \
+  > "$log_pipe" 2>&1 || stripe_status=$?
+
+wait "$awk_pid"
+exit "$stripe_status"

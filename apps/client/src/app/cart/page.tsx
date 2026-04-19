@@ -2,6 +2,7 @@
 
 import { formatUsdFromCents } from "@repo/types";
 import { ArrowRight, Trash2 } from "lucide-react";
+import type { Route } from "next";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
@@ -131,48 +132,55 @@ const CartContent = () => {
         <div className="flex w-full flex-col gap-6 rounded-lg border-1 border-gray-100 p-4 shadow-lg sm:p-6 lg:w-7/12 lg:gap-8 lg:p-8">
           {activeStep === 1 ? (
             cart.length > 0 ? (
-              cart.map((item) => (
-                <div
-                  className="flex flex-col gap-4 rounded-lg border border-gray-100 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4"
-                  key={item.id + item.selectedSize + item.selectedColor}
-                >
-                  <div className="flex gap-4 sm:gap-6">
-                    <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-gray-50 sm:h-32 sm:w-32">
-                      <Image
-                        src={item.images[item.selectedColor]}
-                        alt={item.name}
-                        fill
-                        className="object-contain"
-                        sizes="(min-width: 640px) 128px, 96px"
-                      />
-                    </div>
-                    <div className="flex min-w-0 flex-1 flex-col justify-between gap-3">
-                      <div className="flex flex-col gap-1">
-                        <p className="text-sm font-medium">{item.name}</p>
-                        <p className="text-xs text-gray-500">
-                          Quantity: {item.quantity}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Size: {item.selectedSize}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Color: {item.selectedColor}
+              cart.map((item) => {
+                const imageUrl =
+                  item.images[item.selectedColor] ??
+                  Object.values(item.images)[0] ??
+                  "/featured.png";
+
+                return (
+                  <div
+                    className="flex flex-col gap-4 rounded-lg border border-gray-100 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4"
+                    key={item.id + item.selectedSize + item.selectedColor}
+                  >
+                    <div className="flex gap-4 sm:gap-6">
+                      <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-gray-50 sm:h-32 sm:w-32">
+                        <Image
+                          src={imageUrl}
+                          alt={item.name}
+                          fill
+                          className="object-contain"
+                          sizes="(min-width: 640px) 128px, 96px"
+                        />
+                      </div>
+                      <div className="flex min-w-0 flex-1 flex-col justify-between gap-3">
+                        <div className="flex flex-col gap-1">
+                          <p className="text-sm font-medium">{item.name}</p>
+                          <p className="text-xs text-gray-500">
+                            Quantity: {item.quantity}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Size: {item.selectedSize}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Color: {item.selectedColor}
+                          </p>
+                        </div>
+                        <p className="font-medium">
+                          {formatUsdFromCents(item.price)}
                         </p>
                       </div>
-                      <p className="font-medium">
-                        {formatUsdFromCents(item.price)}
-                      </p>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => removeFromCart(item)}
+                      className="flex h-9 w-full items-center justify-center rounded-full bg-red-100 text-red-400 transition-all duration-300 hover:bg-red-200 sm:h-8 sm:w-8"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removeFromCart(item)}
-                    className="flex h-9 w-full items-center justify-center rounded-full bg-red-100 text-red-400 transition-all duration-300 hover:bg-red-200 sm:h-8 sm:w-8"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
-                </div>
-              ))
+                );
+              })
             ) : (
               <div className="rounded-lg border border-dashed border-gray-300 px-4 py-10 text-center text-sm text-gray-500">
                 Your cart is empty.
@@ -213,7 +221,9 @@ const CartContent = () => {
           {activeStep === 1 && (
             <button
               type="button"
-              onClick={() => router.push("/cart?step=2", { scroll: false })}
+              onClick={() =>
+                router.push("/cart?step=2" as Route, { scroll: false })
+              }
               className="w-full bg-gray-800 hover:bg-gray-900 transition-all duration-300 text-white p-2 rounded-lg cursor-pointer flex items-center justify-center gap-2"
             >
               Continue

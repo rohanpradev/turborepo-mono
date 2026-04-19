@@ -18,10 +18,25 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const createMetadataBase = (value: string | undefined, fallback: string) => {
+  try {
+    return new URL(value ?? fallback);
+  } catch {
+    return new URL(fallback);
+  }
+};
+
 export const metadata: Metadata = {
-  title: "Flagship Commerce Admin",
+  title: {
+    default: "Flagship Commerce Admin",
+    template: "%s | Flagship Commerce Admin",
+  },
   description:
     "Operations dashboard for products, payments, Kafka event flow, and storefront services.",
+  metadataBase: createMetadataBase(
+    process.env.NEXT_PUBLIC_ADMIN_APP_URL ?? process.env.ADMIN_APP_URL,
+    "http://localhost:3003",
+  ),
 };
 
 export default async function RootLayout({

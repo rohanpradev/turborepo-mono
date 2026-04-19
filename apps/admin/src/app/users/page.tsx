@@ -1,4 +1,5 @@
 import { formatUsdFromCents } from "@repo/types";
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   buildCustomerSummaries,
@@ -10,6 +11,12 @@ import {
 } from "@/lib/admin-data";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Customers",
+  description:
+    "Customer revenue, payment history, and checkout activity derived from live commerce events.",
+};
 
 const UsersPage = async () => {
   const [events, orders] = await Promise.all([

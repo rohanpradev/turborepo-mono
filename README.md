@@ -1,4 +1,4 @@
-# Flagship Commerce Monorepo
+#  ECommerce Monorepo
 
 An end-to-end commerce platform built as a Bun-first Turborepo with typed Hono microservices, Next.js 16.2 frontends, Kafka-driven integrations, and Docker Hardened Images for production-style local orchestration.
 
@@ -44,7 +44,8 @@ Quality gates:
 
 ```bash
 bun run check-types
-bun test --preload ./tests/preload.ts
+bun run test
+bun run test:coverage
 bun run build
 ```
 
@@ -55,6 +56,27 @@ This repo uses Docker Hardened Images. The preferred startup path is:
 ```bash
 make docker-up-build
 ```
+
+The first Docker start runs `mkcert` to generate a locally trusted Traefik
+certificate for `*.localhost`. If you ever rotate or delete the certs, rerun:
+
+```bash
+make docker-certs
+```
+
+The Docker builds use Turborepo pruning plus Docker ignore files to keep build
+contexts and dependency installation layers as small and cache-friendly as
+possible. The Dockerfiles now use BuildKit cache mounts for Bun installs and
+`COPY --link` so repeat builds can reuse dependency and cross-stage copy layers
+more aggressively.
+
+The Kafka stack now uses explicit topic creation, broker health checks before
+dependent services start, and persistent broker volumes in the Docker Compose
+cluster.
+
+The Next.js apps expose lightweight `/api/health` endpoints for container health
+checks, so Docker probes don't have to render full pages or depend on auth/data
+fetching behavior.
 
 ### Stripe CLI webhook forwarding
 
@@ -69,9 +91,11 @@ make docker-up
 
 The Stripe CLI forwards events to `http://payment-service:8002/api/webhooks/stripe` inside the Compose network by default. On startup it captures the `whsec_...` signing secret from Stripe CLI output, writes it into a shared runtime volume, and `payment-service` reads that value automatically for webhook verification. No manual secret copy or service restart is required for the Docker flow.
 
+That shared volume is intentional. Docker named volumes are the portable way to share runtime-generated files between containers in Compose. A tmpfs mount would avoid persistence but can't be shared across services, and a bind mount would only add host filesystem coupling when the host doesn't need to read the secret.
+
 Local webhook forwarding should bypass Traefik and go straight to HTTP on the payment service. Using `https://api.localhost/api/webhooks/stripe` can fail because Stripe and the Stripe CLI don't trust the local Traefik certificate by default. For host-based local development, use `http://localhost:8002/api/webhooks/stripe`. For the Docker stack, keep the default internal target `http://payment-service:8002/api/webhooks/stripe`.
 
-Override `STRIPE_WEBHOOK_FORWARD_TO`, `STRIPE_DEVICE_NAME`, or `STRIPE_CLI_EVENTS` in `.env` if needed. `STRIPE_WEBHOOK_SECRET` is still supported for non-Docker or manually managed webhook setups.
+Override `STRIPE_WEBHOOK_FORWARD_TO` or `STRIPE_CLI_EVENTS` in `.env` if needed. The Stripe CLI image is pinned to a published version for reproducible Docker builds, and the container reports healthy only after it has written the active webhook signing secret into the shared runtime volume. `STRIPE_WEBHOOK_SECRET` is still supported for non-Docker or manually managed webhook setups.
 
 Main routes:
 
@@ -88,6 +112,12 @@ Each Hono service exposes:
 - `/docs` for Scalar API reference
 - `/openapi.json` for the OpenAPI document
 - `/health`, `/health/live`, and `/health/ready` for service probes
+
+## Kafka notes
+
+- Local broker endpoints: `localhost:9094`, `localhost:9095`, `localhost:9096`
+- Internal Docker broker endpoints: `kafka-broker-1:9092`, `kafka-broker-2:9092`, `kafka-broker-3:9092`
+- Default event topic settings: `3` partitions, replication factor `3`, `min.insync.replicas=2`
 
 ## Showcase notes
 

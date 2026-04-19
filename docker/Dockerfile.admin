@@ -1,14 +1,17 @@
+# syntax=docker/dockerfile:1
 ARG BUN_DEV_IMAGE=dhi.io/bun:1-dev
 ARG BUN_RUNTIME_IMAGE=dhi.io/bun:1
+ARG TURBO_VERSION=2.9.6
 
 FROM ${BUN_DEV_IMAGE} AS pruner
 ENV CI=1 \
     TURBO_TELEMETRY_DISABLED=1 \
     NEXT_TELEMETRY_DISABLED=1
 WORKDIR /repo
-RUN bun install --global turbo@2.8.20
+RUN --mount=type=cache,target=/root/.bun/install/cache,sharing=locked \
+    bun install --global turbo@${TURBO_VERSION}
 ENV PATH="/root/.bun/bin:$PATH"
-COPY . .
+COPY --link . .
 RUN turbo prune admin --docker
 
 FROM ${BUN_DEV_IMAGE} AS builder
@@ -18,18 +21,21 @@ ENV CI=1 \
 WORKDIR /app
 
 ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=""
+ARG NEXT_PUBLIC_ADMIN_APP_URL=""
 ARG NEXT_PUBLIC_PRODUCT_SERVICE_URL="https://api.localhost"
 ARG NEXT_PUBLIC_ORDER_SERVICE_URL="https://api.localhost"
 ARG NEXT_PUBLIC_PAYMENT_SERVICE_URL="https://api.localhost"
 
 ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY} \
+    NEXT_PUBLIC_ADMIN_APP_URL=${NEXT_PUBLIC_ADMIN_APP_URL} \
     NEXT_PUBLIC_PRODUCT_SERVICE_URL=${NEXT_PUBLIC_PRODUCT_SERVICE_URL} \
     NEXT_PUBLIC_ORDER_SERVICE_URL=${NEXT_PUBLIC_ORDER_SERVICE_URL} \
     NEXT_PUBLIC_PAYMENT_SERVICE_URL=${NEXT_PUBLIC_PAYMENT_SERVICE_URL}
 
-COPY --from=pruner /repo/out/json/ ./
-RUN bun install --frozen-lockfile
-COPY --from=pruner /repo/out/full/ ./
+COPY --link --from=pruner /repo/out/json/ ./
+RUN --mount=type=cache,target=/root/.bun/install/cache,sharing=locked \
+    bun install --frozen-lockfile
+COPY --link --from=pruner /repo/out/full/ ./
 RUN bunx turbo run build --filter=admin...
 
 FROM ${BUN_RUNTIME_IMAGE} AS runner
@@ -39,9 +45,9 @@ ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
 
-COPY --from=builder /app/apps/admin/.next/standalone ./
-COPY --from=builder /app/apps/admin/.next/static ./apps/admin/.next/static
-COPY --from=builder /app/apps/admin/public ./apps/admin/public
+COPY --link --from=builder /app/apps/admin/.next/standalone ./
+COPY --link --from=builder /app/apps/admin/.next/static ./apps/admin/.next/static
+COPY --link --from=builder /app/apps/admin/public ./apps/admin/public
 
 EXPOSE 3003
 

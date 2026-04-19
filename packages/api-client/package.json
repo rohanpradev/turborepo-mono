@@ -9,8 +9,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@repo/types": "workspace:*",
-    "hono": "^4.12.14"
+    "@repo/types": "workspace:*"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

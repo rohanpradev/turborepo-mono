@@ -2,6 +2,7 @@
 
 import { formatUsdFromCents } from "@repo/types";
 import { ShoppingCart } from "lucide-react";
+import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
@@ -10,10 +11,16 @@ import useCartStore from "@/stores/cartStore";
 import type { ProductType } from "@/types";
 
 const ProductCard = ({ product }: { product: ProductType }) => {
+  const defaultSize = product.sizes[0] ?? "";
+  const defaultColor = product.colors[0] ?? "";
   const [productTypes, setProductTypes] = useState({
-    size: product.sizes[0],
-    color: product.colors[0],
+    size: defaultSize,
+    color: defaultColor,
   });
+  const previewImage =
+    product.images[productTypes.color] ??
+    Object.values(product.images)[0] ??
+    "/featured.png";
 
   const { addToCart } = useCartStore();
 
@@ -43,10 +50,10 @@ const ProductCard = ({ product }: { product: ProductType }) => {
   return (
     <div className="shadow-lg rounded-lg overflow-hidden">
       {/* IMAGE */}
-      <Link href={`/products/${product.id}`}>
+      <Link href={`/products/${product.id}` as Route}>
         <div className="relative aspect-[2/3]">
           <Image
-            src={product.images[productTypes.color]}
+            src={previewImage}
             alt={product.name}
             fill
             className="object-cover hover:scale-105 transition-all duration-300"
@@ -112,6 +119,7 @@ const ProductCard = ({ product }: { product: ProductType }) => {
           <button
             type="button"
             onClick={handleAddToCart}
+            disabled={!productTypes.size || !productTypes.color}
             className="ring-1 ring-gray-200 shadow-lg rounded-md px-2 py-1 text-sm cursor-pointer hover:text-white hover:bg-black transition-all duration-300 flex items-center gap-2"
           >
             <ShoppingCart className="w-4 h-4" />

@@ -113,7 +113,9 @@ export class KafkaProducer {
 
   private createProducer(): Producer {
     return this.kafka.producer({
+      allowAutoTopicCreation: false,
       createPartitioner: Partitioners.DefaultPartitioner,
+      idempotent: true,
     });
   }
 }
