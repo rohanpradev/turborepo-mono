@@ -44,18 +44,20 @@ const Categories = ({ categories }: { categories: Array<CategoryItem> }) => {
   };
 
   return (
-    <div className="mb-4 grid grid-cols-2 gap-2 rounded-lg bg-gray-100 p-2 text-sm sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
+    <div className="mb-5 flex flex-wrap gap-2 rounded-[1.5rem] border border-black/5 bg-white/80 p-2 text-sm shadow-sm backdrop-blur">
       {options.map((category) => (
         <button
           type="button"
-          className={`flex min-h-10 items-center justify-center gap-2 rounded-md px-2 py-2 text-center ${
-            category.slug === selectedCategory ? "bg-white" : "text-gray-500"
+          className={`inline-flex min-h-10 items-center gap-2 rounded-full px-4 py-2 text-center transition-all ${
+            category.slug === selectedCategory
+              ? "bg-gray-950 text-white shadow-sm"
+              : "border border-black/5 bg-white text-gray-600 hover:bg-gray-50"
           }`}
           key={category.slug}
           disabled={isPending}
           onClick={() => handleChange(category.slug)}
         >
-          <ShoppingBasket className="w-4 h-4" />
+          <ShoppingBasket className="h-4 w-4" />
           <span className="line-clamp-2">{category.name}</span>
         </button>
       ))}

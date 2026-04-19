@@ -1,9 +1,9 @@
 import { type PaymentSuccessfulMessage, Topics } from "@repo/kafka";
 import type Stripe from "stripe";
-import { recordIntegrationEvent } from "../observability/integrationEvents";
-import { registerProcessedEvent } from "../observability/processedEvents";
-import { producer } from "../utils/kafka";
-import { getStripeClient, getStripeWebhookSecret } from "../utils/stripe";
+import { recordIntegrationEvent } from "@/observability/integrationEvents";
+import { registerProcessedEvent } from "@/observability/processedEvents";
+import { producer } from "@/utils/kafka";
+import { getStripeClient, getStripeWebhookSecret } from "@/utils/stripe";
 
 type WebhookResult =
   | { status: "ok" }

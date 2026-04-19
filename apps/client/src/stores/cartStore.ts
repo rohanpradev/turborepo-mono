@@ -51,6 +51,26 @@ const useCartStore = create<CartStoreStateType & CartStoreActionsType>()(
               ),
           ),
         })),
+      setCartItemQuantity: (product, quantity) =>
+        set((state) => ({
+          cart:
+            quantity <= 0
+              ? state.cart.filter(
+                  (p) =>
+                    !(
+                      p.id === product.id &&
+                      p.selectedSize === product.selectedSize &&
+                      p.selectedColor === product.selectedColor
+                    ),
+                )
+              : state.cart.map((p) =>
+                  p.id === product.id &&
+                  p.selectedSize === product.selectedSize &&
+                  p.selectedColor === product.selectedColor
+                    ? { ...p, quantity }
+                    : p,
+                ),
+        })),
       clearCart: () => set({ cart: [] }),
     }),
     {

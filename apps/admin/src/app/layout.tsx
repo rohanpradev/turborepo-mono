@@ -44,9 +44,11 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const cookieStore = await cookies();
+  const [cookieStore, viewer] = await Promise.all([
+    cookies(),
+    currentUser().catch(() => null),
+  ]);
   const defaultOpen = cookieStore.get("sidebar_state")?.value === "true";
-  const viewer = await currentUser().catch(() => null);
   const viewerProfile = {
     avatarUrl: viewer?.imageUrl ?? null,
     displayName:
@@ -69,7 +71,7 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           <SidebarProvider defaultOpen={defaultOpen}>
-            <AppSidebar viewer={viewerProfile} />
+            <AppSidebar />
             <main className="w-full">
               <Navbar viewer={viewerProfile} />
               <div className="px-4">{children}</div>

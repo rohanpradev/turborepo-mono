@@ -10,7 +10,7 @@ import type {
   ProductSort,
   ProductUpdatePayload,
 } from "@repo/types";
-import { producer } from "../utils/kafka";
+import { producer } from "@/utils/kafka";
 
 type ProductFilters = {
   sort?: ProductSort;

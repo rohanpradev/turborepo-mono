@@ -2,16 +2,16 @@
 
 import { Moon, Sun } from "lucide-react";
 import Link from "next/link";
-import { useTheme } from "./providers/ThemeProvider";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import { Button } from "./ui/button";
+import { useTheme } from "@/components/providers/ThemeProvider";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "./ui/dropdown-menu";
-import { SidebarTrigger } from "./ui/sidebar";
+} from "@/components/ui/dropdown-menu";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 
 type NavbarProps = {
   viewer: {

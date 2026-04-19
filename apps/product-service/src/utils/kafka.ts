@@ -13,4 +13,4 @@ export const ensureProductKafkaTopics = async () =>
   ensureTopics(kafkaClient, [Topics.PRODUCT_CREATED, Topics.PRODUCT_DELETED]);
 
 export const producer = new KafkaProducer(kafkaClient);
-const consumer = new KafkaConsumer(kafkaClient, "product-group");
+const _consumer = new KafkaConsumer(kafkaClient, "product-group");

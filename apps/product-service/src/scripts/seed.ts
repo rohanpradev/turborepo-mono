@@ -6,7 +6,7 @@ import {
   prisma,
 } from "@repo/product-db";
 import { toUsdCents } from "@repo/types";
-import { kafkaClient, producer } from "../utils/kafka";
+import { kafkaClient, producer } from "@/utils/kafka";
 
 type SeedCategory = {
   name: string;
@@ -154,6 +154,49 @@ const products: SeedProduct[] = [
       green: "/products/8gr.png",
     },
     categorySlug: "denim",
+  },
+  {
+    name: "Studio Cotton Tee",
+    shortDescription: "Soft everyday tee with a cleaner, more tailored line.",
+    description:
+      "A refined cotton tee that sits slightly neater than a gym top and works well as a base layer or on its own. The color palette keeps the storefront bright without feeling noisy.",
+    price: toUsdCents(34.9),
+    sizes: ["s", "m", "l", "xl"],
+    colors: ["white", "green", "purple"],
+    images: {
+      white: "/products/4w.png",
+      green: "/products/1gr.png",
+      purple: "/products/1p.png",
+    },
+    categorySlug: "t-shirts",
+  },
+  {
+    name: "Transit Zip Hoodie",
+    shortDescription: "Structured hoodie for layered daily wear.",
+    description:
+      "Transit Zip Hoodie is built to look polished with joggers, denim, or tailored pants. It keeps the silhouette relaxed but the color blocking sharp, so it reads well in the storefront grid.",
+    price: toUsdCents(74.9),
+    sizes: ["s", "m", "l", "xl", "xxl"],
+    colors: ["gray", "green"],
+    images: {
+      gray: "/products/2g.png",
+      green: "/products/2gr.png",
+    },
+    categorySlug: "outerwear",
+  },
+  {
+    name: "Monochrome Runner",
+    shortDescription: "Minimal sneaker with a clean side profile.",
+    description:
+      "The Monochrome Runner adds a sharper footwear option to the catalog. Its balanced shape and simple colorways keep the product grid feeling premium and consistent.",
+    price: toUsdCents(89.9),
+    sizes: ["40", "41", "42", "43", "44"],
+    colors: ["gray", "white"],
+    images: {
+      gray: "/products/6g.png",
+      white: "/products/6w.png",
+    },
+    categorySlug: "shoes",
   },
 ];
 

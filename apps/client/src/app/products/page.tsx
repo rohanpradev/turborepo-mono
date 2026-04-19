@@ -4,7 +4,7 @@ import ProductList from "@/components/ProductList";
 export const metadata: Metadata = {
   title: "Products",
   description:
-    "Browse the live TrendLama catalog with category, search, and price filters.",
+    "Browse the live Commerce catalog with category, search, and price filters.",
 };
 
 const getSingleParam = (value?: string | Array<string>) =>

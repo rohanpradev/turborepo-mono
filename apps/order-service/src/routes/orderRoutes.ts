@@ -7,9 +7,9 @@ import {
   jsonContent,
 } from "@repo/hono-utils";
 import { orderRecordSchema } from "@repo/types";
-import type { ServiceVariables } from "../middleware/auth";
-import { shouldBeAdmin, shouldBeUser } from "../middleware/auth";
-import { OrderService } from "../services/OrderService";
+import type { ServiceVariables } from "@/middleware/auth";
+import { shouldBeAdmin, shouldBeUser } from "@/middleware/auth";
+import { OrderService } from "@/services/OrderService";
 
 const orderListResponseSchema =
   createListResponseSchema(orderRecordSchema).openapi("OrderListResponse");

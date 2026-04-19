@@ -1,7 +1,7 @@
 import { type TopicHandler, Topics } from "@repo/kafka";
-import { recordIntegrationEvent } from "../observability/integrationEvents";
-import { StripeCatalogService } from "../services/StripeCatalogService";
-import { consumer } from "./kafka";
+import { recordIntegrationEvent } from "@/observability/integrationEvents";
+import { StripeCatalogService } from "@/services/StripeCatalogService";
+import { consumer } from "@/utils/kafka";
 
 export const runKafkaSubscriptions = async () => {
   const handlers: Array<

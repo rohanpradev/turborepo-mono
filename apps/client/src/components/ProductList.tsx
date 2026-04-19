@@ -6,9 +6,10 @@ import {
 import type { CategoryRecord, ProductRecord, ProductSort } from "@repo/types";
 import type { Route } from "next";
 import Link from "next/link";
-import Categories from "./Categories";
-import Filter from "./Filter";
-import ProductCard from "./ProductCard";
+import Categories from "@/components/Categories";
+import Filter from "@/components/Filter";
+import ProductCard from "@/components/ProductCard";
+import { Badge } from "@/components/ui/badge";
 
 type ProductListProps = {
   category?: string;
@@ -74,35 +75,51 @@ const ProductList = async ({
     : ("/products" as Route);
 
   return (
-    <div className="w-full">
+    <section className="w-full space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="space-y-1">
+          <Badge variant="outline" className="bg-white/80 text-gray-700">
+            Curated selection
+          </Badge>
+          <h2 className="text-xl font-semibold tracking-tight text-gray-950 sm:text-2xl">
+            {params === "homepage"
+              ? "Featured products"
+              : "Explore the catalog"}
+          </h2>
+          <p className="max-w-2xl text-sm leading-6 text-gray-600">
+            A clean catalog with sharper product photography, clearer groupings,
+            and a simpler path to checkout.
+          </p>
+        </div>
+        {params === "homepage" ? (
+          <Link
+            href={viewAllHref}
+            className="text-sm font-medium text-gray-700 underline decoration-gray-300 underline-offset-4"
+          >
+            View all products
+          </Link>
+        ) : null}
+      </div>
+
       <Categories categories={categories} />
       {params === "products" && <Filter />}
 
       {loadError ? (
-        <div className="rounded-lg border border-dashed border-gray-300 px-4 py-10 text-center text-sm text-gray-500">
+        <div className="rounded-[1.5rem] border border-dashed border-black/10 bg-white/80 px-4 py-10 text-center text-sm text-gray-500 shadow-sm">
           {loadError}
         </div>
       ) : products.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-12">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {products.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
       ) : (
-        <div className="rounded-lg border border-dashed border-gray-300 px-4 py-10 text-center text-sm text-gray-500">
+        <div className="rounded-[1.5rem] border border-dashed border-black/10 bg-white/80 px-4 py-10 text-center text-sm text-gray-500 shadow-sm">
           No products matched the current filter.
         </div>
       )}
-
-      {params === "homepage" && (
-        <Link
-          href={viewAllHref}
-          className="flex justify-end mt-4 underline text-sm text-gray-500"
-        >
-          View all products
-        </Link>
-      )}
-    </div>
+    </section>
   );
 };
 

@@ -393,6 +393,12 @@ docker-clean: ## Remove project Docker containers, network, volumes, and local i
 	$(DOCKER_COMPOSE) down -v --remove-orphans --rmi local
 	@echo "$(GREEN)Docker resources cleaned$(NC)"
 
+docker-clean-images: ## Stop the project stack and remove all unused Docker images
+	@echo "$(RED)Stopping project stack and removing unused Docker images...$(NC)"
+	$(DOCKER_COMPOSE) down -v --remove-orphans --rmi local
+	docker image prune -af
+	@echo "$(GREEN)Project stack stopped and unused Docker images removed$(NC)"
+
 docker-prune: ## Prune unused Docker resources
 	@echo "$(BLUE)Pruning Docker system...$(NC)"
 	docker system prune -af --volumes

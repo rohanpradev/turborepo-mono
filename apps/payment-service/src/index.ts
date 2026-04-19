@@ -1,9 +1,9 @@
-import { app } from "./app";
-import { recordIntegrationEvent } from "./observability/integrationEvents";
-import { paymentServiceRuntime } from "./runtime";
-import { consumer, ensurePaymentKafkaTopics, producer } from "./utils/kafka";
-import { isStripeConfigured } from "./utils/stripe";
-import { runKafkaSubscriptions } from "./utils/subscriptions";
+import { app } from "@/app";
+import { recordIntegrationEvent } from "@/observability/integrationEvents";
+import { paymentServiceRuntime } from "@/runtime";
+import { consumer, ensurePaymentKafkaTopics, producer } from "@/utils/kafka";
+import { isStripeConfigured } from "@/utils/stripe";
+import { runKafkaSubscriptions } from "@/utils/subscriptions";
 
 const port = +(process.env.PORT ?? 8002);
 let isShuttingDown = false;

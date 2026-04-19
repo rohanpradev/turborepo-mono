@@ -17,9 +17,9 @@ import {
   productRecordSchema,
   productUpdateSchema,
 } from "@repo/types";
-import type { ServiceVariables } from "../middleware/auth";
-import { shouldBeAdmin } from "../middleware/auth";
-import { ProductService } from "../services/ProductService";
+import type { ServiceVariables } from "@/middleware/auth";
+import { shouldBeAdmin } from "@/middleware/auth";
+import { ProductService } from "@/services/ProductService";
 
 const productResponseSchema =
   createSuccessResponseSchema(productRecordSchema).openapi("ProductResponse");
