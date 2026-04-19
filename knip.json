@@ -4,15 +4,27 @@
     "interface": true,
     "type": true
   },
+  "ignoreIssues": {
+    "apps/admin/src/components/ui/**": ["exports"]
+  },
   "tags": ["-lintignore"],
   "workspaces": {
-    "apps/*": {
-      "entry": ["src/{index,main}.{ts,tsx}"],
-      "project": ["src/**/*.{ts,tsx}"]
+    ".": {
+      "entry": ["tests/**/*.test.ts"],
+      "project": ["tests/**/*.ts"],
+      "ignoreUnresolved": ["./tests/preload.ts"]
     },
-    "packages/*": {
-      "entry": ["src/{index,main}.ts"],
-      "project": ["src/**/*.{ts,tsx}"]
+    "apps/product-service": {
+      "entry": ["src/index.ts", "src/scripts/*.ts"]
+    },
+    "packages/hono-utils": {
+      "ignoreDependencies": ["@clerk/backend"]
+    },
+    "packages/product-db": {
+      "ignoreDependencies": ["@prisma/client", "pg"]
+    },
+    "packages/typescript-config": {
+      "ignoreUnresolved": ["next"]
     }
   }
 }
