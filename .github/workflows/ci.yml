@@ -51,6 +51,9 @@ jobs:
       - name: Lint
         run: bun run lint
 
+      - name: Knip
+        run: bun run knip
+
       - name: Typecheck
         run: bun run check-types
 
@@ -65,7 +68,6 @@ jobs:
 
   docker-images:
     name: Docker ${{ matrix.service.name }}
-    needs: validate
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     timeout-minutes: 60
     runs-on: ubuntu-latest

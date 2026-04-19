@@ -45,7 +45,7 @@ const app = createServiceApp<{ Variables: ServiceVariables }>({
 app.use("*", createCorsMiddleware());
 app.use("*", clerkAuthMiddleware);
 
-const routes = app
+app
   .openapi(rootRoute, (c) =>
     c.json({ message: "Product Service API", version: "1.2.0" }, 200),
   )
@@ -53,5 +53,4 @@ const routes = app
   .route("/", productRoutes)
   .route("/", categoryRoutes);
 
-export type AppType = typeof routes;
 export { app };

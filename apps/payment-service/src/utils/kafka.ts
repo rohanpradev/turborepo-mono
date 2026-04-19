@@ -7,7 +7,7 @@ import {
   Topics,
 } from "@repo/kafka";
 
-export const kafkaClient: KafkaClient = createKafkaClient("payment-service");
+const kafkaClient: KafkaClient = createKafkaClient("payment-service");
 
 export const ensurePaymentKafkaTopics = async () =>
   ensureTopics(kafkaClient, [
