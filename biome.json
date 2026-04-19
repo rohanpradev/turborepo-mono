@@ -11,9 +11,14 @@
       "**",
       "!**/.next",
       "!**/.turbo",
+      "!**/.vercel",
+      "!**/coverage",
+      "!**/build",
       "!**/dist",
+      "!**/out",
       "!**/generated",
       "!**/node_modules",
+      "!**/*.tsbuildinfo",
       "!**/*.min.js"
     ]
   },
