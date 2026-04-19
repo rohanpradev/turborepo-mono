@@ -23,11 +23,7 @@ import {
 } from "@/components/ui/sidebar";
 
 type AppSidebarProps = {
-  viewer: {
-    avatarUrl: string | null;
-    displayName: string;
-    email: string | null;
-  };
+  viewer?: never;
 };
 
 const primaryLinks = [
@@ -58,17 +54,17 @@ const opsLinks = [
     href: process.env.CLIENT_APP_URL ?? "http://localhost:3002",
     icon: ExternalLink,
     label: "Storefront",
+    external: true,
   },
   {
-    href: process.env.NEXT_PUBLIC_PAYMENT_SERVICE_URL
-      ? `${process.env.NEXT_PUBLIC_PAYMENT_SERVICE_URL}/ops/events`
-      : "http://localhost:8002/ops/events",
+    href: "/payments#timeline",
     icon: Activity,
     label: "Payment Events",
+    external: false,
   },
 ] as const;
 
-const AppSidebar = ({ viewer }: AppSidebarProps) => {
+const AppSidebar = (_props: AppSidebarProps) => {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="py-4">
@@ -117,10 +113,17 @@ const AppSidebar = ({ viewer }: AppSidebarProps) => {
               {opsLinks.map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton asChild>
-                    <a href={item.href} rel="noreferrer" target="_blank">
-                      <item.icon />
-                      <span>{item.label}</span>
-                    </a>
+                    {item.external ? (
+                      <a href={item.href} rel="noreferrer" target="_blank">
+                        <item.icon />
+                        <span>{item.label}</span>
+                      </a>
+                    ) : (
+                      <Link href={item.href}>
+                        <item.icon />
+                        <span>{item.label}</span>
+                      </Link>
+                    )}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -130,11 +133,8 @@ const AppSidebar = ({ viewer }: AppSidebarProps) => {
       </SidebarContent>
 
       <SidebarFooter>
-        <div className="rounded-lg border border-dashed p-3 text-sm">
-          <p className="font-medium">{viewer.displayName}</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {viewer.email ?? "Authenticated with Clerk"}
-          </p>
+        <div className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+          Commerce ops console
         </div>
       </SidebarFooter>
     </Sidebar>

@@ -1,7 +1,7 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import dynamic from "next/dynamic";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import "./globals.css";
@@ -10,12 +10,12 @@ const ToastContainer = dynamic(() =>
   import("react-toastify").then((mod) => mod.ToastContainer),
 );
 
-const geistSans = Geist({
+const jakartaSans = Plus_Jakarta_Sans({
   variable: "--font-geist-sans",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
+const inter = Inter({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
@@ -35,32 +35,32 @@ const metadataBase = createMetadataBase(
 
 export const metadata: Metadata = {
   title: {
-    default: "TrendLama",
-    template: "%s | TrendLama",
+    default: "Commerce",
+    template: "%s | Commerce",
   },
-  applicationName: "TrendLama",
-  description: "Trendlama is the best place to find the best clothes",
+  applicationName: "Commerce",
+  description: "Commerce storefront for browsing products and checking out.",
   metadataBase,
   alternates: {
     canonical: "/",
   },
   openGraph: {
-    title: "TrendLama",
-    description: "Trendlama is the best place to find the best clothes",
-    siteName: "TrendLama",
+    title: "Commerce",
+    description: "Commerce storefront for browsing products and checking out.",
+    siteName: "Commerce",
     type: "website",
     url: "/",
     images: [
       {
         url: "/featured.png",
-        alt: "Featured TrendLama products",
+        alt: "Featured Commerce products",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "TrendLama",
-    description: "Trendlama is the best place to find the best clothes",
+    title: "Commerce",
+    description: "Commerce storefront for browsing products and checking out.",
     images: ["/featured.png"],
   },
 };
@@ -75,18 +75,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const shell = (
-    <div className="mx-auto p-4 sm:px-0 sm:max-w-xl md:max-w-2xl lg:max-w-3xl xl:max-w-6xl">
-      <Navbar />
-      {children}
-      <Footer />
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.92),_rgba(246,241,232,0.98)_35%,_rgba(243,238,230,1))] text-gray-950">
+      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-4 sm:px-6 lg:px-8">
+        <Navbar />
+        <main className="flex-1">{children}</main>
+        <Footer />
+      </div>
     </div>
   );
 
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${jakartaSans.variable} ${inter.variable} antialiased`}>
         {isClerkConfigured ? <ClerkProvider>{shell}</ClerkProvider> : shell}
         <ToastContainer position="bottom-right" />
       </body>

@@ -16,23 +16,28 @@ const isClerkConfigured = Boolean(
 
 const Navbar = () => {
   return (
-    <nav className="flex w-full flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-4">
+    <nav className="mb-8 flex w-full flex-wrap items-center justify-between gap-3 rounded-[1.75rem] border border-black/5 bg-white/75 px-4 py-3 shadow-sm backdrop-blur sm:px-5">
       <Link href="/" className="flex min-w-0 items-center gap-2">
         <Image
           src="/logo.png"
-          alt="TrendLama"
+          alt="Commerce"
           width={36}
           height={36}
-          className="w-6 h-6 md:w-9 md:h-9"
+          className="h-8 w-8 md:h-9 md:w-9"
         />
-        <p className="truncate text-sm font-medium tracking-[0.2em] md:text-md">
-          TRENDLAMA.
-        </p>
+        <div className="min-w-0">
+          <p className="truncate text-xs font-medium uppercase tracking-[0.3em] text-gray-500">
+            Commerce
+          </p>
+          <p className="truncate text-sm font-semibold tracking-tight text-gray-950">
+            Precision catalog
+          </p>
+        </div>
       </Link>
       <div className="flex flex-wrap items-center justify-end gap-3 sm:gap-4 md:gap-6">
         <Suspense
           fallback={
-            <div className="hidden min-w-0 sm:flex items-center gap-2 rounded-md ring-1 ring-gray-200 px-2 py-1 shadow-md md:min-w-56">
+            <div className="hidden min-w-0 items-center gap-2 rounded-full border border-black/10 bg-white/80 px-3 py-2 shadow-sm sm:flex md:min-w-72">
               <div className="h-4 w-4 rounded-full bg-gray-200" />
               <div className="h-4 flex-1 rounded bg-gray-100" />
             </div>
@@ -40,15 +45,18 @@ const Navbar = () => {
         >
           <SearchBar />
         </Suspense>
-        <Link href="/" className="rounded-full p-1 text-gray-600">
-          <Home className="w-4 h-4 text-gray-600" />
+        <Link
+          href="/"
+          className="rounded-full border border-black/10 bg-white/80 p-2 text-gray-600 shadow-sm"
+        >
+          <Home className="h-4 w-4 text-gray-600" />
         </Link>
         <button
           type="button"
           aria-label="Notifications"
-          className="rounded-full p-1 text-gray-600"
+          className="rounded-full border border-black/10 bg-white/80 p-2 text-gray-600 shadow-sm"
         >
-          <Bell className="w-4 h-4 text-gray-600" />
+          <Bell className="h-4 w-4 text-gray-600" />
         </button>
         <ShoppingCartIcon />
         {isClerkConfigured ? (
@@ -57,7 +65,7 @@ const Navbar = () => {
               <SignInButton mode="modal">
                 <button
                   type="button"
-                  className="rounded-md px-2 py-1 text-sm text-gray-600"
+                  className="rounded-full border border-black/10 bg-white/80 px-4 py-2 text-sm text-gray-700 shadow-sm"
                 >
                   Sign in
                 </button>
@@ -70,7 +78,7 @@ const Navbar = () => {
         ) : (
           <Link
             href={"/sign-in" as Route}
-            className="rounded-md px-2 py-1 text-sm text-gray-600"
+            className="rounded-full border border-black/10 bg-white/80 px-4 py-2 text-sm text-gray-700 shadow-sm"
           >
             Sign in
           </Link>

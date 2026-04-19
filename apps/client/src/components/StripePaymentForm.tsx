@@ -6,6 +6,7 @@ import { CheckoutElementsProvider } from "@stripe/react-stripe-js/checkout";
 import { loadStripe } from "@stripe/stripe-js";
 import { useEffect, useState } from "react";
 import CheckoutForm from "@/components/CheckoutForm";
+import { Badge } from "@/components/ui/badge";
 import useCartStore from "@/stores/cartStore";
 
 const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
@@ -33,7 +34,7 @@ const StripePaymentForm = ({
 }) => {
   if (!isClerkConfigured) {
     return (
-      <div className="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-500">
+      <div className="rounded-[1.5rem] border border-dashed border-black/10 bg-white/80 p-4 text-sm text-gray-500">
         Authentication is not configured for this environment, so checkout is
         currently unavailable.
       </div>
@@ -42,7 +43,7 @@ const StripePaymentForm = ({
 
   if (!stripePromise) {
     return (
-      <div className="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-500">
+      <div className="rounded-[1.5rem] border border-dashed border-black/10 bg-white/80 p-4 text-sm text-gray-500">
         Stripe is not configured for this environment, so checkout is currently
         unavailable.
       </div>
@@ -124,12 +125,16 @@ const AuthenticatedStripePaymentForm = ({
   }, [cart, shippingForm, token]);
 
   if (!token) {
-    return <div className="p-4">Loading...</div>;
+    return (
+      <div className="rounded-[1.5rem] border border-black/5 bg-white/80 p-4 text-sm text-gray-500">
+        Loading checkout context...
+      </div>
+    );
   }
 
   if (cart.length === 0) {
     return (
-      <div className="text-gray-500 p-4">
+      <div className="rounded-[1.5rem] border border-dashed border-black/10 bg-white/80 p-4 text-sm text-gray-500">
         <p>Your cart is empty. Please add items to proceed with checkout.</p>
       </div>
     );
@@ -137,18 +142,36 @@ const AuthenticatedStripePaymentForm = ({
 
   if (error) {
     return (
-      <div className="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-500">
+      <div className="rounded-[1.5rem] border border-dashed border-black/10 bg-white/80 p-4 text-sm text-gray-500">
         {error}
       </div>
     );
   }
 
   if (!clientSecret) {
-    return <div className="p-4">Preparing checkout...</div>;
+    return (
+      <div className="rounded-[1.5rem] border border-black/5 bg-white/80 p-4 text-sm text-gray-500">
+        Preparing checkout...
+      </div>
+    );
   }
 
   return (
-    <div id="checkout">
+    <div
+      id="checkout"
+      className="rounded-[1.5rem] border border-black/5 bg-white/80 p-5 shadow-sm"
+    >
+      <div className="mb-5 flex items-start justify-between gap-4">
+        <div>
+          <Badge variant="outline" className="bg-white/80 text-gray-700">
+            Secure payment
+          </Badge>
+          <p className="mt-2 text-sm text-gray-600">
+            Review the payment details and complete your order securely with
+            Stripe.
+          </p>
+        </div>
+      </div>
       <CheckoutElementsProvider
         stripe={stripePromise}
         options={{ clientSecret }}

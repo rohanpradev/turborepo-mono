@@ -71,7 +71,7 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           <SidebarProvider defaultOpen={defaultOpen}>
-            <AppSidebar viewer={viewerProfile} />
+            <AppSidebar />
             <main className="w-full">
               <Navbar viewer={viewerProfile} />
               <div className="px-4">{children}</div>

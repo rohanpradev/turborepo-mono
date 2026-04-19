@@ -5,7 +5,6 @@ import {
   buildPaymentActivities,
   formatCustomerLabel,
   formatTimestamp,
-  loadOptionalAdminOrders,
   loadPaymentEvents,
 } from "@/lib/admin-data";
 
@@ -19,17 +18,13 @@ type UserDetailsPageProps = {
 
 const UserDetailsPage = async ({ params }: UserDetailsPageProps) => {
   const { id } = await params;
-  const [events, orders] = await Promise.all([
-    loadPaymentEvents(),
-    loadOptionalAdminOrders(),
-  ]);
+  const events = await loadPaymentEvents();
 
   const activities = buildPaymentActivities(events);
   const customerActivities = activities.filter(
     (activity) => activity.userId === id,
   );
-  const customer = buildCustomerSummaries(customerActivities, orders ?? [])[0];
-  const userOrders = (orders ?? []).filter((order) => order.userId === id);
+  const customer = buildCustomerSummaries(customerActivities, [])[0];
 
   if (!customer) {
     return (
@@ -106,12 +101,12 @@ const UserDetailsPage = async ({ params }: UserDetailsPageProps) => {
         </article>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
+      <div className="grid gap-4 xl:grid-cols-[1fr]">
         <section className="rounded-2xl border bg-card p-5 shadow-sm">
           <div className="mb-4">
             <h2 className="text-lg font-semibold">Recent Checkout Sessions</h2>
             <p className="text-sm text-muted-foreground">
-              Session creation and payment confirmation activity tied to this
+              Payment session creation and confirmation activity tied to this
               customer ID.
             </p>
           </div>
@@ -169,59 +164,6 @@ const UserDetailsPage = async ({ params }: UserDetailsPageProps) => {
                 </p>
               </article>
             ))}
-          </div>
-        </section>
-
-        <section className="rounded-2xl border bg-card p-5 shadow-sm">
-          <div className="mb-4">
-            <h2 className="text-lg font-semibold">Order-service Records</h2>
-            <p className="text-sm text-muted-foreground">
-              When the signed-in admin token can read the order service, this
-              section shows the downstream order read model for this customer.
-            </p>
-          </div>
-          <div className="space-y-3">
-            {userOrders.length > 0 ? (
-              userOrders.map((order) => (
-                <article
-                  key={order._id}
-                  className="rounded-xl border border-dashed p-4"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-medium">
-                        {formatUsdFromCents(order.amount)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {order.email}
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                      {order.status}
-                    </span>
-                  </div>
-                  <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-                    {order.products.map((product) => (
-                      <li key={`${order._id}-${product.name}`}>
-                        {product.quantity}x {product.name}
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="mt-4 text-xs text-muted-foreground">
-                    {order.createdAt
-                      ? formatTimestamp(order.createdAt)
-                      : "Unknown order time"}
-                  </p>
-                </article>
-              ))
-            ) : (
-              <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-                No order-service records were available for this customer. This
-                usually means the signed-in admin session does not carry the
-                required admin role metadata, even though payment activity is
-                visible from the ops feed.
-              </div>
-            )}
           </div>
         </section>
       </div>

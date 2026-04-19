@@ -4,9 +4,11 @@ import {
   getCheckoutSessionStatus,
   getPaymentServiceUrl,
 } from "@repo/api-client";
-import Link from "next/link";
+import { ArrowRight, CheckCircle2, ShoppingBag } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import useCartStore from "@/stores/cartStore";
 
 function ReturnContent() {
@@ -15,6 +17,7 @@ function ReturnContent() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
   const { clearCart } = useCartStore();
+  const isPaid = status === "paid";
 
   useEffect(() => {
     const currentSessionId = searchParams.get("session_id");
@@ -40,63 +43,87 @@ function ReturnContent() {
   }, [clearCart, searchParams]);
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <div className="mx-4 w-full max-w-xl rounded-lg bg-white p-8 shadow-md">
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800 break-words">
-            Payment status: {status}
-          </h2>
+    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 px-4 py-10">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 rounded-3xl border bg-white p-6 shadow-sm sm:p-10">
+        <div className="flex items-center gap-3">
+          <div
+            className={`flex size-12 items-center justify-center rounded-full ${
+              isPaid
+                ? "bg-emerald-100 text-emerald-700"
+                : "bg-amber-100 text-amber-700"
+            }`}
+          >
+            {isPaid ? (
+              <CheckCircle2 className="size-6" />
+            ) : (
+              <ShoppingBag className="size-6" />
+            )}
+          </div>
+          <div>
+            <Badge
+              variant={isPaid ? "default" : "outline"}
+              className={
+                isPaid ? "bg-emerald-600" : "border-amber-200 text-amber-700"
+              }
+            >
+              {isPaid ? "Payment complete" : "Payment status"}
+            </Badge>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {isPaid
+                ? "Your order was paid successfully."
+                : `Checkout ${status}.`}
+            </h1>
+          </div>
         </div>
 
+        <p className="max-w-xl text-sm text-muted-foreground">
+          {isPaid
+            ? "Your payment is confirmed, the cart has been cleared, and the order is ready for the next step."
+            : "We are still verifying the checkout session. You can safely return to the cart or continue browsing."}
+        </p>
+
         {(sessionId || paymentIntentId) && (
-          <div className="mb-6 rounded-lg bg-gray-50 p-4">
-            <div className="space-y-3">
+          <div className="rounded-2xl border bg-gray-50 p-4">
+            <div className="grid gap-4 text-sm sm:grid-cols-2">
               {sessionId && (
-                <div className="flex flex-col gap-1 border-b border-gray-200 pb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                  <span className="shrink-0 text-sm font-medium text-gray-600 sm:w-32">
+                <div className="space-y-1">
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
                     Session
-                  </span>
-                  <span className="min-w-0 break-all font-mono text-sm text-gray-900 sm:text-right">
+                  </p>
+                  <p className="break-all font-mono text-xs text-gray-900">
                     {sessionId}
-                  </span>
+                  </p>
                 </div>
               )}
               {paymentIntentId && (
-                <div className="flex flex-col gap-1 border-b border-gray-200 pb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                  <span className="shrink-0 text-sm font-medium text-gray-600 sm:w-32">
+                <div className="space-y-1">
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
                     Payment Intent
-                  </span>
-                  <span className="min-w-0 break-all font-mono text-sm text-gray-900 sm:text-right">
+                  </p>
+                  <p className="break-all font-mono text-xs text-gray-900">
                     {paymentIntentId}
-                  </span>
+                  </p>
                 </div>
               )}
-              <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                <span className="shrink-0 text-sm font-medium text-gray-600 sm:w-32">
+              <div className="space-y-1 sm:col-span-2">
+                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
                   Status
-                </span>
-                <span className="min-w-0 break-words text-sm text-gray-900 sm:text-right">
-                  {status}
-                </span>
+                </p>
+                <p className="text-sm font-medium text-gray-900">{status}</p>
               </div>
             </div>
           </div>
         )}
 
-        <div className="space-y-3">
-          <Link
-            href="/"
-            className="block w-full text-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
-          >
-            Continue Shopping
-          </Link>
-          {status !== "paid" && (
-            <Link
-              href="/cart"
-              className="block w-full text-center px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
-            >
-              Return to Cart
-            </Link>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Button href="/" className="w-full sm:w-auto">
+            Continue shopping
+            <ArrowRight className="size-4" />
+          </Button>
+          {!isPaid && (
+            <Button href="/cart" variant="outline" className="w-full sm:w-auto">
+              Back to cart
+            </Button>
           )}
         </div>
       </div>
