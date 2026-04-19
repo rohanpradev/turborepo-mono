@@ -1,7 +1,7 @@
 import type { CheckoutSessionPayload } from "@repo/types";
 import { recordIntegrationEvent } from "@/observability/integrationEvents";
-import { getStripeClient } from "@/utils/stripe";
 import { StripeCatalogService } from "@/services/StripeCatalogService";
+import { getStripeClient } from "@/utils/stripe";
 
 type CreateCheckoutSessionInput = {
   payload: CheckoutSessionPayload;

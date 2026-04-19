@@ -6,8 +6,8 @@ import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import "./globals.css";
 
-const ToastContainer = dynamic(
-  () => import("react-toastify").then((mod) => mod.ToastContainer),
+const ToastContainer = dynamic(() =>
+  import("react-toastify").then((mod) => mod.ToastContainer),
 );
 
 const geistSans = Geist({
