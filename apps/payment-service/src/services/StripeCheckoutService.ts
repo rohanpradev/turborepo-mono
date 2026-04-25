@@ -101,20 +101,20 @@ export const StripeCheckoutService = {
     );
 
     const session = await stripe.checkout.sessions.create({
-      // Stripe's current SDK models the embedded checkout flow as the
-      // "elements" UI mode.
+      // Stripe Checkout's customizable on-site flow uses the "elements" UI mode.
       ui_mode: "elements",
       mode: "payment",
       line_items: lineItems,
-      customer_email: input.payload.shippingInfo.email,
       client_reference_id: input.userId,
+      phone_number_collection: {
+        enabled: true,
+      },
+      shipping_address_collection: {
+        allowed_countries: ["US"],
+      },
       return_url: `${process.env.CLIENT_APP_URL ?? "http://localhost:3002"}/return?session_id={CHECKOUT_SESSION_ID}`,
       metadata: {
         userId: input.userId,
-        shippingName: input.payload.shippingInfo.name,
-        shippingLine1: input.payload.shippingInfo.address.line1,
-        shippingCity: input.payload.shippingInfo.address.city,
-        shippingCountry: input.payload.shippingInfo.address.country,
       },
     });
 

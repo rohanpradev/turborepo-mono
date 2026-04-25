@@ -557,12 +557,10 @@ export const createHealthRoutes = <
 };
 
 export const createCorsMiddleware = () =>
-  createMiddleware(async (c, next) =>
-    cors({
-      origin: getCorsOrigins(),
-      credentials: true,
-    })(c, next),
-  );
+  cors({
+    origin: getCorsOrigins(),
+    credentials: true,
+  });
 
 export const createServiceApp = <E extends Env = Env>({
   title,
