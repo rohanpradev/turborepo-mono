@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import CheckoutForm from "@/components/CheckoutForm";
 import { Badge } from "@/components/ui/badge";
 import useCartStore from "@/stores/cartStore";
+import type { ShippingFormInputs as BaseShippingFormInputs } from "@/types";
 
 const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 type LoadedStripe = Awaited<ReturnType<typeof loadStripe>>;
@@ -19,13 +20,9 @@ const isClerkConfigured = Boolean(
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
 );
 
-interface ShippingFormInputs {
-  email: string;
-  name: string;
-  address: string;
-  city: string;
+type ShippingFormInputs = BaseShippingFormInputs & {
   country?: string;
-}
+};
 
 const StripePaymentForm = ({
   shippingForm,
@@ -67,25 +64,41 @@ const AuthenticatedStripePaymentForm = ({
 }) => {
   const { getToken } = useAuth();
   const { cart } = useCartStore();
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null | undefined>(undefined);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getToken().then((value) => setToken(value));
+    let isActive = true;
+
+    void getToken().then((value) => {
+      if (isActive) {
+        setToken(value);
+      }
+    });
+
+    return () => {
+      isActive = false;
+    };
   }, [getToken]);
 
   useEffect(() => {
+    let isActive = true;
+
+    if (!token || cart.length === 0) {
+      setClientSecret(null);
+      setError(null);
+
+      return () => {
+        isActive = false;
+      };
+    }
+
     const createIntent = async () => {
+      setError(null);
+      setClientSecret(null);
+
       try {
-        if (!token) {
-          throw new Error("Authentication required.");
-        }
-
-        if (!cart || cart.length === 0) {
-          throw new Error("Cart is empty.");
-        }
-
         const totalAmount = cart.reduce(
           (sum, item) => sum + item.price * item.quantity,
           0,
@@ -109,25 +122,47 @@ const AuthenticatedStripePaymentForm = ({
           token,
         );
 
-        setClientSecret(response.data.clientSecret);
+        if (isActive) {
+          setClientSecret(response.data.clientSecret);
+        }
       } catch (caughtError) {
-        setError(
-          caughtError instanceof Error
-            ? caughtError.message
-            : "Unable to start checkout.",
-        );
+        if (isActive) {
+          setError(
+            caughtError instanceof Error
+              ? caughtError.message
+              : "Unable to start checkout.",
+          );
+        }
       }
     };
 
-    if (token && cart.length > 0) {
-      createIntent();
-    }
-  }, [cart, shippingForm, token]);
+    void createIntent();
 
-  if (!token) {
+    return () => {
+      isActive = false;
+    };
+  }, [
+    cart,
+    shippingForm.address,
+    shippingForm.city,
+    shippingForm.country,
+    shippingForm.email,
+    shippingForm.name,
+    token,
+  ]);
+
+  if (token === undefined) {
     return (
       <div className="rounded-[1.5rem] border border-black/5 bg-white/80 p-4 text-sm text-gray-500">
         Loading checkout context...
+      </div>
+    );
+  }
+
+  if (token === null) {
+    return (
+      <div className="rounded-[1.5rem] border border-dashed border-black/10 bg-white/80 p-4 text-sm text-gray-500">
+        Authentication is required before checkout can start.
       </div>
     );
   }
@@ -173,6 +208,7 @@ const AuthenticatedStripePaymentForm = ({
         </div>
       </div>
       <CheckoutElementsProvider
+        key={clientSecret}
         stripe={stripePromise}
         options={{ clientSecret }}
       >
