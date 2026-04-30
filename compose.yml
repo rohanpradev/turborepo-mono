@@ -57,7 +57,7 @@ services:
 
   traefik:
     <<: *runtime-security
-    image: dhi.io/traefik:3.6.7-debian13
+    image: dhi.io/traefik:3.6.13-debian13
     container_name: ecommerce-traefik
     read_only: true
     tmpfs:
@@ -149,7 +149,7 @@ services:
     init: true
     restart: unless-stopped
     stop_grace_period: 30s
-    image: mongo:8.2.5-noble
+    image: mongo:8.2.7-noble
     container_name: ecommerce-mongodb
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-admin}
@@ -295,7 +295,7 @@ services:
 
   kafka-ui:
     <<: *app-service
-    image: ghcr.io/kafbat/kafka-ui:v1.4.2
+    image: ghcr.io/kafbat/kafka-ui:v1.5.0
     container_name: kafka-ui
     environment:
       KAFKA_CLUSTERS_0_NAME: ecommerce-cluster
@@ -487,7 +487,7 @@ services:
     init: true
     restart: unless-stopped
     stop_grace_period: 30s
-    image: stripe/stripe-cli:v1.40.6@sha256:3e12b2ac71ddd17a9b0b042bd1a58087b9465f7853f5395382c426456c9a889a
+    image: stripe/stripe-cli:v1.40.9@sha256:3daa717082efbbff67e05a122462ca01c6db4bfe91dcfe1105f35794fea0fdc2
     container_name: ecommerce-stripe-cli
     environment:
       STRIPE_API_KEY: ${STRIPE_API_KEY:-}
