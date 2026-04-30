@@ -9,13 +9,13 @@
     "db:deploy": "bunx --bun prisma migrate deploy"
   },
   "dependencies": {
-    "@prisma/adapter-pg": "^7.8.0",
-    "@prisma/client": "^7.8.0",
+    "@prisma/adapter-pg": "^7.9.0-dev.4",
+    "@prisma/client": "^7.9.0-dev.4",
     "pg": "^8.20.0"
   },
   "devDependencies": {
-    "prisma": "^7.8.0",
-    "@repo/typescript-config": "workspace:*"
+    "@repo/typescript-config": "workspace:*",
+    "prisma": "^7.9.0-dev.4"
   },
   "exports": {
     ".": "./src/index.ts"

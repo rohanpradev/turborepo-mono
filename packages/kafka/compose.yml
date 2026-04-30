@@ -102,7 +102,7 @@ services:
 
   kafka-ui:
     <<: *runtime-security
-    image: ghcr.io/kafbat/kafka-ui:v1.4.2
+    image: ghcr.io/kafbat/kafka-ui:v1.5.0
     container_name: kafka-ui
     read_only: true
     tmpfs:

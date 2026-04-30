@@ -5,6 +5,9 @@ const nextConfig: NextConfig = {
   output: "standalone",
   typedRoutes: true,
   outputFileTracingRoot: path.join(__dirname, "../../"),
+  experimental: {
+    turbopackFileSystemCacheForBuild: true,
+  },
   images: {
     remotePatterns: [
       {
