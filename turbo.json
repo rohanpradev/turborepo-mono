@@ -1,5 +1,6 @@
 {
   "$schema": "https://turborepo.com/schema.json",
+  "envMode": "strict",
   "ui": "tui",
   "globalPassThroughEnv": [
     "DATABASE_URL",
@@ -34,7 +35,14 @@
       "dependsOn": ["^build", "^db:generate"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
       "outputs": [".next/**", "!.next/cache/**"],
-      "env": ["DATABASE_URL"]
+      "env": [
+        "ADMIN_APP_URL",
+        "CLIENT_APP_URL",
+        "NEXT_PUBLIC_*",
+        "ORDER_SERVICE_INTERNAL_URL",
+        "PAYMENT_SERVICE_INTERNAL_URL",
+        "PRODUCT_SERVICE_INTERNAL_URL"
+      ]
     },
     "check-types": {
       "dependsOn": ["^check-types", "^db:generate"]
@@ -45,7 +53,8 @@
       "persistent": true
     },
     "db:generate": {
-      "cache": false
+      "inputs": ["$TURBO_DEFAULT$", "prisma/schema.prisma", "prisma.config.ts"],
+      "outputs": ["generated/**"]
     },
     "db:migrate": {
       "cache": false,

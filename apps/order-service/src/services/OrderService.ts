@@ -1,35 +1,50 @@
 import { Order } from "@repo/order-db";
 import type { OrderRecord } from "@repo/types";
 
-const toOrderRecord = (
-  order: Awaited<ReturnType<typeof Order.find>>[number],
-) => {
-  const data = order.toObject();
+type StoredOrder = {
+  _id: { toString(): string };
+  userId: string;
+  email: string;
+  amount: number;
+  status: "success" | "failed";
+  products: Array<{
+    name: string;
+    price: number;
+    quantity: number;
+  }>;
+  createdAt?: Date;
+  updatedAt?: Date;
+};
 
+const toOrderRecord = (order: StoredOrder) => {
   return {
     _id: order._id.toString(),
-    userId: data.userId,
-    email: data.email,
-    amount: data.amount,
-    status: data.status,
-    products: data.products.map((product) => ({
+    userId: order.userId,
+    email: order.email,
+    amount: order.amount,
+    status: order.status,
+    products: order.products.map((product) => ({
       name: product.name,
       price: product.price,
       quantity: product.quantity,
     })),
-    createdAt: data.createdAt?.toISOString(),
-    updatedAt: data.updatedAt?.toISOString(),
+    createdAt: order.createdAt?.toISOString(),
+    updatedAt: order.updatedAt?.toISOString(),
   } satisfies OrderRecord;
 };
 
 export const OrderService = {
   async getUserOrders(userId: string): Promise<OrderRecord[]> {
-    const orders = await Order.find({ userId });
+    const orders = (await Order.find({ userId })
+      .sort({ createdAt: -1 })
+      .lean()) as StoredOrder[];
     return orders.map(toOrderRecord);
   },
 
   async getAllOrders(): Promise<OrderRecord[]> {
-    const orders = await Order.find();
+    const orders = (await Order.find()
+      .sort({ createdAt: -1 })
+      .lean()) as StoredOrder[];
     return orders.map(toOrderRecord);
   },
 };

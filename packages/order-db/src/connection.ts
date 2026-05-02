@@ -4,6 +4,11 @@ mongoose.set("bufferCommands", false);
 
 let connectPromise: Promise<typeof mongoose> | null = null;
 
+const readPositiveInt = (name: string, fallback: number) => {
+  const value = Number.parseInt(process.env[name] ?? "", 10);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+};
+
 const getMongoUrl = () => {
   const mongoUrl = process.env.MONGO_URL?.trim();
 
@@ -23,7 +28,10 @@ export const connectOrderDB = async () => {
     if (!connectPromise) {
       connectPromise = mongoose.connect(getMongoUrl(), {
         autoIndex: process.env.NODE_ENV !== "production",
+        maxPoolSize: readPositiveInt("MONGO_MAX_POOL_SIZE", 20),
+        maxIdleTimeMS: readPositiveInt("MONGO_MAX_IDLE_TIME_MS", 30000),
         serverSelectionTimeoutMS: 5000,
+        waitQueueTimeoutMS: 5000,
       });
     }
 

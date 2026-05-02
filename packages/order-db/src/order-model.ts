@@ -24,6 +24,9 @@ const OrderSchema = new Schema(
   { timestamps: true },
 );
 
+OrderSchema.index({ userId: 1, createdAt: -1 });
+OrderSchema.index({ createdAt: -1 });
+
 export type OrderSchemaType = mongoose.InferSchemaType<typeof OrderSchema>;
 
 export const Order = mongoose.model("Order", OrderSchema);

@@ -27,6 +27,11 @@ model Product {
   updatedAt        DateTime @updatedAt
   categorySlug     String
   category         Category @relation(fields: [categorySlug], references: [slug])
+
+  @@index([categorySlug, createdAt])
+  @@index([categorySlug, price])
+  @@index([createdAt])
+  @@index([price])
 }
 
 model Category {

@@ -29,14 +29,14 @@ const Filter = () => {
   };
 
   return (
-    <div className="my-6 flex flex-col gap-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-end">
+    <div className="my-6 flex flex-col gap-3 rounded-[1.25rem] border border-black/5 bg-white/75 p-3 text-sm text-gray-500 shadow-sm sm:flex-row sm:items-center sm:justify-end">
       <span className="uppercase tracking-[0.18em] text-xs text-gray-400">
         Sort by
       </span>
       <select
         name="sort"
         id="sort"
-        className="h-11 rounded-full border border-black/10 bg-white/90 px-4 text-sm shadow-sm outline-none transition focus:border-black/20 focus:ring-2 focus:ring-black/5 sm:w-auto"
+        className="h-11 rounded-full border border-black/10 bg-white px-4 text-sm shadow-sm outline-none transition focus:border-black/20 focus:ring-2 focus:ring-black/5 sm:w-auto"
         disabled={isPending}
         value={selectedSort}
         onChange={(e) => handleFilter(e.target.value)}

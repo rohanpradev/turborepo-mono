@@ -3,7 +3,7 @@ import Link from "next/link";
 
 const Footer = () => {
   return (
-    <div className="mt-12 grid gap-8 rounded-[1.75rem] border border-black/5 bg-[#171717] p-6 text-white shadow-sm sm:grid-cols-2 sm:p-8 xl:grid-cols-4">
+    <footer className="mt-12 grid gap-8 rounded-[1.5rem] border border-black/5 bg-[#171717] p-6 text-white shadow-sm sm:grid-cols-2 sm:p-8 xl:grid-cols-4">
       <div className="flex flex-col items-center gap-4 text-center sm:items-start sm:text-left">
         <Link href="/" className="flex items-center">
           <Image src="/logo.png" alt="Commerce" width={36} height={36} />
@@ -11,31 +11,34 @@ const Footer = () => {
             COMMERCE
           </p>
         </Link>
-        <p className="text-sm text-white/60">© 2025 Commerce.</p>
-        <p className="text-sm text-white/60">All rights reserved.</p>
+        <p className="max-w-xs text-sm leading-6 text-white/60">
+          A focused storefront for curated essentials, fast browsing, and a
+          clean checkout path.
+        </p>
+        <p className="text-sm text-white/50">© 2026 Commerce.</p>
       </div>
       <div className="flex flex-col items-center gap-4 text-sm text-white/60 sm:items-start">
         <p className="text-sm text-white">Links</p>
         <Link href="/">Homepage</Link>
-        <Link href="/">Contact</Link>
-        <Link href="/">Terms of Service</Link>
-        <Link href="/">Privacy Policy</Link>
+        <Link href="/products">Products</Link>
+        <Link href="/cart">Cart</Link>
+        <Link href="/orders">Orders</Link>
       </div>
       <div className="flex flex-col items-center gap-4 text-sm text-white/60 sm:items-start">
         <p className="text-sm text-white">Catalog</p>
-        <Link href="/">All Products</Link>
-        <Link href="/">New Arrivals</Link>
-        <Link href="/">Best Sellers</Link>
-        <Link href="/">Sale</Link>
+        <Link href="/products">All Products</Link>
+        <Link href="/products?sort=newest">New Arrivals</Link>
+        <Link href="/products?sort=asc">Under Budget</Link>
+        <Link href="/products?sort=desc">Premium Picks</Link>
       </div>
       <div className="flex flex-col items-center gap-4 text-sm text-white/60 sm:items-start">
-        <p className="text-sm text-white">Company</p>
-        <Link href="/">About</Link>
-        <Link href="/">Contact</Link>
-        <Link href="/">Blog</Link>
-        <Link href="/">Affiliate Program</Link>
+        <p className="text-sm text-white">Service</p>
+        <span>Secure payments</span>
+        <span>Live order status</span>
+        <span>Curated inventory</span>
+        <span>Fast support flow</span>
       </div>
-    </div>
+    </footer>
   );
 };
 

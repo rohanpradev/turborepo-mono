@@ -125,12 +125,68 @@ This repo uses Docker Hardened Images. The preferred startup path is:
 make docker-up-build
 ```
 
+### Testing Docker changes
+
+Use this path after Dockerfile, Compose, dependency, or service health changes:
+
+```bash
+make docker-test
+```
+
+That target runs the full local Docker test pipeline:
+
+- validates the root Compose file and the standalone Kafka Compose file
+- verifies access to the Docker Hardened Images registry
+- creates local TLS certificates when needed
+- builds and starts the full Compose stack with health waits
+- checks storefront and admin health through Traefik
+- checks the product API through Traefik
+- checks product, order, and payment service readiness from inside their containers
+
+If you want to split the test into smaller steps while debugging:
+
+```bash
+make docker-validate
+make docker-up-build
+make docker-smoke
+make status
+```
+
+Use service logs when a smoke check fails:
+
+```bash
+make docker-logs-product
+make docker-logs-order
+make docker-logs-payment
+make docker-logs-client
+make docker-logs-admin
+make docker-logs-stripe
+```
+
+Before running the full Docker path, make sure Docker can pull Docker Hardened
+Images:
+
+```bash
+docker login dhi.io
+make docker-auth
+```
+
+The full stack can start without live Clerk or Stripe keys, but checkout and
+webhook behavior are only fully testable after real keys are added to `.env`.
+For a faster infrastructure-only check during local app development, use:
+
+```bash
+make docker-infra-local
+```
+
 The Docker-related targets you will actually use most often are:
 
 ```bash
+make docker-test
 make docker-build
 make docker-up
 make docker-up-build
+make docker-smoke
 make docker-down
 make docker-down-volumes
 make docker-logs

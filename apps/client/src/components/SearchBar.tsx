@@ -51,10 +51,10 @@ const SearchBar = () => {
   };
 
   return (
-    <search className="hidden min-w-0 sm:block md:min-w-72">
+    <search className="hidden min-w-0 sm:block md:min-w-80">
       <form
         action="/products"
-        className="flex items-center gap-2 rounded-full border border-black/10 bg-white/85 px-3 py-2 shadow-sm backdrop-blur"
+        className="flex h-11 items-center gap-2 rounded-full border border-black/10 bg-white/85 px-3 shadow-sm backdrop-blur transition focus-within:border-black/20 focus-within:ring-4 focus-within:ring-black/[0.04]"
         onSubmit={handleSubmit}
       >
         <Search className="h-4 w-4 text-gray-500" />

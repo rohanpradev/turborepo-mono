@@ -2,6 +2,7 @@ import type {
   CategoryRecord,
   CheckoutSessionPayload,
   OrderRecord,
+  ProductPayload,
   ProductRecord,
   ProductListQuery as SharedProductListQuery,
 } from "@repo/types";
@@ -104,6 +105,8 @@ export type ListProductsResponse = SuccessResponse<Array<ProductRecord>> & {
   };
 };
 export type GetProductResponse = SuccessResponse<ProductRecord>;
+export type CreateProductRequest = ProductPayload;
+export type CreateProductResponse = SuccessResponse<ProductRecord>;
 export type ListCategoriesResponse = SuccessResponse<Array<CategoryRecord>>;
 export type ProductHealthResponse = ServiceHealthResponse<"product-service">;
 export type OrderHealthResponse = ServiceHealthResponse<"order-service">;
@@ -162,6 +165,26 @@ export const getProduct = async (baseUrl: string, id: number) => {
   );
 
   return parseJson<GetProductResponse>(response);
+};
+
+export const createProduct = async (
+  baseUrl: string,
+  payload: CreateProductRequest,
+  token: string,
+) => {
+  const response = await createProductServiceClient(baseUrl).request(
+    "/products",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+
+  return parseJson<CreateProductResponse>(response);
 };
 
 export const listCategories = async (baseUrl: string) => {

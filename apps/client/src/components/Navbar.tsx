@@ -1,5 +1,5 @@
 import { Show, SignInButton } from "@clerk/nextjs";
-import { Bell, Home } from "lucide-react";
+import { Home, Search } from "lucide-react";
 import type { Route } from "next";
 import dynamic from "next/dynamic";
 import Image from "next/image";
@@ -16,7 +16,7 @@ const isClerkConfigured = Boolean(
 
 const Navbar = () => {
   return (
-    <nav className="mb-8 flex w-full flex-wrap items-center justify-between gap-3 rounded-[1.75rem] border border-black/5 bg-white/75 px-4 py-3 shadow-sm backdrop-blur sm:px-5">
+    <nav className="sticky top-3 z-40 mb-8 flex w-full flex-wrap items-center justify-between gap-3 rounded-[1.5rem] border border-black/5 bg-white/85 px-3 py-3 shadow-sm shadow-black/[0.03] backdrop-blur-xl sm:px-5">
       <Link href="/" className="flex min-w-0 items-center gap-2">
         <Image
           src="/logo.png"
@@ -34,7 +34,7 @@ const Navbar = () => {
           </p>
         </div>
       </Link>
-      <div className="flex flex-wrap items-center justify-end gap-3 sm:gap-4 md:gap-6">
+      <div className="flex flex-1 flex-wrap items-center justify-end gap-2 sm:gap-3 md:gap-4">
         <Suspense
           fallback={
             <div className="hidden min-w-0 items-center gap-2 rounded-full border border-black/10 bg-white/80 px-3 py-2 shadow-sm sm:flex md:min-w-72">
@@ -47,17 +47,18 @@ const Navbar = () => {
         </Suspense>
         <Link
           href="/"
-          className="rounded-full border border-black/10 bg-white/80 p-2 text-gray-600 shadow-sm"
+          aria-label="Home"
+          className="hidden rounded-full border border-black/10 bg-white/80 p-2 text-gray-600 shadow-sm transition hover:border-black/20 hover:bg-gray-50 sm:inline-flex"
         >
           <Home className="h-4 w-4 text-gray-600" />
         </Link>
-        <button
-          type="button"
-          aria-label="Notifications"
-          className="rounded-full border border-black/10 bg-white/80 p-2 text-gray-600 shadow-sm"
+        <Link
+          href={"/products" as Route}
+          aria-label="Search products"
+          className="inline-flex rounded-full border border-black/10 bg-white/80 p-2 text-gray-600 shadow-sm transition hover:border-black/20 hover:bg-gray-50 sm:hidden"
         >
-          <Bell className="h-4 w-4 text-gray-600" />
-        </button>
+          <Search className="h-4 w-4 text-gray-600" />
+        </Link>
         <ShoppingCartIcon />
         {isClerkConfigured ? (
           <>

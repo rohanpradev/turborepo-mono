@@ -9,10 +9,11 @@ const nextConfig: NextConfig = {
     turbopackFileSystemCacheForBuild: true,
   },
   images: {
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "images.pexels.com",
+        hostname: "**",
       },
     ],
   },

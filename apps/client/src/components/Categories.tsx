@@ -44,14 +44,14 @@ const Categories = ({ categories }: { categories: Array<CategoryItem> }) => {
   };
 
   return (
-    <div className="mb-5 flex flex-wrap gap-2 rounded-[1.5rem] border border-black/5 bg-white/80 p-2 text-sm shadow-sm backdrop-blur">
+    <div className="-mx-1 mb-5 flex gap-2 overflow-x-auto px-1 pb-1 text-sm sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
       {options.map((category) => (
         <button
           type="button"
-          className={`inline-flex min-h-10 items-center gap-2 rounded-full px-4 py-2 text-center transition-all ${
+          className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-center shadow-sm transition-all ${
             category.slug === selectedCategory
-              ? "bg-gray-950 text-white shadow-sm"
-              : "border border-black/5 bg-white text-gray-600 hover:bg-gray-50"
+              ? "border-gray-950 bg-gray-950 text-white"
+              : "border-black/5 bg-white/85 text-gray-600 hover:border-black/10 hover:bg-white"
           }`}
           key={category.slug}
           disabled={isPending}
