@@ -17,6 +17,10 @@ export const productListQuerySchema = z.strictObject({
   limit: z.coerce.number().int().positive().max(100).optional(),
 });
 
+const isSupportedImagePath = (value: string) =>
+  (value.startsWith("/") && !value.startsWith("//")) ||
+  (value.startsWith("https://") && !/\s/.test(value));
+
 const productBaseSchema = z.strictObject({
   name: z.string().min(1),
   shortDescription: z.string().min(1).max(60),
@@ -25,7 +29,15 @@ const productBaseSchema = z.strictObject({
   categorySlug: z.string().min(1),
   sizes: z.array(z.string().min(1)).min(1),
   colors: z.array(z.string().min(1)).min(1),
-  images: z.record(z.string(), z.string()),
+  images: z.record(
+    z.string(),
+    z
+      .string()
+      .min(1)
+      .refine((value) => isSupportedImagePath(value), {
+        message: "Image must be an HTTPS URL or a root-relative path.",
+      }),
+  ),
 });
 
 export const productPayloadSchema = productBaseSchema.refine(

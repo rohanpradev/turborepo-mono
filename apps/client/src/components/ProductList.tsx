@@ -76,7 +76,7 @@ const ProductList = async ({
 
   return (
     <section className="w-full space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-black/5 pb-5">
         <div className="space-y-1">
           <Badge variant="outline" className="bg-white/80 text-gray-700">
             Curated selection
@@ -94,7 +94,7 @@ const ProductList = async ({
         {params === "homepage" ? (
           <Link
             href={viewAllHref}
-            className="text-sm font-medium text-gray-700 underline decoration-gray-300 underline-offset-4"
+            className="rounded-full border border-black/10 bg-white/80 px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-white"
           >
             View all products
           </Link>

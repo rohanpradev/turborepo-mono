@@ -1,7 +1,7 @@
 # E-Commerce Microservices Makefile
 # Manage all services, databases, and the hardened local Docker stack.
 
-.PHONY: help ensure-env install dev stop clean clean-all setup setup-base generate-client kafka-ui db-setup db-migrate db-generate db-studio db-seed local-env-file local-db-migrate local-db-seed local-urls local-dev local-fresh-dev lint type-check format audit test verify build build-client build-admin logs-product logs-order logs-payment status docker-auth docker-certs docker-build docker-up docker-up-build docker-down docker-down-volumes docker-logs docker-logs-traefik docker-logs-product docker-logs-order docker-logs-payment docker-logs-client docker-logs-admin docker-logs-stripe docker-ps docker-restart docker-restart-service docker-rebuild-service docker-shell-traefik docker-shell-product docker-shell-order docker-shell-payment docker-infra-only docker-infra-local docker-stripe-up docker-stripe-down docker-clean docker-clean-images docker-prune docker-kill-all docker-setup docker-fresh-start quick-start quick-stop restart docker-quick-start
+.PHONY: help ensure-env install dev stop clean clean-all setup setup-base generate-client kafka-ui db-setup db-migrate db-generate db-studio db-seed local-env-file local-db-migrate local-db-seed local-urls local-dev local-fresh-dev lint type-check format audit test verify build build-client build-admin logs-product logs-order logs-payment status docker-auth docker-certs docker-validate docker-build docker-up docker-up-build docker-smoke docker-test docker-down docker-down-volumes docker-logs docker-logs-traefik docker-logs-product docker-logs-order docker-logs-payment docker-logs-client docker-logs-admin docker-logs-stripe docker-ps docker-restart docker-restart-service docker-rebuild-service docker-shell-traefik docker-shell-product docker-shell-order docker-shell-payment docker-infra-only docker-infra-local docker-stripe-up docker-stripe-down docker-clean docker-clean-images docker-prune docker-kill-all docker-setup docker-fresh-start quick-start quick-stop restart docker-quick-start
 
 .DEFAULT_GOAL := help
 
@@ -24,6 +24,7 @@ LOCAL_ENV_FILE := /tmp/ecommerce-local-dev.env
 DOCKER_COMPOSE ?= docker compose
 DOCKER_WAIT_TIMEOUT ?= 180
 DHI_CHECK_IMAGE ?= dhi.io/bun:1.3.13-debian13
+DOCKER_SMOKE_TIMEOUT ?= 10
 LOCAL_TLS_CERT_DIR ?= docker/certs
 LOCAL_TLS_CERT_FILE ?= $(LOCAL_TLS_CERT_DIR)/localhost.pem
 LOCAL_TLS_KEY_FILE ?= $(LOCAL_TLS_CERT_DIR)/localhost-key.pem
@@ -280,7 +281,11 @@ local-urls: ## Show localhost URLs for local apps plus Docker infrastructure
 
 docker-auth: ## Verify Docker Hardened Images access without prompting
 	@echo "$(BLUE)Checking Docker Hardened Images access...$(NC)"
-	@docker pull $(DHI_CHECK_IMAGE) >/dev/null
+	@docker pull $(DHI_CHECK_IMAGE) >/dev/null || { \
+		echo "$(RED)Docker Hardened Images access failed.$(NC)"; \
+		echo "$(YELLOW)Run 'docker login dhi.io', then retry 'make docker-test'.$(NC)"; \
+		exit 1; \
+	}
 	@echo "$(GREEN)Docker Hardened Images access verified$(NC)"
 
 docker-certs: ## Generate locally trusted TLS certificates for Traefik
@@ -288,6 +293,12 @@ docker-certs: ## Generate locally trusted TLS certificates for Traefik
 	@mkdir -p $(LOCAL_TLS_CERT_DIR)
 	@docker/generate-local-certs.sh $(LOCAL_TLS_CERT_DIR)
 	@echo "$(GREEN)Local TLS certificates are ready$(NC)"
+
+docker-validate: ensure-env ## Validate Docker Compose files without starting containers
+	@echo "$(BLUE)Validating Docker Compose configuration...$(NC)"
+	$(DOCKER_COMPOSE) --env-file .env config >/dev/null
+	$(DOCKER_COMPOSE) -f packages/kafka/compose.yml config >/dev/null
+	@echo "$(GREEN)Docker Compose configuration is valid$(NC)"
 
 docker-build: ensure-env docker-auth docker-certs ## Build all Docker images
 	@echo "$(BLUE)Building Docker images...$(NC)"
@@ -305,6 +316,19 @@ docker-up-build: ensure-env docker-auth docker-certs ## Build and start all serv
 	$(DOCKER_COMPOSE) up -d --build --remove-orphans --wait --wait-timeout $(DOCKER_WAIT_TIMEOUT)
 	@echo "$(GREEN)All services started$(NC)"
 	@echo "$(YELLOW)Stripe CLI is included by default. Use 'make docker-logs-stripe' to inspect webhook forwarding status.$(NC)"
+
+docker-smoke: ## Smoke-test the running Docker stack over Traefik and service health endpoints
+	@echo "$(BLUE)Smoke-testing Docker stack...$(NC)"
+	@curl -skSf --max-time $(DOCKER_SMOKE_TIMEOUT) https://shop.localhost/api/health >/dev/null
+	@curl -skSf --max-time $(DOCKER_SMOKE_TIMEOUT) https://admin.localhost/api/health >/dev/null
+	@curl -skSf --max-time $(DOCKER_SMOKE_TIMEOUT) https://api.localhost/products?limit=1 >/dev/null
+	$(DOCKER_COMPOSE) exec -T product-service bun -e "const r=await fetch('http://127.0.0.1:3000/health/ready'); if (!r.ok) process.exit(1);"
+	$(DOCKER_COMPOSE) exec -T order-service bun -e "const r=await fetch('http://127.0.0.1:8001/health/ready'); if (!r.ok) process.exit(1);"
+	$(DOCKER_COMPOSE) exec -T payment-service bun -e "const r=await fetch('http://127.0.0.1:8002/health/ready'); if (!r.ok) process.exit(1);"
+	@echo "$(GREEN)Docker smoke tests passed$(NC)"
+
+docker-test: docker-validate docker-up-build docker-smoke ## Validate, build, start, and smoke-test the full Docker stack
+	@echo "$(GREEN)Docker test pipeline passed$(NC)"
 
 docker-down: ## Stop all Docker services
 	@echo "$(BLUE)Stopping Docker services...$(NC)"

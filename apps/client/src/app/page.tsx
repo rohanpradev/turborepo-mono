@@ -1,3 +1,4 @@
+import { ArrowRight, ShoppingBag } from "lucide-react";
 import Image from "next/image";
 import ProductList from "@/components/ProductList";
 import { Badge } from "@/components/ui/badge";
@@ -48,8 +49,8 @@ const Homepage = async ({
 
   return (
     <div className="space-y-10 pb-8">
-      <section className="overflow-hidden rounded-[2rem] border border-black/5 bg-[#f7f3ea] shadow-[0_20px_60px_-30px_rgba(15,23,42,0.35)]">
-        <div className="grid gap-8 p-6 lg:grid-cols-[0.95fr_1.05fr] lg:p-10">
+      <section className="overflow-hidden rounded-[2rem] border border-black/5 bg-[#f5f0e6] shadow-[0_20px_60px_-30px_rgba(15,23,42,0.35)]">
+        <div className="grid gap-8 p-5 sm:p-6 lg:grid-cols-[0.88fr_1.12fr] lg:p-10">
           <div className="flex flex-col justify-between gap-8">
             <div className="space-y-5">
               <Badge
@@ -63,38 +64,46 @@ const Homepage = async ({
                   The Winter Edit.
                 </h1>
                 <p className="max-w-xl text-base leading-7 text-gray-600 sm:text-lg">
-                  Curated essentials for a cleaner storefront. Better product
-                  composition, softer backgrounds, and a checkout path that
-                  feels intentional from browsing to payment success.
+                  Refined layers, clean staples, and focused product details in
+                  a storefront built for quick browsing and confident checkout.
                 </p>
               </div>
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <Button href="/products">Shop the collection</Button>
+              <Button href="/products">
+                <ShoppingBag className="h-4 w-4" />
+                Shop the collection
+              </Button>
               <Button href="/cart" variant="outline">
                 View cart
+                <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
               {[
-                "Editorial product imagery",
-                "Fast checkout flow",
-                "Premium catalog layout",
-              ].map((item) => (
+                ["24", "curated drops"],
+                ["3", "core categories"],
+                ["2 min", "checkout flow"],
+              ].map(([value, label]) => (
                 <div
-                  key={item}
-                  className="rounded-2xl border border-black/10 bg-white/80 px-4 py-3 text-sm text-gray-700 shadow-sm"
+                  key={label}
+                  className="rounded-2xl border border-black/10 bg-white/80 px-4 py-3 shadow-sm"
                 >
-                  {item}
+                  <p className="text-lg font-semibold tracking-tight text-gray-950">
+                    {value}
+                  </p>
+                  <p className="text-xs uppercase tracking-[0.18em] text-gray-500">
+                    {label}
+                  </p>
                 </div>
               ))}
             </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <article className="relative overflow-hidden rounded-[1.75rem] border border-black/5 bg-white p-4 shadow-sm sm:row-span-2">
+            <article className="relative overflow-hidden rounded-[1.5rem] border border-black/5 bg-white p-4 shadow-sm sm:row-span-2">
               <div
                 className={`absolute inset-0 bg-gradient-to-br ${spotlight[0].bg}`}
               />
@@ -134,7 +143,7 @@ const Homepage = async ({
             {spotlight.slice(1).map((pick) => (
               <article
                 key={pick.name}
-                className="relative overflow-hidden rounded-[1.75rem] border border-black/5 bg-white p-4 shadow-sm"
+                className="relative overflow-hidden rounded-[1.5rem] border border-black/5 bg-white p-4 shadow-sm"
               >
                 <div
                   className={`absolute inset-0 bg-gradient-to-br ${pick.bg}`}
