@@ -13,6 +13,16 @@ out/
 build
 dist/
 .turbo
+.vercel
+generated
+**/.next
+**/.turbo
+**/.vercel
+**/coverage
+**/build
+**/dist
+**/out
+**/generated
 
 # Misc
 .DS_Store
@@ -20,6 +30,8 @@ dist/
 *.key
 *.log
 tmp/
+SKILL.md
+sonar-project.properties
 
 # Debug
 npm-debug.log*

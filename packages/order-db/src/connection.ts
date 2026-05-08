@@ -30,8 +30,14 @@ export const connectOrderDB = async () => {
         autoIndex: process.env.NODE_ENV !== "production",
         maxPoolSize: readPositiveInt("MONGO_MAX_POOL_SIZE", 20),
         maxIdleTimeMS: readPositiveInt("MONGO_MAX_IDLE_TIME_MS", 30000),
-        serverSelectionTimeoutMS: 5000,
-        waitQueueTimeoutMS: 5000,
+        serverSelectionTimeoutMS: readPositiveInt(
+          "MONGO_SERVER_SELECTION_TIMEOUT_MS",
+          5000,
+        ),
+        waitQueueTimeoutMS: readPositiveInt(
+          "MONGO_WAIT_QUEUE_TIMEOUT_MS",
+          5000,
+        ),
       });
     }
 

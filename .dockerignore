@@ -1,30 +1,53 @@
 # Dependencies
 node_modules
+.pnp
+.pnp.js
 
 # Workspace build outputs
 .next
 .turbo
+.vercel
 dist
 build
 out
 coverage
+generated
+**/.next
+**/.turbo
+**/.vercel
+**/dist
+**/build
+**/out
+**/coverage
+**/generated
+**/*.tsbuildinfo
 
 # Environment and local state
 .env
+.env.*
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+tmp
+tmp/
 
 # Tooling and VCS
 .git
 .github
+.gitignore
 .idea
 .vscode
 .DS_Store
+SKILL.md
+sonar-project.properties
 
 # Logs and misc
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+bun-debug.log*
+*.log
 *.pem
+*.key
+tests
