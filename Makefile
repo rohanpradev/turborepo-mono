@@ -1,7 +1,7 @@
 # E-Commerce Microservices Makefile
 # Manage all services, databases, and the hardened local Docker stack.
 
-.PHONY: help ensure-env install dev stop clean clean-all setup setup-base generate-client kafka-ui db-setup db-migrate db-generate db-studio db-seed local-env-file local-db-migrate local-db-seed local-urls local-dev local-fresh-dev lint type-check format audit test verify build build-client build-admin logs-product logs-order logs-payment status docker-auth docker-certs docker-validate docker-build docker-up docker-up-build docker-smoke docker-test docker-down docker-down-volumes docker-logs docker-logs-traefik docker-logs-product docker-logs-order docker-logs-payment docker-logs-client docker-logs-admin docker-logs-stripe docker-ps docker-restart docker-restart-service docker-rebuild-service docker-shell-traefik docker-shell-product docker-shell-order docker-shell-payment docker-infra-only docker-infra-local docker-stripe-up docker-stripe-down docker-clean docker-clean-images docker-prune docker-kill-all docker-setup docker-fresh-start quick-start quick-stop restart docker-quick-start
+.PHONY: help ensure-env install dev stop clean clean-all setup setup-base generate-client kafka-ui db-setup db-migrate db-generate db-studio db-seed local-env-file local-db-migrate local-db-seed local-urls local-dev local-fresh-dev lint type-check format audit test verify build build-client build-admin logs-product logs-order logs-payment status docker-auth docker-certs docker-validate docker-images docker-lock-images docker-build docker-up docker-up-build docker-smoke docker-test docker-down docker-down-volumes docker-logs docker-logs-traefik docker-logs-product docker-logs-order docker-logs-payment docker-logs-client docker-logs-admin docker-logs-stripe docker-ps docker-restart docker-restart-service docker-rebuild-service docker-shell-traefik docker-shell-product docker-shell-order docker-shell-payment docker-infra-only docker-infra-local docker-stripe-up docker-stripe-down docker-clean docker-clean-images docker-prune docker-kill-all docker-setup docker-fresh-start quick-start quick-stop restart docker-quick-start
 
 .DEFAULT_GOAL := help
 
@@ -12,7 +12,7 @@ RED := \033[0;31m
 NC := \033[0m
 
 LOCAL_DATABASE_URL := postgresql://postgres:postgres@localhost:5432/product_db?schema=public
-LOCAL_MONGO_URL := mongodb://admin:admin123@127.0.0.1:27017/order_db?authSource=admin
+LOCAL_MONGO_URL := mongodb://127.0.0.1:27017/order_db
 LOCAL_KAFKA_BROKERS := localhost:9094,localhost:9095,localhost:9096
 LOCAL_PRODUCT_SERVICE_URL := http://localhost:3000
 LOCAL_ORDER_SERVICE_URL := http://localhost:8001
@@ -23,8 +23,10 @@ LOCAL_CORS_ALLOWED_ORIGINS := http://localhost:3002,http://localhost:3003
 LOCAL_ENV_FILE := /tmp/ecommerce-local-dev.env
 DOCKER_COMPOSE ?= docker compose
 DOCKER_WAIT_TIMEOUT ?= 180
-DHI_CHECK_IMAGE ?= dhi.io/bun:1.3.13-debian13
+DHI_CHECK_IMAGES ?= dhi.io/bun:1.3.14-debian13 dhi.io/traefik:3.7.1-debian13 dhi.io/postgres:18.3-debian13 dhi.io/kafka:4.2.0-debian13-native
+DHI_AMD64_CHECK_IMAGES ?= dhi.io/mongodb:8.3.2-debian13
 DOCKER_SMOKE_TIMEOUT ?= 10
+DOCKER_IMAGE_LOCK_FILE ?= docker/compose.images.lock.yml
 LOCAL_TLS_CERT_DIR ?= docker/certs
 LOCAL_TLS_CERT_FILE ?= $(LOCAL_TLS_CERT_DIR)/localhost.pem
 LOCAL_TLS_KEY_FILE ?= $(LOCAL_TLS_CERT_DIR)/localhost-key.pem
@@ -274,18 +276,29 @@ local-urls: ## Show localhost URLs for local apps plus Docker infrastructure
 	@echo ""
 	@echo "$(YELLOW)Infrastructure:$(NC)"
 	@echo "  Postgres:          postgresql://postgres:postgres@localhost:5432/product_db?schema=public"
-	@echo "  MongoDB:           mongodb://admin:admin123@localhost:27017/order_db?authSource=admin"
+	@echo "  MongoDB:           mongodb://127.0.0.1:27017/order_db"
 	@echo "  Kafka Brokers:     localhost:9094, localhost:9095, localhost:9096"
 
 ##@ Docker
 
 docker-auth: ## Verify Docker Hardened Images access without prompting
 	@echo "$(BLUE)Checking Docker Hardened Images access...$(NC)"
-	@docker pull $(DHI_CHECK_IMAGE) >/dev/null || { \
-		echo "$(RED)Docker Hardened Images access failed.$(NC)"; \
-		echo "$(YELLOW)Run 'docker login dhi.io', then retry 'make docker-test'.$(NC)"; \
-		exit 1; \
-	}
+	@for image in $(DHI_CHECK_IMAGES); do \
+		echo "  $$image"; \
+		docker pull "$$image" >/dev/null || { \
+			echo "$(RED)Docker Hardened Images access failed for $$image.$(NC)"; \
+			echo "$(YELLOW)Run 'docker login dhi.io', then retry 'make docker-test'.$(NC)"; \
+			exit 1; \
+		}; \
+	done
+	@for image in $(DHI_AMD64_CHECK_IMAGES); do \
+		echo "  $$image (linux/amd64)"; \
+		docker pull --platform linux/amd64 "$$image" >/dev/null || { \
+			echo "$(RED)Docker Hardened Images access failed for $$image on linux/amd64.$(NC)"; \
+			echo "$(YELLOW)Run 'docker login dhi.io', then retry 'make docker-test'.$(NC)"; \
+			exit 1; \
+		}; \
+	done
 	@echo "$(GREEN)Docker Hardened Images access verified$(NC)"
 
 docker-certs: ## Generate locally trusted TLS certificates for Traefik
@@ -300,6 +313,14 @@ docker-validate: ensure-env ## Validate Docker Compose files without starting co
 	$(DOCKER_COMPOSE) -f packages/kafka/compose.yml config >/dev/null
 	@echo "$(GREEN)Docker Compose configuration is valid$(NC)"
 
+docker-images: ensure-env ## List the fully resolved Compose images
+	$(DOCKER_COMPOSE) --env-file .env config --images
+
+docker-lock-images: ensure-env ## Write a digest-locked Compose override for reproducible image pulls
+	@echo "$(BLUE)Resolving Compose image digests...$(NC)"
+	$(DOCKER_COMPOSE) --env-file .env config --lock-image-digests -o $(DOCKER_IMAGE_LOCK_FILE)
+	@echo "$(GREEN)Wrote $(DOCKER_IMAGE_LOCK_FILE)$(NC)"
+
 docker-build: ensure-env docker-auth docker-certs ## Build all Docker images
 	@echo "$(BLUE)Building Docker images...$(NC)"
 	$(DOCKER_COMPOSE) build --pull
@@ -307,13 +328,13 @@ docker-build: ensure-env docker-auth docker-certs ## Build all Docker images
 
 docker-up: ensure-env docker-auth docker-certs ## Start all services with Docker Compose
 	@echo "$(BLUE)Starting all services with Docker...$(NC)"
-	$(DOCKER_COMPOSE) up -d --remove-orphans --wait --wait-timeout $(DOCKER_WAIT_TIMEOUT)
+	$(DOCKER_COMPOSE) up -d --pull always --remove-orphans --wait --wait-timeout $(DOCKER_WAIT_TIMEOUT)
 	@echo "$(GREEN)All services started$(NC)"
 	@echo "$(YELLOW)Stripe CLI is included by default. Use 'make docker-logs-stripe' to inspect webhook forwarding status.$(NC)"
 
 docker-up-build: ensure-env docker-auth docker-certs ## Build and start all services with Docker Compose
 	@echo "$(BLUE)Building and starting all services...$(NC)"
-	$(DOCKER_COMPOSE) up -d --build --remove-orphans --wait --wait-timeout $(DOCKER_WAIT_TIMEOUT)
+	$(DOCKER_COMPOSE) up -d --build --pull always --remove-orphans --wait --wait-timeout $(DOCKER_WAIT_TIMEOUT)
 	@echo "$(GREEN)All services started$(NC)"
 	@echo "$(YELLOW)Stripe CLI is included by default. Use 'make docker-logs-stripe' to inspect webhook forwarding status.$(NC)"
 
@@ -394,17 +415,17 @@ docker-shell-payment: ## DHI runtime images do not include a shell
 
 docker-infra-only: ensure-env docker-auth docker-certs ## Start only infrastructure services
 	@echo "$(BLUE)Starting infrastructure...$(NC)"
-	$(DOCKER_COMPOSE) up -d --wait --wait-timeout $(DOCKER_WAIT_TIMEOUT) traefik postgres mongodb kafka-broker-1 kafka-broker-2 kafka-broker-3 kafka-ui
+	$(DOCKER_COMPOSE) up -d --pull always --wait --wait-timeout $(DOCKER_WAIT_TIMEOUT) traefik postgres mongodb kafka-broker-1 kafka-broker-2 kafka-broker-3 kafka-ui
 	@echo "$(GREEN)Infrastructure started$(NC)"
 
 docker-infra-local: ensure-env docker-auth ## Start only database and Kafka infrastructure for local HTTP app development
 	@echo "$(BLUE)Starting local development infrastructure...$(NC)"
-	$(DOCKER_COMPOSE) up -d --wait --wait-timeout $(DOCKER_WAIT_TIMEOUT) postgres mongodb kafka-broker-1 kafka-broker-2 kafka-broker-3
+	$(DOCKER_COMPOSE) up -d --pull always --wait --wait-timeout $(DOCKER_WAIT_TIMEOUT) postgres mongodb kafka-broker-1 kafka-broker-2 kafka-broker-3
 	@echo "$(GREEN)Local development infrastructure started$(NC)"
 
 docker-stripe-up: ensure-env ## Start the Stripe CLI listener for webhook forwarding
 	@echo "$(BLUE)Starting Stripe CLI webhook forwarding...$(NC)"
-	$(DOCKER_COMPOSE) up -d --wait --wait-timeout $(DOCKER_WAIT_TIMEOUT) stripe-cli
+	$(DOCKER_COMPOSE) up -d --pull always --wait --wait-timeout $(DOCKER_WAIT_TIMEOUT) stripe-cli
 	@echo "$(YELLOW)Stripe webhook secret sync is automatic. Use 'make docker-logs-stripe' to confirm the listener is ready.$(NC)"
 
 docker-stripe-down: ## Stop the Stripe CLI listener

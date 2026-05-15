@@ -35,8 +35,8 @@ An end-to-end commerce platform built as a Bun-first Turborepo with typed Hono m
 
 ## Prerequisites
 
-- `Bun >= 1.3.11`
-- `Node >= 20.9.0`
+- `Bun >= 1.3.14`
+- `Node >= 20.19.0`
 - `Docker` with Compose
 - `mkcert` for locally trusted `*.localhost` certificates
 - `docker login dhi.io` for Docker Hardened Images
@@ -162,6 +162,36 @@ make docker-logs-client
 make docker-logs-admin
 make docker-logs-stripe
 ```
+
+### Image freshness and reproducibility
+
+The Docker path uses Docker Hardened Images for Bun, Traefik, Postgres, and
+Kafka. Traefik runs on the current DHI 3.7 image, reads Docker metadata through
+the socket proxy, keeps `exposedByDefault=false`, and applies an explicit
+`traefik.enable=true` provider constraint so only labelled services are routed.
+The Makefile verifies access to each DHI repository before Docker workflows run,
+and startup targets pass `--pull always` so patched DHI tags and public utility
+images are refreshed before containers are started.
+
+Useful image inspection commands:
+
+```bash
+make docker-images
+make docker-lock-images
+```
+
+`make docker-lock-images` writes `docker/compose.images.lock.yml` with immutable
+image digests when you need a reproducible deployment snapshot. Keep the normal
+Compose file on version tags for local development so Docker can pull DHI patch
+refreshes.
+
+MongoDB runs on `dhi.io/mongodb:8.3.2-debian13`. Unlike the Docker Official
+Mongo image, the DHI runtime is shell-less and does not include the official
+first-run user initialization entrypoint or `mongosh`, so the local stack uses
+unauthenticated MongoDB on the private Compose network and publishes the host
+port on `127.0.0.1` only. The current DHI MongoDB tag is amd64-only, so Compose
+sets `platform: linux/amd64` for that service. A short-lived DHI Bun helper
+waits for the Mongo TCP port before order-service starts.
 
 Before running the full Docker path, make sure Docker can pull Docker Hardened
 Images:

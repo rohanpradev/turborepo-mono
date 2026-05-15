@@ -1,7 +1,6 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import dynamic from "next/dynamic";
-import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import "./globals.css";
@@ -9,16 +8,6 @@ import "./globals.css";
 const ToastContainer = dynamic(() =>
   import("react-toastify").then((mod) => mod.ToastContainer),
 );
-
-const jakartaSans = Plus_Jakarta_Sans({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const inter = Inter({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 const createMetadataBase = (value: string | undefined, fallback: string) => {
   try {
@@ -86,7 +75,7 @@ export default function RootLayout({
 
   return (
     <html lang="en">
-      <body className={`${jakartaSans.variable} ${inter.variable} antialiased`}>
+      <body className="antialiased">
         {isClerkConfigured ? <ClerkProvider>{shell}</ClerkProvider> : shell}
         <ToastContainer position="bottom-right" />
       </body>

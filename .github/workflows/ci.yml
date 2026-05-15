@@ -14,10 +14,10 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  BUN_VERSION: 1.3.13
+  BUN_VERSION: 1.3.14
   NODE_VERSION: 24
   REGISTRY: ghcr.io
-  TURBO_VERSION: 2.9.10
+  TURBO_VERSION: 2.9.14
   NEXT_TELEMETRY_DISABLED: 1
   TURBO_TELEMETRY_DISABLED: 1
 
