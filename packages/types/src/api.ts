@@ -14,6 +14,7 @@ export const productListQuerySchema = z.strictObject({
   sort: productSortSchema.optional(),
   category: z.string().min(1).optional(),
   search: z.string().min(1).optional(),
+  page: z.coerce.number().int().positive().max(10_000).optional(),
   limit: z.coerce.number().int().positive().max(100).optional(),
 });
 
@@ -153,6 +154,7 @@ export type ProductListQuery = {
   sort?: ProductSort;
   category?: string;
   search?: string;
+  page?: number;
   limit?: number;
 };
 export type ProductRecord = z.infer<typeof productRecordSchema>;

@@ -1,4 +1,8 @@
 import type { ITopicConfig, Kafka } from "kafkajs";
+import {
+  attachKafkaInstrumentation,
+  type KafkaEventClient,
+} from "./instrumentation";
 import type { TopicName } from "./types";
 
 type KafkaTopicEnv = {
@@ -104,6 +108,13 @@ export const ensureTopics = async (
   }
 
   const admin = kafka.admin();
+  const removeInstrumentation = attachKafkaInstrumentation(
+    admin as unknown as KafkaEventClient,
+    {
+      clientId: "admin",
+      clientType: "admin",
+    },
+  );
 
   await admin.connect();
 
@@ -134,6 +145,10 @@ export const ensureTopics = async (
       timeout: options.timeout ?? 10000,
     });
   } finally {
-    await admin.disconnect();
+    try {
+      await admin.disconnect();
+    } finally {
+      removeInstrumentation();
+    }
   }
 };

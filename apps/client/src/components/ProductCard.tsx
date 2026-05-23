@@ -9,6 +9,8 @@ import { useState } from "react";
 import { toast } from "react-toastify";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Select } from "@/components/ui/select";
 import useCartStore from "@/stores/cartStore";
 import type { ProductType } from "@/types";
 
@@ -55,7 +57,7 @@ const ProductCard = ({ product }: { product: ProductType }) => {
   };
 
   return (
-    <div className="group flex h-full min-h-[42rem] flex-col overflow-hidden rounded-[1.75rem] border border-black/5 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_50px_-20px_rgba(15,23,42,0.25)]">
+    <Card className="group flex h-full min-h-[42rem] flex-col overflow-hidden rounded-[1.75rem] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_50px_-20px_rgba(15,23,42,0.25)]">
       <Link href={`/products/${product.id}` as Route} className="block">
         <div className="relative aspect-[4/5] overflow-hidden bg-[#f3f0e8]">
           <Image
@@ -77,7 +79,7 @@ const ProductCard = ({ product }: { product: ProductType }) => {
         </div>
       </Link>
 
-      <div className="flex flex-1 flex-col gap-4 p-5">
+      <CardContent className="flex flex-1 flex-col gap-4">
         <div className="space-y-1">
           <div className="grid min-h-12 grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
             <h3 className="line-clamp-2 text-base font-semibold leading-6 tracking-tight text-gray-950">
@@ -94,13 +96,16 @@ const ProductCard = ({ product }: { product: ProductType }) => {
 
         <div className="grid min-h-[10.75rem] content-start gap-3 text-xs">
           <div className="space-y-2">
-            <span className="uppercase tracking-[0.18em] text-gray-400">
+            <label
+              htmlFor={`size-${product.id}`}
+              className="uppercase tracking-[0.18em] text-gray-400"
+            >
               Size
-            </span>
-            <select
+            </label>
+            <Select
               name="size"
-              id="size"
-              className="h-11 w-full rounded-full border border-black/10 bg-white px-4 text-sm outline-none transition focus:border-black/20 focus:ring-2 focus:ring-black/5"
+              id={`size-${product.id}`}
+              value={productTypes.size}
               onChange={(e) =>
                 handleProductType({ type: "size", value: e.target.value })
               }
@@ -110,7 +115,7 @@ const ProductCard = ({ product }: { product: ProductType }) => {
                   {size.toUpperCase()}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div className="space-y-2">
@@ -161,8 +166,8 @@ const ProductCard = ({ product }: { product: ProductType }) => {
           <ShoppingCart className="h-4 w-4" />
           Add to cart
         </Button>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };
 

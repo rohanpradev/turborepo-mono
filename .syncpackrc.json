@@ -1,0 +1,21 @@
+{
+  "$schema": "https://syncpack.dev/schema.json",
+  "versionGroups": [
+    {
+      "label": "Use workspace protocol for local packages",
+      "dependencies": ["$LOCAL"],
+      "dependencyTypes": ["!local"],
+      "pinVersion": "workspace:*"
+    },
+    {
+      "label": "Ignore package own versions for private workspaces",
+      "dependencyTypes": ["local"],
+      "isIgnored": true
+    },
+    {
+      "label": "Allow explicit security and transitive overrides",
+      "dependencyTypes": ["overrides", "resolutions", "pnpmOverrides"],
+      "isIgnored": true
+    }
+  ]
+}

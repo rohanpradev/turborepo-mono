@@ -201,16 +201,21 @@ export const productRoutes = createServiceRouter<{
   .openapi(listProductsRoute, async (c) => {
     const query = c.req.valid("query");
     const { items, total } = await ProductService.getAllProducts(query);
+    const page = query.page ?? 1;
     const pageSize = query.limit ?? 10;
+    const totalPages = Math.ceil(total / pageSize) || 1;
 
     return c.json(
       {
         success: true as const,
         data: items,
         meta: {
+          page,
           pageSize,
           total,
-          totalPages: Math.ceil(total / pageSize) || 1,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1,
         },
       },
       200,

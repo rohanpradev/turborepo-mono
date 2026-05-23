@@ -83,6 +83,9 @@ jobs:
       - name: Lint
         run: bun run lint:ci
 
+      - name: Dependency policy
+        run: bun run deps:check
+
       - name: Knip
         run: bun run knip
 

@@ -117,6 +117,18 @@ make build
 make verify
 ```
 
+Dependency hygiene is part of the normal CI path:
+
+```bash
+bun run deps:outdated
+bun run deps:check
+bun run audit
+```
+
+The workspace uses Bun catalogs in the root `package.json` so repeated
+dependency versions are defined once and referenced from app/package manifests
+with `catalog:`.
+
 ## Docker
 
 This repo uses Docker Hardened Images. The preferred startup path is:

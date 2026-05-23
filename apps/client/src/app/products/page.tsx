@@ -10,6 +10,12 @@ export const metadata: Metadata = {
 const getSingleParam = (value?: string | Array<string>) =>
   Array.isArray(value) ? value[0] : value;
 
+const getPageParam = (value?: string | Array<string>) => {
+  const page = Number(getSingleParam(value));
+
+  return Number.isInteger(page) && page > 0 ? page : 1;
+};
+
 const ProductsPage = async ({
   searchParams,
 }: {
@@ -17,22 +23,23 @@ const ProductsPage = async ({
     category?: string | Array<string>;
     search?: string | Array<string>;
     sort?: string | Array<string>;
+    page?: string | Array<string>;
   }>;
 }) => {
   const resolvedSearchParams = await searchParams;
   const category = getSingleParam(resolvedSearchParams.category);
   const search = getSingleParam(resolvedSearchParams.search);
   const sort = getSingleParam(resolvedSearchParams.sort);
+  const page = getPageParam(resolvedSearchParams.page);
 
   return (
-    <div className="">
-      <ProductList
-        category={category}
-        search={search}
-        sort={sort}
-        params="products"
-      />
-    </div>
+    <ProductList
+      category={category}
+      search={search}
+      sort={sort}
+      page={page}
+      params="products"
+    />
   );
 };
 

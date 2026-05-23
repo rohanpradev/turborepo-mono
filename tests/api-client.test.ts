@@ -26,9 +26,12 @@ describe("@repo/api-client", () => {
           success: true,
           data: [],
           meta: {
+            page: 1,
             pageSize: 8,
             total: 0,
             totalPages: 1,
+            hasNextPage: false,
+            hasPreviousPage: false,
           },
         }),
         {
@@ -42,12 +45,14 @@ describe("@repo/api-client", () => {
     await listProducts("https://api.localhost", {
       category: "t-shirts",
       limit: 8,
+      page: 2,
       sort: "newest",
     });
 
     expect(capturedUrl?.pathname).toBe("/products");
     expect(capturedUrl?.searchParams.get("category")).toBe("t-shirts");
     expect(capturedUrl?.searchParams.get("limit")).toBe("8");
+    expect(capturedUrl?.searchParams.get("page")).toBe("2");
     expect(capturedUrl?.searchParams.get("sort")).toBe("newest");
   });
 

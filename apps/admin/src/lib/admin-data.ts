@@ -288,7 +288,7 @@ export const loadCatalogSnapshot = async (): Promise<{
       },
       liveFetchOptions,
     ),
-    listCategories(productServiceUrl),
+    listCategories(productServiceUrl, liveFetchOptions),
   ]);
 
   return {

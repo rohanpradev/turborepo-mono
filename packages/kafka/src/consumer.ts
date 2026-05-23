@@ -5,6 +5,10 @@ import type {
   EachMessagePayload,
   Kafka,
 } from "kafkajs";
+import {
+  attachKafkaInstrumentation,
+  type KafkaEventClient,
+} from "./instrumentation";
 import type { MessageForTopic, TopicName } from "./types";
 
 export interface TopicHandler<TTopic extends TopicName = TopicName> {
@@ -21,6 +25,7 @@ export class KafkaConsumer {
   private handlers: Map<string, (message: unknown) => Promise<void>> =
     new Map();
   private started = false;
+  private removeInstrumentation: (() => void) | null = null;
 
   constructor(
     private kafka: Kafka,
@@ -173,6 +178,8 @@ export class KafkaConsumer {
 
     try {
       await this.kafkaConsumer.disconnect();
+      this.removeInstrumentation?.();
+      this.removeInstrumentation = null;
       this.started = false;
       console.log(`Kafka consumer disconnected: ${this.groupId}`);
     } catch (error) {
@@ -182,10 +189,20 @@ export class KafkaConsumer {
   }
 
   private createKafkaConsumer(): Consumer {
-    return this.kafka.consumer({
+    const consumer = this.kafka.consumer({
       groupId: this.groupId,
       allowAutoTopicCreation: false,
     });
+
+    this.removeInstrumentation = attachKafkaInstrumentation(
+      consumer as unknown as KafkaEventClient,
+      {
+        clientId: this.groupId,
+        clientType: "consumer",
+      },
+    );
+
+    return consumer;
   }
 }
 

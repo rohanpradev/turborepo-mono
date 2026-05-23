@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 export default function NotFound() {
   return (
@@ -15,18 +15,10 @@ export default function NotFound() {
         </p>
       </div>
       <div className="flex flex-wrap justify-center gap-3">
-        <Link
-          href="/products"
-          className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white"
-        >
-          Browse products
-        </Link>
-        <Link
-          href="/"
-          className="rounded-md border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700"
-        >
+        <Button href="/products">Browse products</Button>
+        <Button href="/" variant="outline">
           Back to storefront
-        </Link>
+        </Button>
       </div>
     </section>
   );

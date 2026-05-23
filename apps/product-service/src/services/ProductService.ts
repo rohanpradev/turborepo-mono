@@ -16,6 +16,7 @@ type ProductFilters = {
   sort?: ProductSort;
   category?: string;
   search?: string;
+  page?: number;
   limit?: number;
 };
 
@@ -82,8 +83,9 @@ export const ProductService = {
   async getAllProducts(
     filters: ProductFilters = {},
   ): Promise<{ items: Array<ProductRecord>; total: number }> {
-    const { sort = "newest", category, search, limit = 10 } = filters;
+    const { sort = "newest", category, search, page = 1, limit = 10 } = filters;
     const where: Prisma.ProductWhereInput = {};
+    const skip = (page - 1) * limit;
 
     if (category) {
       where.categorySlug = category;
@@ -107,7 +109,7 @@ export const ProductService = {
             : { createdAt: Prisma.SortOrder.desc };
 
     const [items, total] = await Promise.all([
-      prisma.product.findMany({ where, orderBy, take: limit }),
+      prisma.product.findMany({ where, orderBy, skip, take: limit }),
       prisma.product.count({ where }),
     ]);
 

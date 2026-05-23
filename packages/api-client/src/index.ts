@@ -99,9 +99,12 @@ export type ProductListQuery = SharedProductListQuery;
 
 export type ListProductsResponse = SuccessResponse<Array<ProductRecord>> & {
   meta: {
+    page: number;
     pageSize: number;
     total: number;
     totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
   };
 };
 export type GetProductResponse = SuccessResponse<ProductRecord>;
@@ -159,9 +162,14 @@ export const listProducts = async (
   return parseJson<ListProductsResponse>(response);
 };
 
-export const getProduct = async (baseUrl: string, id: number) => {
+export const getProduct = async (
+  baseUrl: string,
+  id: number,
+  fetchOptions?: FetchOptions,
+) => {
   const response = await createProductServiceClient(baseUrl).request(
     `/products/${id}`,
+    fetchOptions,
   );
 
   return parseJson<GetProductResponse>(response);
@@ -187,9 +195,14 @@ export const createProduct = async (
   return parseJson<CreateProductResponse>(response);
 };
 
-export const listCategories = async (baseUrl: string) => {
-  const response =
-    await createProductServiceClient(baseUrl).request("/categories");
+export const listCategories = async (
+  baseUrl: string,
+  fetchOptions?: FetchOptions,
+) => {
+  const response = await createProductServiceClient(baseUrl).request(
+    "/categories",
+    fetchOptions,
+  );
   return parseJson<ListCategoriesResponse>(response);
 };
 

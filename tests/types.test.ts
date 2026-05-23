@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
+  productListQuerySchema,
   productPayloadSchema,
   productUpdateSchema,
 } from "../packages/types/src/index";
@@ -29,6 +30,24 @@ describe("@repo/types schemas", () => {
     expect(result.success).toBe(false);
     expect(result.error?.issues[0]?.message).toContain(
       "At least one field must be updated.",
+    );
+  });
+
+  it("coerces and bounds product list pagination", () => {
+    const validQuery = productListQuerySchema.safeParse({
+      page: "2",
+      limit: "24",
+    });
+
+    expect(validQuery.success).toBe(true);
+    expect(validQuery.success ? validQuery.data : null).toMatchObject({
+      page: 2,
+      limit: 24,
+    });
+
+    expect(productListQuerySchema.safeParse({ page: "0" }).success).toBe(false);
+    expect(productListQuerySchema.safeParse({ limit: "101" }).success).toBe(
+      false,
     );
   });
 });
