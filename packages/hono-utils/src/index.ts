@@ -15,6 +15,8 @@ import { createMiddleware } from "hono/factory";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "hono/logger";
 import { secureHeaders } from "hono/secure-headers";
+import { timeout } from "hono/timeout";
+import { timing } from "hono/timing";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 
 extendZodWithOpenApi(z);
@@ -46,6 +48,7 @@ type CreateServiceAppOptions = {
   description: string;
   tags: Array<ServiceTag>;
   theme?: ScalarTheme;
+  requestTimeoutMs?: number;
 };
 
 type CreateClerkServiceAuthOptions = {
@@ -152,9 +155,12 @@ export const createPaginatedListResponseSchema = <T extends z.ZodTypeAny>(
     success: z.literal(true),
     data: z.array(schema),
     meta: z.object({
+      page: z.number().int().positive(),
       pageSize: z.number().int().positive(),
       total: z.number().int().nonnegative(),
       totalPages: z.number().int().positive(),
+      hasNextPage: z.boolean(),
+      hasPreviousPage: z.boolean(),
     }),
   });
 
@@ -225,6 +231,12 @@ const normalizeRequestId = (value?: string | null) => {
   }
 
   return trimmed;
+};
+
+const getRequestTimeoutMs = (fallback: number) => {
+  const configured = Number(process.env.REQUEST_TIMEOUT_MS);
+
+  return Number.isFinite(configured) && configured > 0 ? configured : fallback;
 };
 
 export const getRequestId = (c: Context) =>
@@ -568,12 +580,20 @@ export const createServiceApp = <E extends Env = Env>({
   description,
   tags,
   theme = "kepler",
+  requestTimeoutMs = 30_000,
 }: CreateServiceAppOptions) => {
   const app = createServiceRouter<E>();
 
   app.use("*", createRequestIdMiddleware());
+  app.use("*", timing());
   app.use("*", secureHeaders());
   app.use("*", logger());
+  app.use(
+    "*",
+    timeout(getRequestTimeoutMs(requestTimeoutMs), () =>
+      createHttpException(408, "Request timeout"),
+    ),
+  );
   app.use("*", compress());
   app.notFound((c) => createErrorResponse(c, 404, "Route not found"));
   app.onError((error, c) => {

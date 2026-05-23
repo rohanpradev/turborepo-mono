@@ -7,11 +7,11 @@
     "check-types": "tsgo --noEmit"
   },
   "dependencies": {
-    "zod": "^4.4.3"
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
-    "@types/node": "^25.8.0"
+    "@types/node": "catalog:"
   },
   "exports": {
     ".": {

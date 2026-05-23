@@ -7,6 +7,10 @@ import type {
   TopicMessages,
 } from "kafkajs";
 import { Partitioners } from "kafkajs";
+import {
+  attachKafkaInstrumentation,
+  type KafkaEventClient,
+} from "./instrumentation";
 import type { MessageForTopic, TopicName } from "./types";
 
 type KafkaProducerHeaders = Record<string, string>;
@@ -21,6 +25,7 @@ type TopicEnvelope<TTopic extends TopicName = TopicName> = {
 export class KafkaProducer {
   private producer: Producer;
   private started = false;
+  private removeInstrumentation: (() => void) | null = null;
 
   constructor(private kafka: Kafka) {
     this.producer = this.createProducer();
@@ -47,6 +52,8 @@ export class KafkaProducer {
 
     try {
       await this.producer.disconnect();
+      this.removeInstrumentation?.();
+      this.removeInstrumentation = null;
       this.started = false;
     } catch (error) {
       console.error("Error disconnecting the producer:", error);
@@ -112,11 +119,21 @@ export class KafkaProducer {
   }
 
   private createProducer(): Producer {
-    return this.kafka.producer({
+    const producer = this.kafka.producer({
       allowAutoTopicCreation: false,
       createPartitioner: Partitioners.DefaultPartitioner,
       idempotent: true,
     });
+
+    this.removeInstrumentation = attachKafkaInstrumentation(
+      producer as unknown as KafkaEventClient,
+      {
+        clientId: "producer",
+        clientType: "producer",
+      },
+    );
+
+    return producer;
   }
 }
 

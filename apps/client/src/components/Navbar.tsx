@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import SearchBar from "@/components/SearchBar";
 import ShoppingCartIcon from "@/components/ShoppingCartIcon";
+import { Button } from "@/components/ui/button";
 
 const ProfileButton = dynamic(() => import("@/components/ProfileButton"));
 
@@ -64,12 +65,9 @@ const Navbar = () => {
           <>
             <Show when="signed-out">
               <SignInButton mode="modal">
-                <button
-                  type="button"
-                  className="rounded-full border border-black/10 bg-white/80 px-4 py-2 text-sm text-gray-700 shadow-sm"
-                >
+                <Button type="button" variant="outline">
                   Sign in
-                </button>
+                </Button>
               </SignInButton>
             </Show>
             <Show when="signed-in">
@@ -77,12 +75,9 @@ const Navbar = () => {
             </Show>
           </>
         ) : (
-          <Link
-            href={"/sign-in" as Route}
-            className="rounded-full border border-black/10 bg-white/80 px-4 py-2 text-sm text-gray-700 shadow-sm"
-          >
+          <Button href={"/sign-in" as Route} variant="outline">
             Sign in
-          </Link>
+          </Button>
         )}
       </div>
     </nav>

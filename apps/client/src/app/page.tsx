@@ -14,6 +14,7 @@ const Homepage = async ({
     category?: string | Array<string>;
     search?: string | Array<string>;
     sort?: string | Array<string>;
+    page?: string | Array<string>;
   }>;
 }) => {
   const resolvedSearchParams = await searchParams;

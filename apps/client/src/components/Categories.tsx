@@ -4,6 +4,7 @@ import { ShoppingBasket } from "lucide-react";
 import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
+import { Button } from "@/components/ui/button";
 
 type CategoryItem = {
   name: string;
@@ -34,6 +35,8 @@ const Categories = ({ categories }: { categories: Array<CategoryItem> }) => {
       params.set("category", value);
     }
 
+    params.delete("page");
+
     startTransition(() => {
       const nextPath = params.size
         ? `${pathname}?${params.toString()}`
@@ -46,20 +49,19 @@ const Categories = ({ categories }: { categories: Array<CategoryItem> }) => {
   return (
     <div className="-mx-1 mb-5 flex gap-2 overflow-x-auto px-1 pb-1 text-sm sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
       {options.map((category) => (
-        <button
+        <Button
           type="button"
-          className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-center shadow-sm transition-all ${
-            category.slug === selectedCategory
-              ? "border-gray-950 bg-gray-950 text-white"
-              : "border-black/5 bg-white/85 text-gray-600 hover:border-black/10 hover:bg-white"
-          }`}
+          variant={category.slug === selectedCategory ? "default" : "outline"}
+          size="lg"
+          className="shrink-0 px-4"
           key={category.slug}
           disabled={isPending}
+          aria-pressed={category.slug === selectedCategory}
           onClick={() => handleChange(category.slug)}
         >
           <ShoppingBasket className="h-4 w-4" />
           <span className="line-clamp-2">{category.name}</span>
-        </button>
+        </Button>
       ))}
     </div>
   );

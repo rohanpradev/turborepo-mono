@@ -45,14 +45,14 @@ function Button({
 
   if (href) {
     return (
-      <Link href={href} className={classes}>
+      <Link href={href} className={classes} data-slot="button">
         {children}
       </Link>
     );
   }
 
   return (
-    <button className={classes} {...props}>
+    <button className={classes} data-slot="button" {...props}>
       {children}
     </button>
   );

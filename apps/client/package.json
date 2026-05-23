@@ -9,27 +9,27 @@
     "check-types": "next typegen && tsgo --noEmit"
   },
   "dependencies": {
-    "@clerk/nextjs": "^7.3.2",
-    "@hookform/resolvers": "^5.2.2",
+    "@clerk/nextjs": "catalog:",
+    "@hookform/resolvers": "catalog:",
     "@repo/api-client": "workspace:*",
-    "@stripe/react-stripe-js": "^6.3.0",
-    "@stripe/stripe-js": "^9.4.0",
-    "lucide-react": "^1.14.0",
-    "next": "^16.2.6",
-    "postcss": "^8.5.14",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
-    "react-hook-form": "^7.75.0",
-    "react-toastify": "^11.1.0",
-    "zustand": "^5.0.13"
+    "@stripe/react-stripe-js": "catalog:",
+    "@stripe/stripe-js": "catalog:",
+    "lucide-react": "catalog:",
+    "next": "catalog:",
+    "postcss": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "react-hook-form": "catalog:",
+    "react-toastify": "catalog:",
+    "zustand": "catalog:"
   },
   "devDependencies": {
     "@repo/types": "workspace:*",
     "@repo/typescript-config": "workspace:*",
-    "@tailwindcss/postcss": "^4.2.4",
-    "@types/node": "^25.8.0",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
-    "tailwindcss": "^4.2.4"
+    "@tailwindcss/postcss": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "tailwindcss": "catalog:"
   }
 }

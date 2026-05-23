@@ -3,6 +3,7 @@ import { formatUsdFromCents } from "@repo/types";
 import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import ProductInteraction from "@/components/ProductInteraction";
 
 const getSingleParam = (value?: string | Array<string>) =>
@@ -14,14 +15,22 @@ const getProductId = (value: string) => {
   return Number.isInteger(id) && id > 0 ? id : null;
 };
 
-const loadProduct = async (id: number) => {
+const liveCatalogFetchOptions = {
+  cache: "no-store" as const,
+};
+
+const loadProduct = cache(async (id: number) => {
   try {
-    const response = await getProduct(getProductServiceServerUrl(), id);
+    const response = await getProduct(
+      getProductServiceServerUrl(),
+      id,
+      liveCatalogFetchOptions,
+    );
     return response.data;
   } catch {
     return null;
   }
-};
+});
 
 export const generateMetadata = async ({
   params,
