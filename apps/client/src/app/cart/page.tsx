@@ -91,7 +91,7 @@ const CartContent = () => {
               <p className="text-xs uppercase tracking-[0.24em] text-gray-400">
                 Shopping Cart
               </p>
-              <h2 className="text-[2.5rem] font-semibold tracking-tight text-gray-950 sm:text-[3.5rem]">
+              <h2 className="text-3xl font-semibold tracking-tight text-gray-950 sm:text-5xl">
                 Review items
               </h2>
             </div>
@@ -100,11 +100,11 @@ const CartContent = () => {
             </Badge>
           </div>
 
-          <div className="flex items-center gap-3 rounded-[1.5rem] border border-black/5 bg-white/80 p-2 shadow-sm backdrop-blur">
+          <div className="grid gap-2 rounded-[1.5rem] border border-black/5 bg-white/80 p-2 shadow-sm backdrop-blur sm:grid-cols-3">
             {steps.map((step) => (
               <div
                 key={step.id}
-                className={`flex flex-1 items-center gap-3 rounded-[1rem] px-4 py-3 ${
+                className={`flex min-w-0 items-center gap-3 rounded-[1rem] px-3 py-3 sm:px-4 ${
                   step.id === activeStep
                     ? "bg-gray-950 text-white"
                     : "text-gray-500"
@@ -119,11 +119,11 @@ const CartContent = () => {
                 >
                   {step.id}
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs uppercase tracking-[0.18em] opacity-75">
                     Step
                   </p>
-                  <p className="text-sm font-medium">{step.title}</p>
+                  <p className="truncate text-sm font-medium">{step.title}</p>
                 </div>
               </div>
             ))}
@@ -159,15 +159,15 @@ const CartContent = () => {
                           </div>
 
                           <div className="flex min-w-0 flex-1 flex-col justify-between gap-4">
-                            <div className="flex items-start justify-between gap-4">
+                            <div className="flex min-w-0 items-start justify-between gap-4">
                               <div className="min-w-0">
                                 <p className="text-xs uppercase tracking-[0.18em] text-gray-400">
                                   {item.categorySlug}
                                 </p>
-                                <h3 className="truncate text-lg font-semibold tracking-tight text-gray-950">
+                                <h3 className="line-clamp-2 text-lg font-semibold tracking-tight text-gray-950">
                                   {item.name}
                                 </h3>
-                                <p className="mt-1 text-sm leading-6 text-gray-600">
+                                <p className="mt-1 line-clamp-2 text-sm leading-6 text-gray-600">
                                   {item.shortDescription}
                                 </p>
                               </div>
@@ -220,11 +220,11 @@ const CartContent = () => {
                                 </button>
                               </div>
 
-                              <div className="text-right">
+                              <div className="text-left sm:text-right">
                                 <p className="text-xs uppercase tracking-[0.18em] text-gray-400">
                                   Line total
                                 </p>
-                                <p className="text-2xl font-semibold tracking-tight text-gray-950">
+                                <p className="break-words text-2xl font-semibold tracking-tight text-gray-950">
                                   {formatUsdFromCents(
                                     item.price * item.quantity,
                                   )}

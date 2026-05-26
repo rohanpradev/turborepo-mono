@@ -215,6 +215,29 @@ make docker-auth
 
 The full stack can start without live Clerk or Stripe keys, but checkout and
 webhook behavior are only fully testable after real keys are added to `.env`.
+Admin catalog writes require a Clerk session token with a small admin claim.
+In the Clerk Dashboard, add this custom session token claim:
+
+```json
+{
+  "role": "{{user.public_metadata.role}}"
+}
+```
+
+Then set the target Clerk user's public metadata to:
+
+```json
+{
+  "role": "admin"
+}
+```
+
+For local recovery while setting up Clerk, `.env` can also include
+`ADMIN_USER_IDS=user_...`. The product and order services accept those Clerk
+user IDs as admins in addition to the session claim. Product create/update/delete
+actions must still go through product-service so Prisma validation and Kafka
+catalog events run consistently.
+
 For a faster infrastructure-only check during local app development, use:
 
 ```bash
@@ -306,5 +329,7 @@ Each Hono service exposes:
 ## Showcase notes
 
 - Product and category mutations are admin-only.
+- Product images accept root-relative storefront assets or public HTTP(S) URLs
+  from durable storage such as S3, Vercel Blob, Azure Blob, or a CDN.
 - Error handling follows Hono’s documented exception flow with consistent JSON payloads and request IDs.
 - Service images now copy only the pruned runtime workspaces they need instead of the full build tree.

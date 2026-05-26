@@ -1,9 +1,12 @@
 import type {
+  CategoryPayload,
   CategoryRecord,
+  CategoryUpdatePayload,
   CheckoutSessionPayload,
   OrderRecord,
   ProductPayload,
   ProductRecord,
+  ProductUpdatePayload,
   ProductListQuery as SharedProductListQuery,
 } from "@repo/types";
 
@@ -109,8 +112,22 @@ export type ListProductsResponse = SuccessResponse<Array<ProductRecord>> & {
 };
 export type GetProductResponse = SuccessResponse<ProductRecord>;
 export type CreateProductRequest = ProductPayload;
+export type UpdateProductRequest = ProductUpdatePayload;
 export type CreateProductResponse = SuccessResponse<ProductRecord>;
+export type UpdateProductResponse = SuccessResponse<ProductRecord>;
+export type DeleteProductResponse = {
+  success: true;
+  message: string;
+};
 export type ListCategoriesResponse = SuccessResponse<Array<CategoryRecord>>;
+export type CreateCategoryRequest = CategoryPayload;
+export type UpdateCategoryRequest = CategoryUpdatePayload;
+export type CreateCategoryResponse = SuccessResponse<CategoryRecord>;
+export type UpdateCategoryResponse = SuccessResponse<CategoryRecord>;
+export type DeleteCategoryResponse = {
+  success: true;
+  message: string;
+};
 export type ProductHealthResponse = ServiceHealthResponse<"product-service">;
 export type OrderHealthResponse = ServiceHealthResponse<"order-service">;
 export type PaymentHealthResponse = ServiceHealthResponse<"payment-service">;
@@ -195,6 +212,45 @@ export const createProduct = async (
   return parseJson<CreateProductResponse>(response);
 };
 
+export const updateProduct = async (
+  baseUrl: string,
+  id: number,
+  payload: UpdateProductRequest,
+  token: string,
+) => {
+  const response = await createProductServiceClient(baseUrl).request(
+    `/products/${id}`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+
+  return parseJson<UpdateProductResponse>(response);
+};
+
+export const deleteProduct = async (
+  baseUrl: string,
+  id: number,
+  token: string,
+) => {
+  const response = await createProductServiceClient(baseUrl).request(
+    `/products/${id}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+
+  return parseJson<DeleteProductResponse>(response);
+};
+
 export const listCategories = async (
   baseUrl: string,
   fetchOptions?: FetchOptions,
@@ -204,6 +260,65 @@ export const listCategories = async (
     fetchOptions,
   );
   return parseJson<ListCategoriesResponse>(response);
+};
+
+export const createCategory = async (
+  baseUrl: string,
+  payload: CreateCategoryRequest,
+  token: string,
+) => {
+  const response = await createProductServiceClient(baseUrl).request(
+    "/categories",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+
+  return parseJson<CreateCategoryResponse>(response);
+};
+
+export const updateCategory = async (
+  baseUrl: string,
+  slug: string,
+  payload: UpdateCategoryRequest,
+  token: string,
+) => {
+  const response = await createProductServiceClient(baseUrl).request(
+    `/categories/${slug}`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+
+  return parseJson<UpdateCategoryResponse>(response);
+};
+
+export const deleteCategory = async (
+  baseUrl: string,
+  slug: string,
+  token: string,
+) => {
+  const response = await createProductServiceClient(baseUrl).request(
+    `/categories/${slug}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+
+  return parseJson<DeleteCategoryResponse>(response);
 };
 
 export const getProductServiceHealth = async (

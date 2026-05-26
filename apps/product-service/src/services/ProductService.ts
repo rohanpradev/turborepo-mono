@@ -1,6 +1,7 @@
 import {
   type ProductCreatedMessage,
   type ProductDeletedMessage,
+  type ProductUpdatedMessage,
   Topics,
 } from "@repo/kafka";
 import { Prisma, type Product, prisma } from "@repo/product-db";
@@ -53,19 +54,26 @@ const toProductRecord = (product: Product): ProductRecord => {
   };
 };
 
+const toProductCreatedMessage = (product: Product): ProductCreatedMessage => ({
+  id: product.id.toString(),
+  name: product.name,
+  description: product.description,
+  price: product.price,
+  categorySlug: product.categorySlug,
+  stock: 0,
+  createdAt: product.createdAt.toISOString(),
+});
+
+const toProductUpdatedMessage = (product: Product): ProductUpdatedMessage => ({
+  ...toProductCreatedMessage(product),
+  updatedAt: product.updatedAt.toISOString(),
+});
+
 export const ProductService = {
   async createProduct(data: ProductPayload): Promise<ProductRecord> {
     const product = await prisma.product.create({ data });
 
-    const message: ProductCreatedMessage = {
-      id: product.id.toString(),
-      name: product.name,
-      description: product.description,
-      price: product.price,
-      categorySlug: product.categorySlug,
-      stock: 0,
-      createdAt: product.createdAt.toISOString(),
-    };
+    const message = toProductCreatedMessage(product);
 
     await producer.send(Topics.PRODUCT_CREATED, message, {
       key: message.id,
@@ -125,6 +133,13 @@ export const ProductService = {
         where: { id },
         data: updates,
       });
+
+      const message = toProductUpdatedMessage(product);
+      await producer.send(Topics.PRODUCT_UPDATED, message, {
+        key: message.id,
+      });
+      console.log(`Published product.updated event for product ${product.id}`);
+
       return toProductRecord(product);
     } catch (error) {
       if (isNotFoundError(error)) {

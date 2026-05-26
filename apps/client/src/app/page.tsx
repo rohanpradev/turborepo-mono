@@ -123,7 +123,7 @@ const Homepage = async ({
                     src={spotlight[0].src}
                     alt={spotlight[0].alt}
                     fill
-                    priority
+                    preload
                     sizes="(min-width: 1280px) 28rem, 100vw"
                     className="object-contain drop-shadow-2xl"
                   />

@@ -55,7 +55,11 @@ export const opsRoutes = createServiceRouter().openapi(getOpsEventsRoute, (c) =>
       data: {
         kafkaUiUrl: process.env.KAFKA_UI_URL ?? "https://kafka.localhost",
         topics: {
-          consumes: [Topics.PRODUCT_CREATED, Topics.PRODUCT_DELETED],
+          consumes: [
+            Topics.PRODUCT_CREATED,
+            Topics.PRODUCT_UPDATED,
+            Topics.PRODUCT_DELETED,
+          ],
           publishes: [Topics.PAYMENT_SUCCESSFUL],
         },
         recentEvents: listIntegrationEvents(),

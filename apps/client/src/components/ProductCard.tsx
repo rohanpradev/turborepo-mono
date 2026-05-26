@@ -57,7 +57,7 @@ const ProductCard = ({ product }: { product: ProductType }) => {
   };
 
   return (
-    <Card className="group flex h-full min-h-[42rem] flex-col overflow-hidden rounded-[1.75rem] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_50px_-20px_rgba(15,23,42,0.25)]">
+    <Card className="group flex h-full min-h-[40rem] min-w-0 flex-col overflow-hidden rounded-[1.5rem] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_50px_-20px_rgba(15,23,42,0.25)] sm:rounded-[1.75rem]">
       <Link href={`/products/${product.id}` as Route} className="block">
         <div className="relative aspect-[4/5] overflow-hidden bg-[#f3f0e8]">
           <Image
@@ -68,11 +68,14 @@ const ProductCard = ({ product }: { product: ProductType }) => {
             sizes="(min-width: 1536px) 18rem, (min-width: 1280px) 22rem, (min-width: 640px) 50vw, 100vw"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/18 via-transparent to-transparent" />
-          <div className="absolute left-4 top-4 flex flex-wrap gap-2">
+          <div className="absolute left-3 right-3 top-3 flex flex-wrap gap-2 sm:left-4 sm:right-4 sm:top-4">
             <Badge variant="secondary" className="bg-white/90 text-gray-900">
               New season
             </Badge>
-            <Badge variant="outline" className="bg-white/75 text-gray-700">
+            <Badge
+              variant="outline"
+              className="hidden bg-white/75 text-gray-700 min-[380px]:inline-flex"
+            >
               Ready to ship
             </Badge>
           </div>
@@ -85,7 +88,7 @@ const ProductCard = ({ product }: { product: ProductType }) => {
             <h3 className="line-clamp-2 text-base font-semibold leading-6 tracking-tight text-gray-950">
               {product.name}
             </h3>
-            <p className="whitespace-nowrap text-sm font-medium text-gray-950">
+            <p className="max-w-24 break-words text-right text-sm font-medium text-gray-950">
               {formatUsdFromCents(product.price)}
             </p>
           </div>

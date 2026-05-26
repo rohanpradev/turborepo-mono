@@ -276,6 +276,7 @@ const publishProductEvents = async (storedProducts: Product[]) => {
   try {
     await ensureTopics(kafkaClient, [
       Topics.PRODUCT_CREATED,
+      Topics.PRODUCT_UPDATED,
       Topics.PRODUCT_DELETED,
     ]);
     await producer.start();

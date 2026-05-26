@@ -26,5 +26,6 @@ export {
   type PaymentSuccessfulMessage,
   type ProductCreatedMessage,
   type ProductDeletedMessage,
+  type ProductUpdatedMessage,
   Topics,
 } from "./types";
