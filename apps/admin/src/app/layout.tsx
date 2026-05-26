@@ -1,3 +1,4 @@
+import { ClerkProvider } from "@clerk/nextjs";
 import { currentUser } from "@clerk/nextjs/server";
 import type { Metadata } from "next";
 import "./globals.css";
@@ -28,6 +29,10 @@ export const metadata: Metadata = {
   ),
 };
 
+const isClerkConfigured = Boolean(
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+);
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -48,23 +53,29 @@ export default async function RootLayout({
     email: viewer?.primaryEmailAddress?.emailAddress ?? null,
   };
 
+  const shell = (
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+    >
+      <SidebarProvider defaultOpen={defaultOpen}>
+        <AppSidebar />
+        <main className="min-w-0 flex-1">
+          <Navbar viewer={viewerProfile} />
+          <div className="mx-auto w-full max-w-[1500px] px-3 sm:px-4">
+            {children}
+          </div>
+        </main>
+      </SidebarProvider>
+    </ThemeProvider>
+  );
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="flex antialiased">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <SidebarProvider defaultOpen={defaultOpen}>
-            <AppSidebar />
-            <main className="w-full">
-              <Navbar viewer={viewerProfile} />
-              <div className="px-4">{children}</div>
-            </main>
-          </SidebarProvider>
-        </ThemeProvider>
+        {isClerkConfigured ? <ClerkProvider>{shell}</ClerkProvider> : shell}
       </body>
     </html>
   );

@@ -5,6 +5,7 @@ import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "react-toastify";
+import { Button } from "@/components/ui/button";
 import useCartStore from "@/stores/cartStore";
 import type { ProductType } from "@/types";
 
@@ -53,45 +54,61 @@ const ProductInteraction = ({
     });
     toast.success("Product added to cart");
   };
+
+  const handleBuyNow = () => {
+    addToCart({
+      ...product,
+      quantity,
+      selectedColor,
+      selectedSize,
+    });
+    router.push("/cart?step=2" as Route);
+  };
+
   return (
-    <div className="flex flex-col gap-4 mt-4">
-      {/* SIZE */}
-      <div className="flex flex-col gap-2 text-xs">
-        <span className="text-gray-500">Size</span>
+    <div className="mt-6 space-y-6">
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-gray-950">Size</span>
+          <span className="text-xs uppercase tracking-[0.18em] text-gray-400">
+            {selectedSize.toUpperCase()}
+          </span>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           {product.sizes.map((size) => (
             <button
               type="button"
-              className={`cursor-pointer border-1 p-[2px] ${
-                selectedSize === size ? "border-gray-600" : "border-gray-300"
+              className={`flex h-11 min-w-11 items-center justify-center rounded-full border px-3 text-sm font-medium transition ${
+                selectedSize === size
+                  ? "border-gray-950 bg-gray-950 text-white"
+                  : "border-black/10 bg-white text-gray-700 hover:border-gray-400"
               }`}
               key={size}
               disabled={isPending}
               aria-pressed={selectedSize === size}
               onClick={() => handleTypeChange("size", size)}
             >
-              <div
-                className={`w-6 h-6 text-center flex items-center justify-center ${
-                  selectedSize === size
-                    ? "bg-black text-white"
-                    : "bg-white text-black"
-                }`}
-              >
-                {size.toUpperCase()}
-              </div>
+              {size.toUpperCase()}
             </button>
           ))}
         </div>
       </div>
-      {/* COLOR */}
-      <div className="flex flex-col gap-2 text-sm">
-        <span className="text-gray-500">Color</span>
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-gray-950">Color</span>
+          <span className="text-xs uppercase tracking-[0.18em] text-gray-400">
+            {selectedColor}
+          </span>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           {product.colors.map((color) => (
             <button
               type="button"
-              className={`cursor-pointer border-1 p-[2px] ${
-                selectedColor === color ? "border-gray-300" : "border-white"
+              className={`rounded-full border p-1 transition ${
+                selectedColor === color
+                  ? "border-gray-950"
+                  : "border-black/10 hover:border-gray-400"
               }`}
               key={color}
               disabled={isPending}
@@ -99,49 +116,61 @@ const ProductInteraction = ({
               aria-pressed={selectedColor === color}
               onClick={() => handleTypeChange("color", color)}
             >
-              <div className={`w-6 h-6`} style={{ backgroundColor: color }} />
+              <span
+                className="block size-8 rounded-full border border-black/10"
+                style={{ backgroundColor: color }}
+              />
             </button>
           ))}
         </div>
       </div>
-      {/* QUANTITY */}
-      <div className="flex flex-col gap-2 text-sm">
-        <span className="text-gray-500">Quantity</span>
-        <div className="flex items-center gap-2">
+
+      <div className="space-y-3">
+        <span className="text-sm font-medium text-gray-950">Quantity</span>
+        <div className="inline-flex items-center rounded-full border border-black/10 bg-white p-1 shadow-sm">
           <button
             type="button"
-            className="cursor-pointer border-1 border-gray-300 p-1"
+            className="flex size-10 items-center justify-center rounded-full text-gray-600 transition hover:bg-gray-100 hover:text-gray-950 disabled:opacity-40"
+            disabled={quantity <= 1}
+            aria-label="Decrease quantity"
             onClick={() => handleQuantityChange("decrement")}
           >
-            <Minus className="w-4 h-4" />
+            <Minus className="size-4" />
           </button>
-          <span>{quantity}</span>
+          <span className="flex h-10 min-w-12 items-center justify-center px-3 text-sm font-semibold text-gray-950">
+            {quantity}
+          </span>
           <button
             type="button"
-            className="cursor-pointer border-1 border-gray-300 p-1"
+            className="flex size-10 items-center justify-center rounded-full text-gray-600 transition hover:bg-gray-100 hover:text-gray-950"
+            aria-label="Increase quantity"
             onClick={() => handleQuantityChange("increment")}
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="size-4" />
           </button>
         </div>
       </div>
-      {/* BUTTONS */}
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <button
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Button
           type="button"
           onClick={handleAddToCart}
-          className="flex w-full items-center justify-center gap-2 rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white shadow-lg cursor-pointer"
+          className="w-full min-w-0"
+          size="lg"
         >
-          <Plus className="w-4 h-4" />
-          Add to Cart
-        </button>
-        <button
+          <Plus className="size-4" />
+          Add to cart
+        </Button>
+        <Button
           type="button"
-          className="flex w-full items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-gray-800 shadow-lg ring-1 ring-gray-400 cursor-pointer"
+          variant="outline"
+          size="lg"
+          className="w-full min-w-0"
+          onClick={handleBuyNow}
         >
-          <ShoppingCart className="w-4 h-4" />
-          Buy this Item
-        </button>
+          <ShoppingCart className="size-4" />
+          Buy now
+        </Button>
       </div>
     </div>
   );

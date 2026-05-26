@@ -33,22 +33,24 @@ const Navbar = ({ viewer }: NavbarProps) => {
   const { setTheme } = useTheme();
 
   return (
-    <nav className="sticky top-0 z-10 border-b bg-background/95 px-4 py-4 backdrop-blur">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+    <nav className="sticky top-0 z-10 border-b bg-background/95 px-3 py-3 backdrop-blur sm:px-4">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <div className="rounded-lg border bg-card p-1">
             <SidebarTrigger />
           </div>
-          <div>
-            <p className="text-sm font-semibold">Flagship Commerce Admin</p>
-            <p className="text-xs text-muted-foreground">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold">
+              Flagship Commerce Admin
+            </p>
+            <p className="hidden truncate text-xs text-muted-foreground sm:block">
               Live commerce operations for products, payments, and customers
             </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="hidden items-center gap-2 rounded-full border bg-card px-3 py-2 text-xs text-muted-foreground md:flex">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
+          <div className="hidden items-center gap-2 rounded-full border bg-card px-3 py-2 text-xs text-muted-foreground xl:flex">
             <Link href="/">Overview</Link>
             <span>/</span>
             <Link href="/payments">Payments</Link>
@@ -81,12 +83,12 @@ const Navbar = ({ viewer }: NavbarProps) => {
             </DropdownMenu>
           </div>
 
-          <div className="flex items-center gap-3 rounded-full border bg-card px-3 py-2">
+          <div className="flex min-w-0 items-center gap-3 rounded-full border bg-card px-2 py-2 sm:px-3">
             <Avatar className="size-9">
               <AvatarImage src={viewer.avatarUrl ?? undefined} />
               <AvatarFallback>{getInitials(viewer.displayName)}</AvatarFallback>
             </Avatar>
-            <div className="hidden min-w-0 sm:block">
+            <div className="hidden min-w-0 sm:block sm:max-w-44 lg:max-w-56">
               <p className="truncate text-sm font-medium">
                 {viewer.displayName}
               </p>

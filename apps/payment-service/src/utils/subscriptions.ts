@@ -6,6 +6,7 @@ import { consumer } from "@/utils/kafka";
 export const runKafkaSubscriptions = async () => {
   const handlers: Array<
     | TopicHandler<typeof Topics.PRODUCT_CREATED>
+    | TopicHandler<typeof Topics.PRODUCT_UPDATED>
     | TopicHandler<typeof Topics.PRODUCT_DELETED>
   > = [
     {
@@ -15,6 +16,21 @@ export const runKafkaSubscriptions = async () => {
           source: "kafka",
           type: "product.created.received",
           message: "Received product.created Kafka event.",
+          details: {
+            productId: message.id,
+            price: message.price,
+          },
+        });
+        await StripeCatalogService.syncCreatedProduct(message);
+      },
+    },
+    {
+      topicName: Topics.PRODUCT_UPDATED,
+      topicHandler: async (message) => {
+        recordIntegrationEvent({
+          source: "kafka",
+          type: "product.updated.received",
+          message: "Received product.updated Kafka event.",
           details: {
             productId: message.id,
             price: message.price,

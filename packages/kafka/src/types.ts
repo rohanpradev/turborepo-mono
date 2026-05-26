@@ -1,6 +1,7 @@
 // Define your Kafka topics as a const object for type safety
 export const Topics = {
   PRODUCT_CREATED: "product.created",
+  PRODUCT_UPDATED: "product.updated",
   PRODUCT_DELETED: "product.deleted",
   PAYMENT_SUCCESSFUL: "payment.successful",
 } as const;
@@ -18,6 +19,10 @@ export interface ProductCreatedMessage {
   stock: number;
   imageUrl?: string;
   createdAt: string;
+}
+
+export interface ProductUpdatedMessage extends ProductCreatedMessage {
+  updatedAt: string;
 }
 
 export interface ProductDeletedMessage {
@@ -46,6 +51,7 @@ export interface PaymentSuccessfulMessage {
 // Map topics to their message types
 export interface TopicMessageMap {
   [Topics.PRODUCT_CREATED]: ProductCreatedMessage;
+  [Topics.PRODUCT_UPDATED]: ProductUpdatedMessage;
   [Topics.PRODUCT_DELETED]: ProductDeletedMessage;
   [Topics.PAYMENT_SUCCESSFUL]: PaymentSuccessfulMessage;
 }

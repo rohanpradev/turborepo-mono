@@ -1,6 +1,8 @@
+import { getProductServiceUrl } from "@repo/api-client";
 import { formatUsdFromCents } from "@repo/types";
 import type { Metadata } from "next";
 import Image from "next/image";
+import CatalogManager from "@/components/CatalogManager";
 import {
   getStorefrontAssetUrl,
   getStorefrontProductUrl,
@@ -17,6 +19,7 @@ export const metadata: Metadata = {
 
 const ProductsPage = async () => {
   const { categories, products } = await loadCatalogSnapshot();
+  const productServiceUrl = getProductServiceUrl();
   const highestPriceCents = products.reduce(
     (highestPrice, product) => Math.max(highestPrice, product.price),
     0,
@@ -30,14 +33,14 @@ const ProductsPage = async () => {
       : 0;
 
   return (
-    <section className="space-y-6 py-4">
+    <section className="min-w-0 space-y-6 py-4">
       <div className="rounded-2xl border bg-card p-6 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-2">
+        <div className="flex min-w-0 flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 space-y-2">
             <p className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">
               Product Catalog
             </p>
-            <h1 className="text-3xl font-semibold tracking-tight">
+            <h1 className="max-w-4xl text-2xl font-semibold tracking-tight sm:text-3xl">
               Live catalog view backed by product-service
             </h1>
             <p className="max-w-3xl text-sm text-muted-foreground">
@@ -52,7 +55,7 @@ const ProductsPage = async () => {
             ).toString()}
             rel="noreferrer"
             target="_blank"
-            className="text-sm underline"
+            className="shrink-0 text-sm underline"
           >
             Open storefront catalog
           </a>
@@ -76,7 +79,7 @@ const ProductsPage = async () => {
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
             Avg Catalog Price
           </p>
-          <p className="mt-3 text-3xl font-semibold">
+          <p className="mt-3 break-words text-2xl font-semibold sm:text-3xl">
             {formatUsdFromCents(averagePriceCents)}
           </p>
         </article>
@@ -84,11 +87,17 @@ const ProductsPage = async () => {
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
             Highest Price
           </p>
-          <p className="mt-3 text-3xl font-semibold">
+          <p className="mt-3 break-words text-2xl font-semibold sm:text-3xl">
             {formatUsdFromCents(highestPriceCents)}
           </p>
         </article>
       </div>
+
+      <CatalogManager
+        initialCategories={categories}
+        initialProducts={products}
+        productServiceUrl={productServiceUrl}
+      />
 
       <div className="grid gap-4 xl:grid-cols-[0.9fr_1.5fr]">
         <section className="rounded-2xl border bg-card p-5 shadow-sm">
@@ -105,14 +114,14 @@ const ProductsPage = async () => {
                 key={category.slug}
                 className="rounded-xl border border-dashed p-4"
               >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="font-medium">{category.name}</p>
-                    <p className="text-xs text-muted-foreground">
+                <div className="flex min-w-0 items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{category.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">
                       {category.slug}
                     </p>
                   </div>
-                  <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium">
+                  <span className="shrink-0 rounded-full bg-secondary px-2.5 py-1 text-xs font-medium">
                     {category.productCount ?? 0} products
                   </span>
                 </div>
@@ -134,7 +143,7 @@ const ProductsPage = async () => {
             {products.map((product) => (
               <article
                 key={product.id}
-                className="overflow-hidden rounded-2xl border border-dashed"
+                className="min-w-0 overflow-hidden rounded-2xl border border-dashed"
               >
                 <div className="aspect-[4/3] bg-muted">
                   <Image
@@ -146,18 +155,18 @@ const ProductsPage = async () => {
                     height={480}
                     unoptimized
                     sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw"
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-contain p-4"
                   />
                 </div>
                 <div className="space-y-4 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-medium">{product.name}</p>
-                      <p className="text-sm text-muted-foreground">
+                  <div className="flex min-w-0 items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="line-clamp-2 font-medium">{product.name}</p>
+                      <p className="line-clamp-2 text-sm text-muted-foreground">
                         {product.shortDescription}
                       </p>
                     </div>
-                    <p className="text-sm font-semibold">
+                    <p className="shrink-0 text-sm font-semibold">
                       {formatUsdFromCents(product.price)}
                     </p>
                   </div>
@@ -174,7 +183,7 @@ const ProductsPage = async () => {
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <p className="line-clamp-2 text-sm text-muted-foreground">
                       {product.description}
                     </p>

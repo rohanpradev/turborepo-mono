@@ -2,6 +2,7 @@
 
 import { PaymentElement, useCheckout } from "@stripe/react-stripe-js/checkout";
 import { type SubmitEvent, useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import type { ShippingFormInputs as BaseShippingFormInputs } from "@/types";
 
 type ShippingFormInputs = BaseShippingFormInputs & {
@@ -116,12 +117,16 @@ const CheckoutForm = ({
   };
 
   if (checkoutState.type === "loading") {
-    return <div className="p-4">Loading checkout...</div>;
+    return (
+      <div className="rounded-[1.25rem] border border-black/5 bg-white/80 p-4 text-sm text-gray-500">
+        Loading checkout...
+      </div>
+    );
   }
 
   if (checkoutState.type === "error") {
     return (
-      <div className="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-500">
+      <div className="rounded-[1.25rem] border border-dashed border-red-200 bg-red-50 p-4 text-sm text-red-700">
         {checkoutState.error.message}
       </div>
     );
@@ -130,34 +135,44 @@ const CheckoutForm = ({
   return (
     <form
       onSubmit={handleSubmit}
-      className="mx-auto w-full max-w-2xl space-y-6 px-0 py-2 sm:p-6"
+      className="mx-auto w-full max-w-2xl space-y-6 px-0 py-2 sm:p-4"
     >
       <div className="space-y-4">
-        <h2 className="text-2xl font-semibold">Shipping Information</h2>
-        <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-          <p className="text-sm">
-            <span className="font-medium">Email:</span> {shippingForm.email}
+        <div>
+          <p className="text-xs uppercase tracking-[0.22em] text-gray-400">
+            Delivery
           </p>
-          <p className="text-sm">
-            <span className="font-medium">Name:</span> {shippingForm.name}
-          </p>
-          <p className="text-sm">
-            <span className="font-medium">Address:</span> {shippingForm.address}
-          </p>
-          <p className="text-sm">
-            <span className="font-medium">City:</span> {shippingForm.city}
-          </p>
-          {shippingForm.country && (
-            <p className="text-sm">
-              <span className="font-medium">Country:</span>{" "}
-              {shippingForm.country}
-            </p>
-          )}
+          <h2 className="mt-1 text-xl font-semibold tracking-tight text-gray-950">
+            Shipping information
+          </h2>
+        </div>
+        <div className="grid gap-3 rounded-[1.25rem] border border-black/5 bg-white p-4 text-sm shadow-sm sm:grid-cols-2">
+          {[
+            ["Email", shippingForm.email],
+            ["Name", shippingForm.name],
+            ["Address", shippingForm.address],
+            ["City", shippingForm.city],
+            ["Country", shippingForm.country ?? "US"],
+          ].map(([label, value]) => (
+            <div key={label} className="min-w-0 space-y-1">
+              <p className="text-xs uppercase tracking-[0.16em] text-gray-400">
+                {label}
+              </p>
+              <p className="break-words font-medium text-gray-950">{value}</p>
+            </div>
+          ))}
         </div>
       </div>
 
       <div className="space-y-4">
-        <h2 className="text-2xl font-semibold">Payment Details</h2>
+        <div>
+          <p className="text-xs uppercase tracking-[0.22em] text-gray-400">
+            Payment
+          </p>
+          <h2 className="mt-1 text-xl font-semibold tracking-tight text-gray-950">
+            Payment details
+          </h2>
+        </div>
         <PaymentElement />
         {isSyncingDetails ? (
           <p className="text-sm text-gray-500">
@@ -166,19 +181,17 @@ const CheckoutForm = ({
         ) : null}
       </div>
 
-      <button
+      <Button
         type="submit"
         disabled={isLoading || isSyncingDetails || !checkout}
-        className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium
-                   hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed
-                   transition-colors"
+        className="w-full"
+        size="lg"
       >
         <span id="button-text">{isLoading ? "Processing..." : "Pay now"}</span>
-      </button>
+      </Button>
 
-      {/* Show any error or success messages */}
       {message && (
-        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+        <div className="mt-4 rounded-[1.25rem] border border-red-200 bg-red-50 p-4">
           <p className="text-sm text-red-800">{message}</p>
         </div>
       )}

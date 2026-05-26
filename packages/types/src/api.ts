@@ -18,9 +18,25 @@ export const productListQuerySchema = z.strictObject({
   limit: z.coerce.number().int().positive().max(100).optional(),
 });
 
-const isSupportedImagePath = (value: string) =>
-  (value.startsWith("/") && !value.startsWith("//")) ||
-  (value.startsWith("https://") && !/\s/.test(value));
+const httpImageUrlSchema = z
+  .string()
+  .url()
+  .refine((value) => {
+    const protocol = value.slice(0, value.indexOf(":") + 1);
+    return protocol === "http:" || protocol === "https:";
+  });
+
+const isSupportedImagePath = (value: string) => {
+  if (/\s/.test(value)) {
+    return false;
+  }
+
+  if (value.startsWith("/") && !value.startsWith("//")) {
+    return true;
+  }
+
+  return httpImageUrlSchema.safeParse(value).success;
+};
 
 const productBaseSchema = z.strictObject({
   name: z.string().min(1),
@@ -36,7 +52,7 @@ const productBaseSchema = z.strictObject({
       .string()
       .min(1)
       .refine((value) => isSupportedImagePath(value), {
-        message: "Image must be an HTTPS URL or a root-relative path.",
+        message: "Image must be an HTTP(S) URL or a root-relative path.",
       }),
   ),
 });

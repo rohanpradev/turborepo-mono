@@ -239,6 +239,19 @@ const getRequestTimeoutMs = (fallback: number) => {
   return Number.isFinite(configured) && configured > 0 ? configured : fallback;
 };
 
+const getAdminUserIds = () =>
+  new Set(
+    process.env.ADMIN_USER_IDS?.split(",")
+      .map((userId) => userId.trim())
+      .filter(Boolean) ?? [],
+  );
+
+const getSessionRole = (claims?: CustomJwtSessionClaims) =>
+  claims?.role ??
+  claims?.metadata?.role ??
+  claims?.publicMetadata?.role ??
+  claims?.public_metadata?.role;
+
 export const getRequestId = (c: Context) =>
   normalizeRequestId(c.res.headers.get("x-request-id")) ??
   normalizeRequestId(c.req.header("x-request-id"));
@@ -380,8 +393,12 @@ export const createClerkServiceAuth = <
       }
 
       const claims = auth.sessionClaims as CustomJwtSessionClaims | undefined;
+      const adminUserIds = getAdminUserIds();
 
-      if (claims?.metadata?.role !== "admin") {
+      if (
+        getSessionRole(claims) !== "admin" &&
+        !adminUserIds.has(auth.userId)
+      ) {
         throw createHttpException(403, "Forbidden");
       }
 

@@ -57,7 +57,7 @@ services:
 
   traefik:
     <<: *runtime-security
-    image: dhi.io/traefik:3.7.1-debian13
+    image: dhi.io/traefik:3.7-debian13
     container_name: ecommerce-traefik
     read_only: true
     tmpfs:
@@ -119,7 +119,7 @@ services:
 
   postgres:
     <<: *runtime-security
-    image: dhi.io/postgres:18.3-debian13
+    image: dhi.io/postgres:18-debian13
     container_name: ecommerce-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -148,7 +148,7 @@ services:
 
   mongodb:
     <<: *runtime-security
-    image: dhi.io/mongodb:8.3.2-debian13
+    image: dhi.io/mongodb:8.3-debian13
     platform: linux/amd64
     container_name: ecommerce-mongodb
     command:
@@ -166,7 +166,7 @@ services:
 
   mongodb-ready:
     <<: *runtime-security
-    image: dhi.io/bun:1.3.14-debian13
+    image: dhi.io/bun:1-debian13
     container_name: ecommerce-mongodb-ready
     command:
       [
@@ -219,7 +219,7 @@ services:
 
   kafka-broker-1:
     <<: *runtime-security
-    image: dhi.io/kafka:4.2.0-debian13-native
+    image: dhi.io/kafka:4.2-debian13-native
     container_name: kafka-broker-1
     environment:
       <<: *kafka-broker-env
@@ -244,7 +244,7 @@ services:
 
   kafka-broker-2:
     <<: *runtime-security
-    image: dhi.io/kafka:4.2.0-debian13-native
+    image: dhi.io/kafka:4.2-debian13-native
     container_name: kafka-broker-2
     environment:
       <<: *kafka-broker-env
@@ -269,7 +269,7 @@ services:
 
   kafka-broker-3:
     <<: *runtime-security
-    image: dhi.io/kafka:4.2.0-debian13-native
+    image: dhi.io/kafka:4.2-debian13-native
     container_name: kafka-broker-3
     environment:
       <<: *kafka-broker-env
@@ -336,6 +336,7 @@ services:
       CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY:-}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
       CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
+      ADMIN_USER_IDS: ${ADMIN_USER_IDS:-}
       KAFKA_BROKERS: ${DOCKER_KAFKA_BROKERS:-kafka-broker-1:9092,kafka-broker-2:9092,kafka-broker-3:9092}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://shop.localhost,https://admin.localhost,http://localhost:3002,http://localhost:3003}
     expose:
@@ -387,6 +388,7 @@ services:
       CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY:-}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
       CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
+      ADMIN_USER_IDS: ${ADMIN_USER_IDS:-}
       KAFKA_BROKERS: ${DOCKER_KAFKA_BROKERS:-kafka-broker-1:9092,kafka-broker-2:9092,kafka-broker-3:9092}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://shop.localhost,https://admin.localhost,http://localhost:3002,http://localhost:3003}
     expose:

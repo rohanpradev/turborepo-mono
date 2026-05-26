@@ -2,8 +2,11 @@ import { afterEach, describe, expect, it } from "bun:test";
 import {
   ApiClientError,
   createCheckoutSession,
+  createProduct,
+  deleteProduct,
   getCheckoutSessionStatus,
   listProducts,
+  updateProduct,
 } from "../packages/api-client/src/index";
 
 const originalFetch = globalThis.fetch;
@@ -124,6 +127,83 @@ describe("@repo/api-client", () => {
         email: "buyer@example.com",
       },
     });
+  });
+
+  it("sends catalog mutation requests with admin auth", async () => {
+    const capturedRequests: Array<Request> = [];
+
+    globalThis.fetch = (async (input, init) => {
+      const request = new Request(input, init);
+      capturedRequests.push(request);
+
+      if (request.method === "DELETE") {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: "Product deleted successfully",
+          }),
+          {
+            headers: {
+              "content-type": "application/json",
+            },
+          },
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: {
+            id: 7,
+            name: "Catalog Product",
+            shortDescription: "Short description",
+            description: "Long description",
+            price: 4999,
+            sizes: ["m"],
+            colors: ["black"],
+            images: { black: "/product.png" },
+            categorySlug: "outerwear",
+          },
+        }),
+        {
+          headers: {
+            "content-type": "application/json",
+          },
+        },
+      );
+    }) as typeof fetch;
+
+    const payload = {
+      name: "Catalog Product",
+      shortDescription: "Short description",
+      description: "Long description",
+      price: 4999,
+      sizes: ["m"],
+      colors: ["black"],
+      images: { black: "/product.png" },
+      categorySlug: "outerwear",
+    };
+
+    await createProduct("https://catalog.localhost", payload, "admin-token");
+    await updateProduct("https://catalog.localhost", 7, payload, "admin-token");
+    await deleteProduct("https://catalog.localhost", 7, "admin-token");
+
+    expect(capturedRequests.map((request) => request.method)).toEqual([
+      "POST",
+      "PUT",
+      "DELETE",
+    ]);
+    expect(capturedRequests.map((request) => request.url)).toEqual([
+      "https://catalog.localhost/products",
+      "https://catalog.localhost/products/7",
+      "https://catalog.localhost/products/7",
+    ]);
+    expect(
+      capturedRequests.every(
+        (request) =>
+          request.headers.get("authorization") === "Bearer admin-token",
+      ),
+    ).toBe(true);
   });
 
   it("surfaces typed API errors from JSON responses", async () => {
