@@ -6,8 +6,8 @@ import {
 import type { MetadataRoute } from "next";
 
 const getBaseUrl = () =>
-  process.env.NEXT_PUBLIC_CLIENT_APP_URL ??
-  process.env.CLIENT_APP_URL ??
+  process.env.NEXT_PUBLIC_CLIENT_APP_URL ||
+  process.env.CLIENT_APP_URL ||
   "http://localhost:3002";
 
 const buildUrl = (path: string) => new URL(path, getBaseUrl()).toString();
