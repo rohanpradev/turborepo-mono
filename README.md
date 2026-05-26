@@ -197,7 +197,7 @@ image digests when you need a reproducible deployment snapshot. Keep the normal
 Compose file on version tags for local development so Docker can pull DHI patch
 refreshes.
 
-MongoDB runs on `dhi.io/mongodb:8.3.2-debian13`. Unlike the Docker Official
+MongoDB runs on `dhi.io/mongodb:8.3-debian13`. Unlike the Docker Official
 Mongo image, the DHI runtime is shell-less and does not include the official
 first-run user initialization entrypoint or `mongosh`, so the local stack uses
 unauthenticated MongoDB on the private Compose network and publishes the host
