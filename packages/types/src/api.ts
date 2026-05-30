@@ -149,6 +149,7 @@ export const orderProductSchema = z.object({
 
 export const orderRecordSchema = z.object({
   _id: z.string(),
+  orderId: z.string().optional(),
   userId: z.string(),
   email: z.string().email(),
   amount: z.number().nonnegative(),

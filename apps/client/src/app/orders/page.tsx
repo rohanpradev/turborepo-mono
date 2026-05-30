@@ -97,15 +97,18 @@ const OrdersContent = () => {
         <div className="space-y-4">
           {orders.map((order) => {
             const productOccurrences = new Map<string, number>();
+            const displayOrderId = order.orderId ?? order._id;
 
             return (
               <article
-                key={order._id}
+                key={displayOrderId}
                 className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm text-gray-500">Order {order._id}</p>
+                    <p className="text-sm text-gray-500">
+                      Order {displayOrderId}
+                    </p>
                     <p className="text-lg font-medium">
                       {formatUsdFromCents(order.amount)}
                     </p>

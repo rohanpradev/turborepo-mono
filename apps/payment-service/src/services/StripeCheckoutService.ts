@@ -1,4 +1,5 @@
-import type { CheckoutSessionPayload } from "@repo/types";
+import { createHttpException } from "@repo/hono-utils";
+import type { CheckoutSessionPayload, ProductRecord } from "@repo/types";
 import { recordIntegrationEvent } from "@/observability/integrationEvents";
 import { StripeCatalogService } from "@/services/StripeCatalogService";
 import { getStripeClient } from "@/utils/stripe";
@@ -6,6 +7,10 @@ import { getStripeClient } from "@/utils/stripe";
 type CreateCheckoutSessionInput = {
   payload: CheckoutSessionPayload;
   userId: string;
+};
+
+type CheckoutCatalogItem = CheckoutSessionPayload["cart"][number] & {
+  product: ProductRecord;
 };
 
 type CheckoutSessionStatus = {
@@ -35,6 +40,116 @@ const isStripeResourceMissingError = (
   (error as { statusCode?: unknown }).statusCode === 404 &&
   (error as { code?: unknown }).code === "resource_missing";
 
+const getProductServiceUrl = () =>
+  process.env.PRODUCT_SERVICE_INTERNAL_URL ??
+  process.env.NEXT_PUBLIC_PRODUCT_SERVICE_URL ??
+  "http://localhost:3000";
+
+const parseCatalogResponse = async (response: Response) => {
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      return null;
+    }
+
+    throw createHttpException(
+      502,
+      "Unable to verify the cart against the product catalog.",
+      { productServiceStatus: response.status },
+    );
+  }
+
+  if (
+    typeof payload === "object" &&
+    payload !== null &&
+    "data" in payload &&
+    typeof payload.data === "object" &&
+    payload.data !== null
+  ) {
+    return payload.data as ProductRecord;
+  }
+
+  throw createHttpException(
+    502,
+    "Product catalog returned an invalid product response.",
+  );
+};
+
+const fetchCatalogProduct = async (productId: number) => {
+  const url = new URL(`/products/${productId}`, getProductServiceUrl());
+  const response = await fetch(url);
+
+  return parseCatalogResponse(response);
+};
+
+const resolveCheckoutCatalog = async (
+  payload: CheckoutSessionPayload,
+): Promise<Array<CheckoutCatalogItem>> =>
+  Promise.all(
+    payload.cart.map(async (item) => {
+      const product = await fetchCatalogProduct(item.id);
+
+      if (!product) {
+        throw createHttpException(
+          409,
+          "Cart contains a product that is no longer available.",
+          { productId: item.id },
+        );
+      }
+
+      if (!product.sizes.includes(item.selectedSize)) {
+        throw createHttpException(
+          409,
+          "Cart contains a size that is no longer available.",
+          { productId: item.id, selectedSize: item.selectedSize },
+        );
+      }
+
+      if (!product.colors.includes(item.selectedColor)) {
+        throw createHttpException(
+          409,
+          "Cart contains a color that is no longer available.",
+          { productId: item.id, selectedColor: item.selectedColor },
+        );
+      }
+
+      return { ...item, product };
+    }),
+  );
+
+const getCanonicalCartTotal = (items: Array<CheckoutCatalogItem>) =>
+  items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+
+const getProductImageUrls = (product: ProductRecord) =>
+  Object.values(product.images).filter((image) => /^https?:\/\//.test(image));
+
+const createCheckoutIdempotencyKey = async (
+  input: CreateCheckoutSessionInput,
+  canonicalTotal: number,
+) => {
+  const digestInput = JSON.stringify({
+    userId: input.userId,
+    cart: input.payload.cart.map((item) => ({
+      id: item.id,
+      quantity: item.quantity,
+      selectedColor: item.selectedColor,
+      selectedSize: item.selectedSize,
+    })),
+    shippingInfo: input.payload.shippingInfo,
+    canonicalTotal,
+  });
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(digestInput),
+  );
+  const hex = [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+
+  return `checkout:${hex}`;
+};
+
 export const StripeCheckoutService = {
   async createCheckoutSession(input: CreateCheckoutSessionInput) {
     const stripe = getStripeClient();
@@ -52,11 +167,25 @@ export const StripeCheckoutService = {
       return null;
     }
 
+    const catalogItems = await resolveCheckoutCatalog(input.payload);
+    const canonicalTotal = getCanonicalCartTotal(catalogItems);
+
+    if (canonicalTotal !== input.payload.totalAmount) {
+      throw createHttpException(
+        409,
+        "Cart prices changed. Please review your cart before checkout.",
+        {
+          expectedTotalAmount: canonicalTotal,
+          submittedTotalAmount: input.payload.totalAmount,
+        },
+      );
+    }
+
     const lineItems = await Promise.all(
-      input.payload.cart.map(async (item) => {
-        const existingPriceId = await StripeCatalogService.getCheckoutPriceId(
-          item.id.toString(),
-        );
+      catalogItems.map(async (item) => {
+        const productId = item.product.id.toString();
+        const existingPriceId =
+          await StripeCatalogService.getCheckoutPriceId(productId);
 
         if (existingPriceId) {
           recordIntegrationEvent({
@@ -87,36 +216,48 @@ export const StripeCheckoutService = {
           price_data: {
             currency: "usd",
             product_data: {
-              name: item.name,
-              description: item.shortDescription,
+              name: item.product.name,
+              description: item.product.shortDescription,
+              images: getProductImageUrls(item.product),
               metadata: {
-                sourceProductId: item.id.toString(),
+                sourceProductId: productId,
+                selectedColor: item.selectedColor,
+                selectedSize: item.selectedSize,
               },
             },
-            unit_amount: item.price,
+            unit_amount: item.product.price,
           },
           quantity: item.quantity,
         };
       }),
     );
 
-    const session = await stripe.checkout.sessions.create({
-      // Stripe Checkout's customizable on-site flow uses the "elements" UI mode.
-      ui_mode: "elements",
-      mode: "payment",
-      line_items: lineItems,
-      client_reference_id: input.userId,
-      phone_number_collection: {
-        enabled: true,
+    const session = await stripe.checkout.sessions.create(
+      {
+        // Stripe Checkout's customizable on-site flow uses the "elements" UI mode.
+        ui_mode: "elements",
+        mode: "payment",
+        line_items: lineItems,
+        client_reference_id: input.userId,
+        phone_number_collection: {
+          enabled: true,
+        },
+        shipping_address_collection: {
+          allowed_countries: ["US"],
+        },
+        return_url: `${process.env.CLIENT_APP_URL ?? "http://localhost:3002"}/return?session_id={CHECKOUT_SESSION_ID}`,
+        metadata: {
+          userId: input.userId,
+          canonicalTotalAmount: canonicalTotal.toString(),
+        },
       },
-      shipping_address_collection: {
-        allowed_countries: ["US"],
+      {
+        idempotencyKey: await createCheckoutIdempotencyKey(
+          input,
+          canonicalTotal,
+        ),
       },
-      return_url: `${process.env.CLIENT_APP_URL ?? "http://localhost:3002"}/return?session_id={CHECKOUT_SESSION_ID}`,
-      metadata: {
-        userId: input.userId,
-      },
-    });
+    );
 
     if (!session.client_secret) {
       throw new Error(

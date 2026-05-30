@@ -12,6 +12,7 @@ export const runKafkaSubscriptions = async () => {
         );
 
         await createOrder({
+          orderId: message.orderId,
           userId: message.userId,
           email: message.email,
           amount: message.amount,

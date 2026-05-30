@@ -6,6 +6,7 @@ export const orderStatus = ["success", "failed"] as const;
 
 const OrderSchema = new Schema(
   {
+    orderId: { type: String, required: true },
     userId: { type: String, required: true },
     email: { type: String, required: true },
     amount: { type: Number, required: true },
@@ -24,6 +25,10 @@ const OrderSchema = new Schema(
   { timestamps: true },
 );
 
+OrderSchema.index(
+  { orderId: 1 },
+  { partialFilterExpression: { orderId: { $type: "string" } }, unique: true },
+);
 OrderSchema.index({ userId: 1, createdAt: -1 });
 OrderSchema.index({ createdAt: -1 });
 

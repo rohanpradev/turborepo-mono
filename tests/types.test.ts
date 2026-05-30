@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
+  orderRecordSchema,
   productListQuerySchema,
   productPayloadSchema,
   productUpdateSchema,
@@ -97,5 +98,24 @@ describe("@repo/types schemas", () => {
     expect(productListQuerySchema.safeParse({ limit: "101" }).success).toBe(
       false,
     );
+  });
+
+  it("accepts Stripe-backed order ids while preserving older order records", () => {
+    const baseOrder = {
+      _id: "mongo_order_id",
+      userId: "user_123",
+      email: "buyer@example.com",
+      amount: 4999,
+      status: "success",
+      products: [{ name: "Flagship Tee", price: 4999, quantity: 1 }],
+    };
+
+    expect(
+      orderRecordSchema.safeParse({
+        ...baseOrder,
+        orderId: "cs_test_123",
+      }).success,
+    ).toBe(true);
+    expect(orderRecordSchema.safeParse(baseOrder).success).toBe(true);
   });
 });
