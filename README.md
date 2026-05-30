@@ -1,64 +1,139 @@
-#  ECommerce Monorepo
+# Commerce Platform Monorepo
 
-An end-to-end commerce platform built as a Bun-first Turborepo with typed Hono microservices, Next.js 16.2 frontends, Kafka-driven integrations, and Docker Hardened Images for production-style local orchestration.
+A production-style ecommerce platform built to showcase modern full-stack engineering: a Bun-first Turborepo, Next.js storefront and admin apps, typed Hono microservices, Clerk authentication, Stripe checkout, Kafka event flow, PostgreSQL, MongoDB, and hardened Docker orchestration.
 
-## Why this repo stands out
+This is not a single demo app in a big folder. It is a real distributed commerce system with clear service ownership, shared contracts, event-driven integration, CI quality gates, and local workflows that let you run either the whole platform or only the pieces you are actively developing.
 
-- Bun-native runtime across the frontend and backend containers.
-- Typed service contracts with Hono OpenAPI and Zod validation.
-- Split product, payment, and order services with clear ownership boundaries.
-- Prisma + PostgreSQL for the catalog, MongoDB for the order read model, and Kafka for event-driven integration.
-- Docker Compose stack hardened with read-only app containers, dropped Linux capabilities, and Traefik routing.
+## Highlights
 
-## Stack
+- **Turborepo workspace** with strict environment pass-through, task caching, package boundaries, and shared TypeScript config.
+- **Customer storefront** in `apps/client` with catalog browsing, search, filters, cart state, checkout, order return flow, SEO metadata, sitemap, and service diagnostics.
+- **Admin operations app** in `apps/admin` for product/catalog operations, customer/order visibility, payment events, service health, and Kafka-backed payment activity.
+- **Typed Hono microservices** for product, payment, and order domains, all with Zod contracts, OpenAPI metadata, Scalar API docs, structured error payloads, request IDs, CORS, compression, secure headers, timing, and readiness endpoints.
+- **Clerk auth everywhere it matters**: Next.js auth UI, service middleware, bearer-token authorization, admin role/session-claim checks, and local `ADMIN_USER_IDS` recovery support.
+- **Kafka integration** for catalog sync and payment/order workflows with typed topics, durable topic defaults, instrumentation hooks, and explicit topic creation.
+- **Stripe checkout** with checkout sessions, webhook handling, payment success publication, and payment event visibility in the admin app.
+- **Polyglot persistence** with Prisma/PostgreSQL for product catalog writes and a Kafka-fed MongoDB read model for orders.
+- **Hardened Docker stack** using Docker Hardened Images, Traefik TLS routing, Kafka UI, health waits, read-only app containers, capability drops, and reproducible image locking support.
+- **CI-grade standards**: Biome, Syncpack, Knip, Bun tests with coverage, Bun audit, type checking, Next builds, Compose validation, Docker image builds, SBOM, and provenance.
 
-- `Next.js 16.2` for the storefront and admin apps
-- `Hono` for the microservices and API docs
-- `Bun` for package management, task running, and runtime execution
-- `Prisma` for the product catalog data layer
-- `Turborepo` for workspace orchestration and pruning
-- `Zod` for shared runtime-safe contracts
-- `Docker Hardened Images` for containerized builds and runtime
+## System Map
 
-## Architecture
+```mermaid
+flowchart LR
+  customer["Customer"] --> storefront["Next.js Storefront\napps/client"]
+  operator["Operator"] --> admin["Next.js Admin\napps/admin"]
 
-- `apps/client`: customer storefront
-- `apps/admin`: admin dashboard
-- `apps/product-service`: catalog API, Prisma/PostgreSQL, product events
-- `apps/payment-service`: Stripe checkout + webhook handling + catalog sync
-- `apps/order-service`: Kafka-fed MongoDB read model for orders
-- `packages/hono-utils`: shared Hono app factory, auth, docs, health, and error handling
-- `packages/types`: shared Zod schemas and TypeScript types
-- `packages/product-db`: Prisma schema, generated client, and DB connection
-- `packages/order-db`: MongoDB models and connection helpers
-- `packages/kafka`: typed Kafka client, producers, consumers, and topic helpers
+  storefront --> product["Product Service\nHono + Prisma"]
+  admin --> product
+  storefront --> payment["Payment Service\nHono + Stripe"]
+  admin --> payment
+  storefront --> order["Order Service\nHono + MongoDB"]
+  admin --> order
+
+  product --> postgres["PostgreSQL\nProduct Catalog"]
+  order --> mongo["MongoDB\nOrder Read Model"]
+
+  product -- "product.created / updated / deleted" --> kafka["Kafka"]
+  kafka --> payment
+  payment -- "payment.successful" --> kafka
+  kafka --> order
+  payment --> stripe["Stripe"]
+
+  clerk["Clerk"] --> storefront
+  clerk --> admin
+  clerk --> product
+  clerk --> payment
+  clerk --> order
+```
+
+For deeper boundary, event, and runtime notes, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+For engineering standards and verification policy, see [docs/QUALITY.md](docs/QUALITY.md).
+
+## Apps And Packages
+
+| Workspace | Responsibility |
+| --- | --- |
+| `apps/client` | Customer storefront, cart, checkout, orders, product pages, diagnostics, SEO routes |
+| `apps/admin` | Admin dashboard for catalog, users, payments, service health, and integration events |
+| `apps/product-service` | Catalog/category API, Prisma writes, product Kafka event publication |
+| `apps/payment-service` | Stripe checkout sessions, webhooks, catalog sync consumer, payment event publication |
+| `apps/order-service` | Order API backed by Kafka-fed MongoDB read model |
+| `packages/api-client` | Typed service client used by Next.js apps and tests |
+| `packages/types` | Shared Zod schemas, API records, auth claims, pricing/cart/order types |
+| `packages/hono-utils` | Shared service app factory, auth middleware, OpenAPI helpers, health/runtime utilities |
+| `packages/kafka` | Typed Kafka client, producer, consumer, topic admin, instrumentation |
+| `packages/product-db` | Prisma schema, generated client, Postgres connection |
+| `packages/order-db` | MongoDB models and connection helpers |
+| `packages/typescript-config` | Shared TypeScript presets |
+
+## Tech Stack
+
+| Layer | Technology |
+| --- | --- |
+| Monorepo | Turborepo, Bun workspaces, Bun catalogs |
+| Frontend | Next.js 16, React 19, Tailwind CSS 4, Radix UI, Lucide |
+| APIs | Hono, Zod, OpenAPI, Scalar API Reference |
+| Auth | Clerk for frontend sessions and service bearer auth |
+| Payments | Stripe Checkout and webhooks |
+| Events | Kafka with typed topics and topic management |
+| Data | PostgreSQL + Prisma, MongoDB + Mongoose |
+| Quality | Biome, Syncpack, Knip, Bun test/coverage, Bun audit, TypeScript native preview |
+| Runtime | Bun, Docker Compose, Traefik, Docker Hardened Images |
+| CI/CD | GitHub Actions, Docker Buildx, GHCR images, SBOM, provenance |
+
+## Event Flow
+
+1. Product admins create/update/delete catalog products in `apps/admin`.
+2. `product-service` validates payloads with shared Zod schemas, writes through Prisma, and publishes catalog events to Kafka.
+3. `payment-service` consumes catalog events and keeps Stripe product/price state aligned.
+4. Customers browse and check out through `apps/client`.
+5. Stripe webhooks land in `payment-service`, which publishes `payment.successful`.
+6. `order-service` consumes successful payment events and updates the MongoDB order read model.
+7. Storefront and admin apps query typed APIs through `packages/api-client`.
 
 ## Prerequisites
 
 - `Bun >= 1.3.14`
 - `Node >= 20.19.0`
-- `Docker` with Compose
-- `mkcert` for locally trusted `*.localhost` certificates
-- `docker login dhi.io` for Docker Hardened Images
+- Docker with Compose
+- `mkcert` for locally trusted `*.localhost` TLS certificates
+- `docker login dhi.io` if you want the full Docker Hardened Images path
 
-Start by listing the supported workflows:
+Start with the guided command list:
 
 ```bash
 make help
 ```
 
-## Startup commands
+Or run the repository doctor for a quick readiness check:
 
-### Recommended full Docker stack
+```bash
+bun run doctor
+```
 
-Use this when you want the full production-style local setup with Traefik, both Next.js apps, all services, databases, Kafka, and Stripe CLI webhook forwarding:
+## Quick Start
+
+### Full Platform With Docker
+
+Use this for the complete showcase: Traefik, TLS local domains, storefront, admin, product/payment/order services, Postgres, MongoDB, Kafka, Kafka UI, and Stripe CLI webhook forwarding.
 
 ```bash
 make setup
 make docker-up-build
 ```
 
-Useful follow-up commands:
+Main URLs:
+
+| Surface | URL |
+| --- | --- |
+| Storefront | `https://shop.localhost` |
+| Admin | `https://admin.localhost` |
+| API gateway | `https://api.localhost` |
+| Kafka UI | `https://kafka.localhost` |
+| Traefik dashboard | `https://dashboard.localhost/dashboard/` |
+
+Useful follow-ups:
 
 ```bash
 make status
@@ -67,27 +142,17 @@ make docker-logs
 make docker-down
 ```
 
-### Recommended local app development
+### Local App Development
 
-Use this when you want the apps and services running locally over HTTP, while Postgres, MongoDB, and Kafka run in Docker:
+Use this when you want apps and services running locally over HTTP while Postgres, MongoDB, and Kafka run in Docker:
 
 ```bash
 make local-dev
 ```
 
-This target will:
+This target creates local env files, installs dependencies, starts infrastructure, runs Prisma migrations, seeds catalog data, prints URLs, and starts Turbo dev processes.
 
-- create `.env` if needed
-- install dependencies
-- generate Prisma client
-- start Docker infra for Postgres, MongoDB, and Kafka
-- create a merged local env file
-- run Prisma migrations
-- seed the product catalog
-- print the local URLs
-- start the Turbo dev processes
-
-If you want the raw commands instead of the curated target:
+Raw equivalent:
 
 ```bash
 make setup-base
@@ -98,125 +163,66 @@ make local-db-seed
 bun --env-file=/tmp/ecommerce-local-dev.env run dev
 ```
 
-### Direct Bun/Turbo workflow
+Local URLs:
 
-This works if your infra and env are already prepared:
+| Surface | URL |
+| --- | --- |
+| Storefront | `http://localhost:3002` |
+| Admin | `http://localhost:3003` |
+| Product API | `http://localhost:3000/products` |
+| Order API | `http://localhost:8001/api/orders` |
+| Payment API | `http://localhost:8002/api/session` |
+| Storefront diagnostics | `http://localhost:3002/diagnostics` |
 
-```bash
-bun install
-bun run dev
-```
+## Quality Gates
 
-## Quality gates
-
-```bash
-make lint
-make type-check
-make test
-make build
-make verify
-```
-
-Dependency hygiene is part of the normal CI path:
+Run the same checks the repo is designed around:
 
 ```bash
+bun run doctor
 bun run deps:outdated
 bun run deps:check
-bun run audit
+bun run lint
+bun run knip
+bun run test
+bun run check-types
+bun run build
 ```
 
-The workspace uses Bun catalogs in the root `package.json` so repeated
-dependency versions are defined once and referenced from app/package manifests
-with `catalog:`.
-
-## Docker
-
-This repo uses Docker Hardened Images. The preferred startup path is:
+Or run the curated gate:
 
 ```bash
-make docker-up-build
+bun run ci:verify
 ```
 
-### Testing Docker changes
-
-Use this path after Dockerfile, Compose, dependency, or service health changes:
+For the broadest local confidence check, including environment and Compose readiness:
 
 ```bash
-make docker-test
+bun run verify:full
 ```
 
-That target runs the full local Docker test pipeline:
+What the gates cover:
 
-- validates the root Compose file and the standalone Kafka Compose file
-- verifies access to the Docker Hardened Images registry
-- creates local TLS certificates when needed
-- builds and starts the full Compose stack with health waits
-- checks storefront and admin health through Traefik
-- checks the product API through Traefik
-- checks product, order, and payment service readiness from inside their containers
+- dependency freshness and catalog consistency
+- formatting/lint policy with Biome
+- unused exports/dependencies with Knip
+- shared contract and integration unit tests
+- TypeScript checks across every package
+- production builds through Turborepo
+- vulnerability audit at moderate severity or higher
 
-If you want to split the test into smaller steps while debugging:
+## Clerk Setup
+
+The stack can start without live Clerk keys, but authenticated checkout and admin writes need Clerk configured.
+
+Set these in `.env`:
 
 ```bash
-make docker-validate
-make docker-up-build
-make docker-smoke
-make status
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
+CLERK_SECRET_KEY=sk_...
 ```
 
-Use service logs when a smoke check fails:
-
-```bash
-make docker-logs-product
-make docker-logs-order
-make docker-logs-payment
-make docker-logs-client
-make docker-logs-admin
-make docker-logs-stripe
-```
-
-### Image freshness and reproducibility
-
-The Docker path uses Docker Hardened Images for Bun, Traefik, Postgres, and
-Kafka. Traefik runs on the current DHI 3.7 image, reads Docker metadata through
-the socket proxy, keeps `exposedByDefault=false`, and applies an explicit
-`traefik.enable=true` provider constraint so only labelled services are routed.
-The Makefile verifies access to each DHI repository before Docker workflows run,
-and startup targets pass `--pull always` so patched DHI tags and public utility
-images are refreshed before containers are started.
-
-Useful image inspection commands:
-
-```bash
-make docker-images
-make docker-lock-images
-```
-
-`make docker-lock-images` writes `docker/compose.images.lock.yml` with immutable
-image digests when you need a reproducible deployment snapshot. Keep the normal
-Compose file on version tags for local development so Docker can pull DHI patch
-refreshes.
-
-MongoDB runs on `dhi.io/mongodb:8.3-debian13`. Unlike the Docker Official
-Mongo image, the DHI runtime is shell-less and does not include the official
-first-run user initialization entrypoint or `mongosh`, so the local stack uses
-unauthenticated MongoDB on the private Compose network and publishes the host
-port on `127.0.0.1` only. The current DHI MongoDB tag is amd64-only, so Compose
-sets `platform: linux/amd64` for that service. A short-lived DHI Bun helper
-waits for the Mongo TCP port before order-service starts.
-
-Before running the full Docker path, make sure Docker can pull Docker Hardened
-Images:
-
-```bash
-docker login dhi.io
-make docker-auth
-```
-
-The full stack can start without live Clerk or Stripe keys, but checkout and
-webhook behavior are only fully testable after real keys are added to `.env`.
-Admin catalog writes require a Clerk session token with a small admin claim.
-In the Clerk Dashboard, add this custom session token claim:
+Admin authorization uses a small session claim. In the Clerk Dashboard, add:
 
 ```json
 {
@@ -224,7 +230,7 @@ In the Clerk Dashboard, add this custom session token claim:
 }
 ```
 
-Then set the target Clerk user's public metadata to:
+Then set the target Clerk user's public metadata:
 
 ```json
 {
@@ -232,104 +238,91 @@ Then set the target Clerk user's public metadata to:
 }
 ```
 
-For local recovery while setting up Clerk, `.env` can also include
-`ADMIN_USER_IDS=user_...`. The product and order services accept those Clerk
-user IDs as admins in addition to the session claim. Product create/update/delete
-actions must still go through product-service so Prisma validation and Kafka
-catalog events run consistently.
-
-For a faster infrastructure-only check during local app development, use:
+For local recovery while setting up Clerk, `.env` can include:
 
 ```bash
-make docker-infra-local
+ADMIN_USER_IDS=user_...
 ```
 
-The Docker-related targets you will actually use most often are:
+## Stripe Setup
+
+Checkout and webhook behavior require Stripe keys:
+
+```bash
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_...
+STRIPE_SECRET_KEY=sk_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
+
+The Docker workflow can run Stripe CLI webhook forwarding. The payment service records recent checkout, webhook, Kafka, and Stripe events so the admin dashboard can show integration activity without digging through logs.
+
+## Docker And Security Posture
+
+The Docker path uses Docker Hardened Images for Bun, Traefik, Postgres, Kafka, and MongoDB. The Compose stack includes:
+
+- TLS routing through Traefik for local `*.localhost` domains
+- explicit Docker provider constraints so only labelled services are routed
+- read-only app containers and dropped Linux capabilities
+- health checks and readiness waits
+- private service network with minimal published ports
+- image freshness checks and optional digest lockfile generation
+
+### Container Topology
+
+| Container | Image / Build | Purpose |
+| --- | --- | --- |
+| `ecommerce-traefik` | `dhi.io/traefik:3.7-debian13` | TLS router, API gateway, dashboard |
+| `docker-socket-proxy` | `tecnativa/docker-socket-proxy:v0.4.2` | Restricted Docker API surface for Traefik discovery |
+| `ecommerce-postgres` | `dhi.io/postgres:18-debian13` | Product catalog database |
+| `ecommerce-mongodb` | `dhi.io/mongodb:8.3-debian13` | Order read-model database |
+| `kafka-broker-1..3` | `dhi.io/kafka:4.2-debian13-native` | Three-broker Kafka cluster |
+| `ecommerce-kafka-ui` | `ghcr.io/kafbat/kafka-ui:v1.5.0` | Kafka topic, consumer, and message visibility |
+| `ecommerce-product-service` | `docker/Dockerfile.product-service` | Catalog API, Prisma writes, product events |
+| `ecommerce-payment-service` | `docker/Dockerfile.payment-service` | Stripe checkout, webhooks, payment events |
+| `ecommerce-order-service` | `docker/Dockerfile.order-service` | Order API and MongoDB read model |
+| `ecommerce-client` | `docker/Dockerfile.client` | Customer storefront |
+| `ecommerce-admin` | `docker/Dockerfile.admin` | Admin operations dashboard |
+| `stripe-cli` | `stripe/stripe-cli` pinned by digest | Local webhook forwarding |
+
+The five application Dockerfiles use Turbo pruning, Bun frozen installs, and hardened Bun runtime images. Frontend images build standalone Next.js output, while service images copy only runtime code, generated clients, shared packages, and production dependencies.
+
+Useful Docker commands:
 
 ```bash
 make docker-test
 make docker-build
-make docker-up
 make docker-up-build
 make docker-smoke
-make docker-down
+make docker-lock-images
 make docker-down-volumes
-make docker-logs
-make docker-logs-stripe
-make docker-rebuild-service SERVICE=product-service
 ```
 
-The first Docker start runs `mkcert` to generate a locally trusted Traefik certificate for `*.localhost`. If you ever rotate or delete the certs, rerun:
+Before full Docker workflows, authenticate with Docker Hardened Images:
 
 ```bash
-make docker-certs
+docker login dhi.io
+make docker-auth
 ```
 
-If you only need the infra for local app development:
+## API Documentation
 
-```bash
-make docker-infra-local
-```
+Each Hono service exposes typed OpenAPI metadata and Scalar docs through the service app factory. In local development, use the direct service URLs; in Docker, use `https://api.localhost` routing for public API paths.
 
-The Docker builds use Turborepo pruning plus Docker ignore files to keep build
-contexts and dependency installation layers as small and cache-friendly as
-possible. The Dockerfiles now use BuildKit cache mounts for Bun installs and
-`COPY --link` so repeat builds can reuse dependency and cross-stage copy layers
-more aggressively.
+Core API groups:
 
-The Kafka stack now uses explicit topic creation, broker health checks before
-dependent services start, and persistent broker volumes in the Docker Compose
-cluster.
+- product catalog: `/products`, `/categories`
+- checkout: `/api/session/create-checkout-session`
+- checkout status: `/api/session/status`
+- orders: `/api/orders`
+- Stripe webhooks: `/api/webhooks/stripe`
+- health/readiness: `/health`, `/ready`
 
-The Next.js apps expose lightweight `/api/health` endpoints for container health
-checks, so Docker probes don't have to render full pages or depend on auth/data
-fetching behavior.
+## Repository Standards
 
-### Stripe CLI webhook forwarding
-
-This repo now includes the Stripe CLI container in the default Docker stack, based on Stripe's official Docker image docs.
-
-1. Set `STRIPE_SECRET_KEY` in `.env`. `STRIPE_API_KEY` is optional and, if omitted, the Stripe CLI container falls back to `STRIPE_SECRET_KEY`.
-2. Start the Docker stack. The Stripe CLI starts with it by default:
-
-```bash
-make docker-up-build
-```
-
-The Stripe CLI forwards events to `http://payment-service:8002/api/webhooks/stripe` inside the Compose network by default. On startup it captures the `whsec_...` signing secret from Stripe CLI output, writes it into a shared runtime volume, and `payment-service` reads that value automatically for webhook verification. No manual secret copy or service restart is required for the Docker flow.
-
-That shared volume is intentional. Docker named volumes are the portable way to share runtime-generated files between containers in Compose. A tmpfs mount would avoid persistence but can't be shared across services, and a bind mount would only add host filesystem coupling when the host doesn't need to read the secret.
-
-Local webhook forwarding should bypass Traefik and go straight to HTTP on the payment service. Using `https://api.localhost/api/webhooks/stripe` can fail because Stripe and the Stripe CLI don't trust the local Traefik certificate by default. For host-based local development, use `http://localhost:8002/api/webhooks/stripe`. For the Docker stack, keep the default internal target `http://payment-service:8002/api/webhooks/stripe`.
-
-Override `STRIPE_WEBHOOK_FORWARD_TO` or `STRIPE_CLI_EVENTS` in `.env` if needed. The Stripe CLI image is pinned to a published version for reproducible Docker builds, and the container reports healthy only after it has written the active webhook signing secret into the shared runtime volume. `STRIPE_WEBHOOK_SECRET` is still supported for non-Docker or manually managed webhook setups.
-
-Main routes:
-
-- `https://shop.localhost`
-- `https://admin.localhost`
-- `https://api.localhost`
-- `https://dashboard.localhost`
-- `https://kafka.localhost`
-
-## API docs
-
-Each Hono service exposes:
-
-- `/docs` for Scalar API reference
-- `/openapi.json` for the OpenAPI document
-- `/health`, `/health/live`, and `/health/ready` for service probes
-
-## Kafka notes
-
-- Local broker endpoints: `localhost:9094`, `localhost:9095`, `localhost:9096`
-- Internal Docker broker endpoints: `kafka-broker-1:9092`, `kafka-broker-2:9092`, `kafka-broker-3:9092`
-- Default event topic settings: `3` partitions, replication factor `3`, `min.insync.replicas=2`
-
-## Showcase notes
-
-- Product and category mutations are admin-only.
-- Product images accept root-relative storefront assets or public HTTP(S) URLs
-  from durable storage such as S3, Vercel Blob, Azure Blob, or a CDN.
-- Error handling follows Hono’s documented exception flow with consistent JSON payloads and request IDs.
-- Service images now copy only the pruned runtime workspaces they need instead of the full build tree.
+- Shared API contracts live in `packages/types`; services and apps consume them instead of duplicating request/response shapes.
+- Cross-app service calls go through `packages/api-client`.
+- Service apps use `packages/hono-utils` for auth, error shape, request IDs, OpenAPI, CORS, secure headers, compression, timing, and readiness.
+- Dependency versions are centralized in the root Bun catalog and enforced by Syncpack.
+- Kafka topics and message payloads are typed in `packages/kafka`.
+- Product mutations go through `product-service` so validation, database writes, and Kafka publication stay consistent.
+- Docker workflows prefer pinned version tags plus optional digest locks for reproducibility.

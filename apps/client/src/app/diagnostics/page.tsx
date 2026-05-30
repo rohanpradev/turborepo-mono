@@ -44,7 +44,7 @@ const services = [
   },
 ] as const;
 
-const TestPage = async () => {
+const DiagnosticsPage = async () => {
   await connection();
 
   const paymentEvents = await getPaymentIntegrationEvents(
@@ -173,4 +173,4 @@ const TestPage = async () => {
   );
 };
 
-export default TestPage;
+export default DiagnosticsPage;

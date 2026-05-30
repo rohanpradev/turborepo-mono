@@ -3,6 +3,7 @@ import type { OrderRecord } from "@repo/types";
 
 type StoredOrder = {
   _id: { toString(): string };
+  orderId?: string;
   userId: string;
   email: string;
   amount: number;
@@ -19,6 +20,7 @@ type StoredOrder = {
 const toOrderRecord = (order: StoredOrder) => {
   return {
     _id: order._id.toString(),
+    orderId: order.orderId,
     userId: order.userId,
     email: order.email,
     amount: order.amount,

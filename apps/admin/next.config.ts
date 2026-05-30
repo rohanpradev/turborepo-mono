@@ -11,6 +11,15 @@ const nextConfig: NextConfig = {
       "@": path.join(__dirname, "src"),
     },
   },
+  webpack(config) {
+    config.resolve ??= {};
+    config.resolve.alias = {
+      ...(config.resolve.alias ?? {}),
+      "@": path.join(__dirname, "src"),
+    };
+
+    return config;
+  },
   experimental: {
     turbopackFileSystemCacheForBuild: true,
     optimizePackageImports: ["lucide-react"],
