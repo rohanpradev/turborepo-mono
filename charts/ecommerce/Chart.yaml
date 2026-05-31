@@ -1,0 +1,13 @@
+apiVersion: v2
+name: ecommerce
+description: Helm chart for the ecommerce microservices platform
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - ecommerce
+  - microservices
+  - hono
+  - nextjs
+maintainers:
+  - name: Platform Team

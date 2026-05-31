@@ -16,25 +16,29 @@ afterEach(() => {
 });
 
 describe("@repo/api-client", () => {
-  it("builds product list requests with query parameters", async () => {
+  it("calls product list RPC with encoded input", async () => {
     let capturedUrl: URL | null = null;
+    let capturedRequest: Request | null = null;
 
-    globalThis.fetch = (async (input) => {
+    globalThis.fetch = (async (input, init) => {
+      capturedRequest = new Request(input, init);
       capturedUrl = new URL(
         input instanceof Request ? input.url : String(input),
       );
 
       return new Response(
         JSON.stringify({
-          success: true,
-          data: [],
-          meta: {
-            page: 1,
-            pageSize: 8,
-            total: 0,
-            totalPages: 1,
-            hasNextPage: false,
-            hasPreviousPage: false,
+          json: {
+            success: true,
+            data: [],
+            meta: {
+              page: 1,
+              pageSize: 8,
+              total: 0,
+              totalPages: 1,
+              hasNextPage: false,
+              hasPreviousPage: false,
+            },
           },
         }),
         {
@@ -52,11 +56,16 @@ describe("@repo/api-client", () => {
       sort: "newest",
     });
 
-    expect(capturedUrl?.pathname).toBe("/products");
-    expect(capturedUrl?.searchParams.get("category")).toBe("t-shirts");
-    expect(capturedUrl?.searchParams.get("limit")).toBe("8");
-    expect(capturedUrl?.searchParams.get("page")).toBe("2");
-    expect(capturedUrl?.searchParams.get("sort")).toBe("newest");
+    expect(capturedUrl?.pathname).toBe("/rpc/product/product/list");
+    expect(capturedRequest?.method).toBe("POST");
+    expect(capturedRequest && (await capturedRequest.json())).toMatchObject({
+      json: {
+        category: "t-shirts",
+        limit: 8,
+        page: 2,
+        sort: "newest",
+      },
+    });
   });
 
   it("sends checkout session requests with auth and JSON body", async () => {
@@ -67,10 +76,12 @@ describe("@repo/api-client", () => {
 
       return new Response(
         JSON.stringify({
-          success: true,
-          data: {
-            clientSecret: "cs_test_123",
-            sessionId: "csess_123",
+          json: {
+            success: true,
+            data: {
+              clientSecret: "cs_test_123",
+              sessionId: "csess_123",
+            },
           },
         }),
         {
@@ -115,6 +126,9 @@ describe("@repo/api-client", () => {
     );
 
     expect(capturedRequest?.method).toBe("POST");
+    expect(capturedRequest?.url).toBe(
+      "https://payments.localhost/rpc/payment/checkout/createSession",
+    );
     expect(capturedRequest?.headers.get("authorization")).toBe(
       "Bearer test-token",
     );
@@ -122,9 +136,11 @@ describe("@repo/api-client", () => {
       "application/json",
     );
     expect(capturedRequest && (await capturedRequest.json())).toMatchObject({
-      totalAmount: 4999,
-      shippingInfo: {
-        email: "buyer@example.com",
+      json: {
+        totalAmount: 4999,
+        shippingInfo: {
+          email: "buyer@example.com",
+        },
       },
     });
   });
@@ -139,8 +155,10 @@ describe("@repo/api-client", () => {
       if (request.method === "DELETE") {
         return new Response(
           JSON.stringify({
-            success: true,
-            message: "Product deleted successfully",
+            json: {
+              success: true,
+              message: "Product deleted successfully",
+            },
           }),
           {
             headers: {
@@ -152,17 +170,19 @@ describe("@repo/api-client", () => {
 
       return new Response(
         JSON.stringify({
-          success: true,
-          data: {
-            id: 7,
-            name: "Catalog Product",
-            shortDescription: "Short description",
-            description: "Long description",
-            price: 4999,
-            sizes: ["m"],
-            colors: ["black"],
-            images: { black: "/product.png" },
-            categorySlug: "outerwear",
+          json: {
+            success: true,
+            data: {
+              id: 7,
+              name: "Catalog Product",
+              shortDescription: "Short description",
+              description: "Long description",
+              price: 4999,
+              sizes: ["m"],
+              colors: ["black"],
+              images: { black: "/product.png" },
+              categorySlug: "outerwear",
+            },
           },
         }),
         {
@@ -190,13 +210,13 @@ describe("@repo/api-client", () => {
 
     expect(capturedRequests.map((request) => request.method)).toEqual([
       "POST",
-      "PUT",
-      "DELETE",
+      "POST",
+      "POST",
     ]);
     expect(capturedRequests.map((request) => request.url)).toEqual([
-      "https://catalog.localhost/products",
-      "https://catalog.localhost/products/7",
-      "https://catalog.localhost/products/7",
+      "https://catalog.localhost/rpc/product/product/create",
+      "https://catalog.localhost/rpc/product/product/update",
+      "https://catalog.localhost/rpc/product/product/delete",
     ]);
     expect(
       capturedRequests.every(
@@ -208,12 +228,23 @@ describe("@repo/api-client", () => {
 
   it("surfaces typed API errors from JSON responses", async () => {
     globalThis.fetch = (async () =>
-      new Response(JSON.stringify({ error: "Stripe unavailable" }), {
-        status: 503,
-        headers: {
-          "content-type": "application/json",
+      new Response(
+        JSON.stringify({
+          json: {
+            code: "SERVICE_UNAVAILABLE",
+            data: null,
+            defined: false,
+            message: "Stripe unavailable",
+            status: 503,
+          },
+        }),
+        {
+          status: 503,
+          headers: {
+            "content-type": "application/json",
+          },
         },
-      })) as typeof fetch;
+      )) as typeof fetch;
 
     const failure = getCheckoutSessionStatus(
       "https://payments.localhost",

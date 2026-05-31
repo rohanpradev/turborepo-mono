@@ -7,7 +7,8 @@ import { formatUsdFromCents } from "@repo/types";
 import { useEffect, useState } from "react";
 
 const isClerkConfigured = Boolean(
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
+    !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.includes("_here"),
 );
 
 const OrdersContent = () => {

@@ -127,11 +127,13 @@ Main URLs:
 
 | Surface | URL |
 | --- | --- |
-| Storefront | `https://shop.localhost` |
-| Admin | `https://admin.localhost` |
-| API gateway | `https://api.localhost` |
-| Kafka UI | `https://kafka.localhost` |
-| Traefik dashboard | `https://dashboard.localhost/dashboard/` |
+| Storefront | `https://shop.localhost:8443` |
+| Admin | `https://admin.localhost:8443` |
+| API gateway | `https://api.localhost:8443` |
+| Kafka UI | `https://kafka.localhost:8443` |
+| Traefik dashboard | `https://dashboard.localhost:8443/dashboard/` |
+
+Docker Compose binds Traefik to `127.0.0.1:8080` and `127.0.0.1:8443` by default so it can coexist with a local Kubernetes ingress controller on ports 80/443. Bare `https://shop.localhost` is reserved for the Kubernetes/Helm path below.
 
 Useful follow-ups:
 
@@ -261,7 +263,7 @@ The Docker workflow can run Stripe CLI webhook forwarding. The payment service r
 The Docker path uses Docker Hardened Images for Bun, Traefik, Postgres, Kafka, and MongoDB. The Compose stack includes:
 
 - TLS routing through Traefik for local `*.localhost` domains
-- explicit Docker provider constraints so only labelled services are routed
+- `exposedByDefault=false` so only explicitly labelled services are routed
 - read-only app containers and dropped Linux capabilities
 - health checks and readiness waits
 - private service network with minimal published ports
@@ -304,18 +306,51 @@ docker login dhi.io
 make docker-auth
 ```
 
+## Kubernetes With Helm
+
+Use Helm when you want the Kubernetes ingress controller to own bare local domains such as `https://shop.localhost`, `https://admin.localhost`, and `https://api.localhost`.
+
+```bash
+make k8s-preflight
+make k8s-validate
+make k8s-up
+make k8s-status
+make k8s-test
+```
+
+The default local workflow deploys the web tier so `shop.localhost` and `admin.localhost` work on the current local Traefik Gateway without requiring Postgres, MongoDB, or Kafka. Use `make k8s-up-full` for the full application once those backing services exist in the cluster.
+
+The chart lives in `charts/ecommerce`. It can deploy the five application workloads, ClusterIP services, Traefik Gateway API HTTPRoutes for the local cluster, optional standard Ingress for other clusters, readiness/liveness probes, read-only security contexts, PDBs, optional HPAs, optional network policies, and Helm hook jobs for product database migration and optional seeding. Runtime infrastructure such as Postgres, MongoDB, Kafka, Clerk, and Stripe is intentionally externalized through Kubernetes Secrets and values.
+
+`make k8s-tls-secret` syncs the local mkcert certificate into the target namespace, and `make k8s-runtime-secret` syncs runtime secrets from `.env`. For cluster-native dependencies, set `K8S_DATABASE_URL` and `K8S_MONGO_URL` instead of relying on localhost URLs.
+
+Useful Kubernetes operations:
+
+```bash
+make helm-dry-run
+make k8s-diff
+make k8s-wait
+make k8s-smoke
+make k8s-events
+make k8s-logs-client
+make k8s-logs-product
+make k8s-describe K8S_SERVICE=product-service
+make k8s-restart
+make k8s-uninstall
+```
+
 ## API Documentation
 
-Each Hono service exposes typed OpenAPI metadata and Scalar docs through the service app factory. In local development, use the direct service URLs; in Docker, use `https://api.localhost` routing for public API paths.
+Each Hono service exposes typed OpenAPI metadata and Scalar docs through the service app factory. In local development, use the direct service URLs; in Docker, use `https://api.localhost:8443` routing for public RPC paths. In Kubernetes, Helm routing owns bare `https://api.localhost`.
 
 Core API groups:
 
-- product catalog: `/products`, `/categories`
-- checkout: `/api/session/create-checkout-session`
-- checkout status: `/api/session/status`
-- orders: `/api/orders`
+- product catalog: `/rpc/product/*`
+- checkout: `/rpc/payment/checkout/createSession`
+- checkout status: `/rpc/payment/checkout/getSessionStatus`
+- orders: `/rpc/order/*`
 - Stripe webhooks: `/api/webhooks/stripe`
-- health/readiness: `/health`, `/ready`
+- health/readiness: `/health`, `/health/ready`
 
 ## Repository Standards
 

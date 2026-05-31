@@ -15,10 +15,23 @@ This repository is organized around service ownership rather than framework conv
 ## Contract Strategy
 
 - Shared request/response records live in `packages/types`.
-- Runtime validation uses Zod at service boundaries.
-- OpenAPI schemas are generated from the same validation objects used by the Hono routes.
-- Next.js apps call services through `packages/api-client`, keeping URL construction, JSON parsing, and typed error handling centralized.
+- Business APIs are contract-first oRPC procedures defined in `packages/contracts`.
+- Runtime validation uses Zod at service boundaries through the oRPC contract implementation.
+- Next.js apps call services through `packages/api-client`, keeping RPC transport, auth headers, typed errors, and service URL construction centralized.
+- Hono remains the HTTP runtime for service middleware, health/readiness probes, Stripe webhooks, request IDs, CORS, security headers, timeouts, and operational docs.
 - Auth claims use `CustomJwtSessionClaims` from `packages/types` so app and service code agree on admin-role shape.
+
+### oRPC Routing
+
+The shared public API host uses namespaced RPC prefixes so Traefik can route each service unambiguously:
+
+| Prefix | Service |
+| --- | --- |
+| `/rpc/product/*` | `product-service` |
+| `/rpc/order/*` | `order-service` |
+| `/rpc/payment/*` | `payment-service` |
+
+The RPC transport is standard HTTP over Fetch and works through the existing Docker/Traefik setup without requiring HTTP/2. Service health routes and Stripe webhooks intentionally remain conventional HTTP endpoints.
 
 ## Event Strategy
 

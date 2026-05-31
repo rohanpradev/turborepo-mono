@@ -1,7 +1,7 @@
 # E-Commerce Microservices Makefile
-# Manage all services, databases, and the hardened local Docker stack.
+# Manage all services, databases, Docker Compose, and Kubernetes/Helm workflows.
 
-.PHONY: help ensure-env install dev stop clean clean-all setup setup-base generate-client kafka-ui db-setup db-migrate db-generate db-studio db-seed local-env-file local-db-migrate local-db-seed local-urls local-dev local-fresh-dev lint type-check format audit test verify build build-client build-admin logs-product logs-order logs-payment status docker-auth docker-certs docker-validate docker-images docker-lock-images docker-build docker-up docker-up-build docker-smoke docker-test docker-down docker-down-volumes docker-logs docker-logs-traefik docker-logs-product docker-logs-order docker-logs-payment docker-logs-client docker-logs-admin docker-logs-stripe docker-ps docker-restart docker-restart-service docker-rebuild-service docker-shell-traefik docker-shell-product docker-shell-order docker-shell-payment docker-infra-only docker-infra-local docker-stripe-up docker-stripe-down docker-clean docker-clean-images docker-prune docker-kill-all docker-setup docker-fresh-start quick-start quick-stop restart docker-quick-start
+.PHONY: help ensure-env install dev stop clean clean-all setup setup-base generate-client kafka-ui db-setup db-migrate db-generate db-studio db-seed local-env-file local-db-migrate local-db-seed local-urls local-dev local-fresh-dev lint type-check format audit test verify build build-client build-admin logs-product logs-order logs-payment status docker-auth docker-certs docker-validate docker-images docker-lock-images docker-build docker-up docker-up-build docker-smoke docker-test docker-down docker-down-volumes docker-logs docker-logs-traefik docker-logs-product docker-logs-order docker-logs-payment docker-logs-client docker-logs-admin docker-logs-stripe docker-ps docker-restart docker-restart-service docker-rebuild-service docker-shell-traefik docker-shell-product docker-shell-order docker-shell-payment docker-infra-only docker-infra-local docker-stripe-up docker-stripe-down docker-clean docker-clean-images docker-prune docker-kill-all docker-setup docker-fresh-start helm-lint helm-template helm-dry-run helm-package k8s-preflight k8s-namespace k8s-tls-secret k8s-runtime-secret k8s-build-images k8s-build-full-images k8s-validate k8s-validate-full k8s-diff k8s-deploy k8s-deploy-full k8s-up k8s-up-full k8s-wait k8s-smoke k8s-smoke-full k8s-test k8s-status k8s-events k8s-logs k8s-logs-client k8s-logs-admin k8s-logs-product k8s-logs-order k8s-logs-payment k8s-describe k8s-restart k8s-uninstall quick-start quick-stop restart docker-quick-start
 
 .DEFAULT_GOAL := help
 
@@ -23,6 +23,25 @@ LOCAL_CORS_ALLOWED_ORIGINS := http://localhost:3002,http://localhost:3003
 LOCAL_ENV_FILE := /tmp/ecommerce-local-dev.env
 DOCKER_COMPOSE ?= docker compose
 DOCKER_WAIT_TIMEOUT ?= 180
+TRAEFIK_HTTP_PORT ?= 8080
+TRAEFIK_HTTPS_PORT ?= 8443
+HELM ?= helm
+KUBECTL ?= kubectl
+HELM_CHART ?= charts/ecommerce
+HELM_RELEASE ?= ecommerce
+HELM_NAMESPACE ?= ecommerce
+HELM_VALUES ?= charts/ecommerce/values.web-local.yaml
+HELM_FULL_VALUES ?= charts/ecommerce/values.local.yaml
+HELM_RUNTIME_SECRET ?= $(HELM_RELEASE)-runtime
+HELM_TLS_SECRET ?= ecommerce-local-tls
+HELM_SET_ARGS ?= --set secrets.name=$(HELM_RUNTIME_SECRET) --set ingress.tls.secretName=$(HELM_TLS_SECRET)
+HELM_RENDERED_FILE ?= /tmp/$(HELM_RELEASE)-rendered.yaml
+HELM_PACKAGE_DIR ?= /tmp/helm-packages
+K8S_ROLLOUT_TIMEOUT ?= 5m
+K8S_LOG_TAIL ?= 200
+K8S_SMOKE_TIMEOUT ?= 10
+K8S_SERVICE ?= client
+HELM_UPGRADE_ARGS ?= --rollback-on-failure --wait --timeout $(K8S_ROLLOUT_TIMEOUT)
 DHI_CHECK_IMAGES ?= dhi.io/bun:1-debian13 dhi.io/traefik:3.7-debian13 dhi.io/postgres:18-debian13 dhi.io/kafka:4.2-debian13-native
 DHI_AMD64_CHECK_IMAGES ?= dhi.io/mongodb:8.3-debian13
 DOCKER_SMOKE_TIMEOUT ?= 10
@@ -252,13 +271,13 @@ status: ## Show service status and URLs
 	@$(DOCKER_COMPOSE) ps || echo "  $(RED)Not running$(NC)"
 	@echo ""
 	@echo "$(YELLOW)Service URLs:$(NC)"
-	@echo "  Traefik Dashboard: https://dashboard.localhost/dashboard/"
-	@echo "  Client:            https://shop.localhost"
-	@echo "  Admin:             https://admin.localhost"
-	@echo "  Product API:       https://api.localhost/products"
-	@echo "  Order API:         https://api.localhost/api/orders"
-	@echo "  Payment API:       https://api.localhost/api/session"
-	@echo "  Kafka UI:          https://kafka.localhost"
+	@echo "  Traefik Dashboard: https://dashboard.localhost:$(TRAEFIK_HTTPS_PORT)/dashboard/"
+	@echo "  Client:            https://shop.localhost:$(TRAEFIK_HTTPS_PORT)"
+	@echo "  Admin:             https://admin.localhost:$(TRAEFIK_HTTPS_PORT)"
+	@echo "  Product RPC:       https://api.localhost:$(TRAEFIK_HTTPS_PORT)/rpc/product"
+	@echo "  Order RPC:         https://api.localhost:$(TRAEFIK_HTTPS_PORT)/rpc/order"
+	@echo "  Payment RPC:       https://api.localhost:$(TRAEFIK_HTTPS_PORT)/rpc/payment"
+	@echo "  Kafka UI:          https://kafka.localhost:$(TRAEFIK_HTTPS_PORT)"
 	@echo "  Stripe CLI Logs:   make docker-logs-stripe"
 	@echo "  Ops Auth:          admin / local-dev"
 
@@ -340,9 +359,9 @@ docker-up-build: ensure-env docker-auth docker-certs ## Build and start all serv
 
 docker-smoke: ## Smoke-test the running Docker stack over Traefik and service health endpoints
 	@echo "$(BLUE)Smoke-testing Docker stack...$(NC)"
-	@curl -skSf --max-time $(DOCKER_SMOKE_TIMEOUT) https://shop.localhost/api/health >/dev/null
-	@curl -skSf --max-time $(DOCKER_SMOKE_TIMEOUT) https://admin.localhost/api/health >/dev/null
-	@curl -skSf --max-time $(DOCKER_SMOKE_TIMEOUT) https://api.localhost/products?limit=1 >/dev/null
+	@curl -4 -skSf --max-time $(DOCKER_SMOKE_TIMEOUT) https://shop.localhost:$(TRAEFIK_HTTPS_PORT)/api/health >/dev/null
+	@curl -4 -skSf --max-time $(DOCKER_SMOKE_TIMEOUT) https://admin.localhost:$(TRAEFIK_HTTPS_PORT)/api/health >/dev/null
+	@curl -4 -skSf --max-time $(DOCKER_SMOKE_TIMEOUT) -H 'content-type: application/json' --data '{"json":{"limit":1}}' https://api.localhost:$(TRAEFIK_HTTPS_PORT)/rpc/product/product/list >/dev/null
 	$(DOCKER_COMPOSE) exec -T product-service bun -e "const r=await fetch('http://127.0.0.1:3000/health/ready'); if (!r.ok) process.exit(1);"
 	$(DOCKER_COMPOSE) exec -T order-service bun -e "const r=await fetch('http://127.0.0.1:8001/health/ready'); if (!r.ok) process.exit(1);"
 	$(DOCKER_COMPOSE) exec -T payment-service bun -e "const r=await fetch('http://127.0.0.1:8002/health/ready'); if (!r.ok) process.exit(1);"
@@ -462,6 +481,148 @@ docker-fresh-start: ensure-env docker-certs ## Rebuild the Docker stack from a c
 	@echo "$(RED)Resetting the project Docker stack...$(NC)"
 	$(DOCKER_COMPOSE) down -v --remove-orphans --rmi local
 	@$(MAKE) docker-up-build
+
+##@ Kubernetes / Helm
+
+helm-lint: ## Lint the ecommerce Helm chart
+	@echo "$(BLUE)Linting Helm chart...$(NC)"
+	$(HELM) lint $(HELM_CHART)
+	@echo "$(GREEN)Helm chart lint passed$(NC)"
+
+helm-template: ## Render the ecommerce Helm chart locally
+	@$(HELM) template $(HELM_RELEASE) $(HELM_CHART) --namespace $(HELM_NAMESPACE) --values $(HELM_VALUES) $(HELM_SET_ARGS)
+
+helm-dry-run: helm-lint ## Run a Helm install/upgrade dry run against the current cluster
+	@echo "$(BLUE)Running Helm dry run...$(NC)"
+	$(HELM) upgrade --install $(HELM_RELEASE) $(HELM_CHART) --namespace $(HELM_NAMESPACE) --create-namespace --values $(HELM_VALUES) $(HELM_SET_ARGS) --dry-run=client
+
+helm-package: helm-lint ## Package the Helm chart for release or registry publishing
+	@mkdir -p $(HELM_PACKAGE_DIR)
+	$(HELM) package $(HELM_CHART) --destination $(HELM_PACKAGE_DIR)
+	@echo "$(GREEN)Packaged chart in $(HELM_PACKAGE_DIR)$(NC)"
+
+k8s-preflight: ## Verify local Kubernetes, Helm, kubectl, and Traefik ingress prerequisites
+	@echo "$(BLUE)Checking Kubernetes prerequisites...$(NC)"
+	@command -v $(HELM) >/dev/null || { echo "$(RED)helm is required$(NC)"; exit 1; }
+	@command -v $(KUBECTL) >/dev/null || { echo "$(RED)kubectl is required$(NC)"; exit 1; }
+	@$(KUBECTL) version --client=true >/dev/null
+	@$(HELM) version >/dev/null
+	@$(KUBECTL) cluster-info >/dev/null
+	@$(KUBECTL) get ingressclass traefik >/dev/null 2>&1 || $(KUBECTL) get gatewayclass traefik >/dev/null 2>&1 || { \
+		echo "$(YELLOW)Neither IngressClass nor GatewayClass 'traefik' was found. Install Traefik or adjust ingress/gateway values before deploying.$(NC)"; \
+		exit 1; \
+	}
+	@$(KUBECTL) get gateway traefik-gateway --namespace traefik >/dev/null 2>&1 || $(KUBECTL) get ingressclass traefik >/dev/null 2>&1 || { \
+		echo "$(YELLOW)No traefik/traefik-gateway Gateway or traefik IngressClass was found. Local values expect the Gateway API route.$(NC)"; \
+		exit 1; \
+	}
+	@echo "$(GREEN)Kubernetes prerequisites passed$(NC)"
+
+k8s-namespace: k8s-preflight ## Create the Kubernetes namespace if needed
+	$(KUBECTL) create namespace $(HELM_NAMESPACE) --dry-run=client -o yaml | $(KUBECTL) apply -f -
+
+k8s-tls-secret: docker-certs k8s-namespace ## Sync the local mkcert certificate into Kubernetes
+	$(KUBECTL) -n $(HELM_NAMESPACE) create secret tls $(HELM_TLS_SECRET) --cert=$(LOCAL_TLS_CERT_FILE) --key=$(LOCAL_TLS_KEY_FILE) --dry-run=client -o yaml | $(KUBECTL) apply -f -
+
+k8s-runtime-secret: ensure-env k8s-namespace ## Sync app runtime secrets from .env into Kubernetes
+	@if [ "$$($(KUBECTL) -n $(HELM_NAMESPACE) get secret $(HELM_RUNTIME_SECRET) -o jsonpath='{.metadata.annotations.meta\.helm\.sh/release-name}' 2>/dev/null)" = "$(HELM_RELEASE)" ]; then \
+		echo "$(YELLOW)Replacing Helm-managed $(HELM_RUNTIME_SECRET) with an external runtime secret$(NC)"; \
+		$(KUBECTL) -n $(HELM_NAMESPACE) delete secret $(HELM_RUNTIME_SECRET); \
+	fi
+	@bun run scripts/k8s-runtime-secret.ts --env-file .env --name $(HELM_RUNTIME_SECRET) --namespace $(HELM_NAMESPACE) | $(KUBECTL) apply -f -
+
+k8s-build-images: ensure-env docker-auth ## Build local web-tier images for Kubernetes
+	@echo "$(BLUE)Building local web-tier images for Kubernetes...$(NC)"
+	$(DOCKER_COMPOSE) build client admin
+	@echo "$(GREEN)Local web-tier images built$(NC)"
+
+k8s-build-full-images: ensure-env docker-auth ## Build all local application images for full Kubernetes deployments
+	@echo "$(BLUE)Building all application images for Kubernetes...$(NC)"
+	$(DOCKER_COMPOSE) build --pull product-service order-service payment-service client admin
+	@echo "$(GREEN)Application images built$(NC)"
+
+k8s-validate: helm-lint ## Render and client-validate Kubernetes manifests without deploying
+	@echo "$(BLUE)Rendering Helm manifests to $(HELM_RENDERED_FILE)...$(NC)"
+	@$(MAKE) helm-template > $(HELM_RENDERED_FILE)
+	$(KUBECTL) apply --namespace $(HELM_NAMESPACE) --dry-run=client --validate=false -f $(HELM_RENDERED_FILE)
+	@echo "$(GREEN)Kubernetes manifests validated$(NC)"
+
+k8s-validate-full: ## Render and client-validate full-stack Kubernetes manifests without deploying
+	@$(MAKE) k8s-validate HELM_VALUES=$(HELM_FULL_VALUES)
+
+k8s-diff: k8s-validate ## Show server-side differences for the rendered release when helm-diff is installed
+	@$(HELM) plugin list | awk '{print $$1}' | grep -qx diff || { echo "$(YELLOW)helm-diff plugin is not installed. Install it with: helm plugin install https://github.com/databus23/helm-diff$(NC)"; exit 1; }
+	$(HELM) diff upgrade --install $(HELM_RELEASE) $(HELM_CHART) --namespace $(HELM_NAMESPACE) --values $(HELM_VALUES) $(HELM_SET_ARGS)
+
+k8s-deploy: helm-lint k8s-validate k8s-tls-secret k8s-runtime-secret ## Deploy or upgrade the local web-tier Helm release atomically
+	@echo "$(BLUE)Deploying ecommerce to Kubernetes...$(NC)"
+	$(HELM) upgrade --install $(HELM_RELEASE) $(HELM_CHART) --namespace $(HELM_NAMESPACE) --create-namespace --values $(HELM_VALUES) $(HELM_SET_ARGS) $(HELM_UPGRADE_ARGS)
+	@echo "$(GREEN)Kubernetes deployment submitted$(NC)"
+
+k8s-deploy-full: helm-lint k8s-validate-full k8s-tls-secret k8s-runtime-secret ## Deploy the full app release for clusters with Postgres, MongoDB, and Kafka
+	@echo "$(BLUE)Deploying full ecommerce stack to Kubernetes...$(NC)"
+	$(HELM) upgrade --install $(HELM_RELEASE) $(HELM_CHART) --namespace $(HELM_NAMESPACE) --create-namespace --values $(HELM_FULL_VALUES) $(HELM_SET_ARGS) $(HELM_UPGRADE_ARGS)
+	@echo "$(GREEN)Full Kubernetes deployment submitted$(NC)"
+
+k8s-up: k8s-build-images k8s-deploy k8s-wait k8s-smoke ## Build images, deploy local web tier with Helm, wait, and smoke-test Traefik
+	@echo "$(GREEN)Kubernetes stack is ready$(NC)"
+
+k8s-up-full: k8s-build-full-images k8s-deploy-full k8s-wait k8s-smoke-full ## Build images and deploy the full app when backing services exist
+	@echo "$(GREEN)Full Kubernetes stack is ready$(NC)"
+
+k8s-wait: ## Wait for all ecommerce deployments to finish rolling out
+	$(KUBECTL) -n $(HELM_NAMESPACE) rollout status deployment -l app.kubernetes.io/instance=$(HELM_RELEASE) --timeout=$(K8S_ROLLOUT_TIMEOUT)
+
+k8s-smoke: ## Smoke-test local Kubernetes web routes over Traefik
+	@echo "$(BLUE)Smoke-testing Kubernetes ingress...$(NC)"
+	@curl -4 -skSf --max-time $(K8S_SMOKE_TIMEOUT) https://shop.localhost/api/health >/dev/null
+	@curl -4 -skSf --max-time $(K8S_SMOKE_TIMEOUT) https://admin.localhost/api/health >/dev/null
+	@curl -4 -skSf --max-time $(K8S_SMOKE_TIMEOUT) https://shop.localhost/ >/dev/null
+	@echo "$(GREEN)Kubernetes smoke tests passed$(NC)"
+
+k8s-smoke-full: k8s-smoke ## Smoke-test full Kubernetes API routes over Traefik
+	@echo "$(BLUE)Smoke-testing Kubernetes API ingress...$(NC)"
+	@curl -4 -skSf --max-time $(K8S_SMOKE_TIMEOUT) -H 'content-type: application/json' --data '{"json":{"limit":1}}' https://api.localhost/rpc/product/product/list >/dev/null
+	@echo "$(GREEN)Full Kubernetes smoke tests passed$(NC)"
+
+k8s-test: ## Run Helm tests for the deployed ecommerce release
+	$(HELM) test $(HELM_RELEASE) --namespace $(HELM_NAMESPACE)
+
+k8s-status: ## Show Kubernetes release and workload status
+	$(HELM) status $(HELM_RELEASE) --namespace $(HELM_NAMESPACE)
+	$(KUBECTL) get pods,svc,ingress,httproute,jobs --namespace $(HELM_NAMESPACE)
+	$(KUBECTL) get events --namespace $(HELM_NAMESPACE) --sort-by=.lastTimestamp | tail -n 20
+
+k8s-events: ## Show recent Kubernetes events for the ecommerce namespace
+	$(KUBECTL) get events --namespace $(HELM_NAMESPACE) --sort-by=.lastTimestamp
+
+k8s-logs: ## Stream logs for one Kubernetes service (K8S_SERVICE=client|admin|product-service|order-service|payment-service)
+	$(KUBECTL) -n $(HELM_NAMESPACE) logs -f -l app.kubernetes.io/instance=$(HELM_RELEASE),app.kubernetes.io/component=$(K8S_SERVICE) --tail=$(K8S_LOG_TAIL)
+
+k8s-logs-client: ## Stream Kubernetes storefront logs
+	@$(MAKE) k8s-logs K8S_SERVICE=client
+
+k8s-logs-admin: ## Stream Kubernetes admin logs
+	@$(MAKE) k8s-logs K8S_SERVICE=admin
+
+k8s-logs-product: ## Stream Kubernetes product-service logs
+	@$(MAKE) k8s-logs K8S_SERVICE=product-service
+
+k8s-logs-order: ## Stream Kubernetes order-service logs
+	@$(MAKE) k8s-logs K8S_SERVICE=order-service
+
+k8s-logs-payment: ## Stream Kubernetes payment-service logs
+	@$(MAKE) k8s-logs K8S_SERVICE=payment-service
+
+k8s-describe: ## Describe pods for one Kubernetes service (K8S_SERVICE=client|admin|product-service|order-service|payment-service)
+	$(KUBECTL) -n $(HELM_NAMESPACE) describe pod -l app.kubernetes.io/instance=$(HELM_RELEASE),app.kubernetes.io/component=$(K8S_SERVICE)
+
+k8s-restart: ## Restart all ecommerce deployments and wait for rollout
+	$(KUBECTL) -n $(HELM_NAMESPACE) rollout restart deployment -l app.kubernetes.io/instance=$(HELM_RELEASE)
+	$(KUBECTL) -n $(HELM_NAMESPACE) rollout status deployment -l app.kubernetes.io/instance=$(HELM_RELEASE) --timeout=$(K8S_ROLLOUT_TIMEOUT)
+
+k8s-uninstall: ## Uninstall the ecommerce Helm release
+	$(HELM) uninstall $(HELM_RELEASE) --namespace $(HELM_NAMESPACE) --wait --timeout $(K8S_ROLLOUT_TIMEOUT)
 
 ##@ Quick Commands
 

@@ -1,0 +1,81 @@
+global:
+  imagePullPolicy: IfNotPresent
+  env:
+    NODE_ENV: production
+    REQUEST_TIMEOUT_MS: "30000"
+    KAFKA_BROKERS: ""
+    KAFKA_LOG_LEVEL: error
+    KAFKA_CONNECTION_TIMEOUT_MS: "3000"
+    KAFKA_REQUEST_TIMEOUT_MS: "25000"
+    KAFKA_TOPIC_NUM_PARTITIONS: "3"
+    KAFKA_TOPIC_REPLICATION_FACTOR: "1"
+    KAFKA_TOPIC_MIN_INSYNC_REPLICAS: "1"
+    KAFKA_UI_URL: ""
+    CORS_ALLOWED_ORIGINS: https://shop.localhost,https://admin.localhost,http://localhost:3002,http://localhost:3003
+
+ingress:
+  enabled: false
+  hosts:
+    - host: shop.localhost
+      paths:
+        - path: /
+          pathType: Prefix
+          service: client
+          port: http
+    - host: admin.localhost
+      paths:
+        - path: /
+          pathType: Prefix
+          service: admin
+          port: http
+
+gateway:
+  enabled: true
+  create: false
+  name: traefik-gateway
+  namespace: traefik
+  sectionName: websecure
+
+secrets:
+  create: false
+
+services:
+  product:
+    enabled: false
+  order:
+    enabled: false
+  payment:
+    enabled: false
+  client:
+    replicaCount: 1
+    image:
+      pullPolicy: IfNotPresent
+    env:
+      CLIENT_APP_URL: https://shop.localhost
+      NEXT_PUBLIC_CLIENT_APP_URL: https://shop.localhost
+      PRODUCT_SERVICE_INTERNAL_URL: http://127.0.0.1:65535
+      ORDER_SERVICE_INTERNAL_URL: http://127.0.0.1:65535
+      PAYMENT_SERVICE_INTERNAL_URL: http://127.0.0.1:65535
+      NEXT_PUBLIC_PRODUCT_SERVICE_URL: https://api.localhost
+      NEXT_PUBLIC_ORDER_SERVICE_URL: https://api.localhost
+      NEXT_PUBLIC_PAYMENT_SERVICE_URL: https://api.localhost
+  admin:
+    replicaCount: 1
+    image:
+      pullPolicy: IfNotPresent
+    env:
+      ADMIN_APP_URL: https://admin.localhost
+      CLIENT_APP_URL: https://shop.localhost
+      NEXT_PUBLIC_ADMIN_APP_URL: https://admin.localhost
+      PRODUCT_SERVICE_INTERNAL_URL: http://127.0.0.1:65535
+      ORDER_SERVICE_INTERNAL_URL: http://127.0.0.1:65535
+      PAYMENT_SERVICE_INTERNAL_URL: http://127.0.0.1:65535
+      NEXT_PUBLIC_PRODUCT_SERVICE_URL: https://api.localhost
+      NEXT_PUBLIC_ORDER_SERVICE_URL: https://api.localhost
+      NEXT_PUBLIC_PAYMENT_SERVICE_URL: https://api.localhost
+
+jobs:
+  migrate-product-db:
+    enabled: false
+  seed-product-db:
+    enabled: false

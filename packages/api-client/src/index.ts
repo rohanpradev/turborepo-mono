@@ -1,3 +1,11 @@
+import { createORPCClient, ORPCError } from "@orpc/client";
+import { RPCLink } from "@orpc/client/fetch";
+import type { ContractRouterClient } from "@orpc/contract";
+import type {
+  OrderContract,
+  PaymentContract,
+  ProductContract,
+} from "@repo/contracts";
 import type {
   CategoryPayload,
   CategoryRecord,
@@ -21,61 +29,10 @@ export class ApiClientError extends Error {
   }
 }
 
-const parseJson = async <T>(response: Response): Promise<T> => {
-  const payload = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    const message =
-      payload &&
-      typeof payload === "object" &&
-      "error" in payload &&
-      typeof payload.error === "string"
-        ? payload.error
-        : `Request failed with status ${response.status}`;
-
-    throw new ApiClientError(message, response.status, payload);
-  }
-
-  return payload as T;
-};
-
-const createServiceClient = (baseUrl: string) => ({
-  request: (path: string, init?: RequestInit) =>
-    fetch(new URL(path, baseUrl), init),
-});
-
-export const createProductServiceClient = (baseUrl: string) =>
-  createServiceClient(baseUrl);
-
-export const createOrderServiceClient = (baseUrl: string) =>
-  createServiceClient(baseUrl);
-
-export const createPaymentServiceClient = (baseUrl: string) =>
-  createServiceClient(baseUrl);
-
-export const getProductServiceUrl = () =>
-  process.env.NEXT_PUBLIC_PRODUCT_SERVICE_URL ?? "http://localhost:3000";
-
-export const getOrderServiceUrl = () =>
-  process.env.NEXT_PUBLIC_ORDER_SERVICE_URL ?? "http://localhost:8001";
-
-export const getPaymentServiceUrl = () =>
-  process.env.NEXT_PUBLIC_PAYMENT_SERVICE_URL ?? "http://localhost:8002";
-
-export const getProductServiceServerUrl = () =>
-  process.env.PRODUCT_SERVICE_INTERNAL_URL ?? getProductServiceUrl();
-
-export const getOrderServiceServerUrl = () =>
-  process.env.ORDER_SERVICE_INTERNAL_URL ?? getOrderServiceUrl();
-
-export const getPaymentServiceServerUrl = () =>
-  process.env.PAYMENT_SERVICE_INTERNAL_URL ?? getPaymentServiceUrl();
-
+type FetchOptions = RequestInit;
 type AuthenticatedGetOptions = {
   token: string;
 };
-
-type FetchOptions = RequestInit;
 
 type ServiceDependency = {
   name: string;
@@ -161,165 +118,219 @@ export type PaymentIntegrationEventsResponse = SuccessResponse<{
   }>;
 }>;
 
+export const getProductServiceUrl = () =>
+  process.env.NEXT_PUBLIC_PRODUCT_SERVICE_URL ?? "http://localhost:3000";
+
+export const getOrderServiceUrl = () =>
+  process.env.NEXT_PUBLIC_ORDER_SERVICE_URL ?? "http://localhost:8001";
+
+export const getPaymentServiceUrl = () =>
+  process.env.NEXT_PUBLIC_PAYMENT_SERVICE_URL ?? "http://localhost:8002";
+
+export const getProductServiceServerUrl = () =>
+  process.env.PRODUCT_SERVICE_INTERNAL_URL ?? getProductServiceUrl();
+
+export const getOrderServiceServerUrl = () =>
+  process.env.ORDER_SERVICE_INTERNAL_URL ?? getOrderServiceUrl();
+
+export const getPaymentServiceServerUrl = () =>
+  process.env.PAYMENT_SERVICE_INTERNAL_URL ?? getPaymentServiceUrl();
+
+const toRpcUrl = (baseUrl: string, service: string) =>
+  new URL(`/rpc/${service}`, baseUrl).toString();
+
+const toApiClientError = (error: unknown): ApiClientError => {
+  if (error instanceof ApiClientError) {
+    return error;
+  }
+
+  if (error instanceof ORPCError) {
+    return new ApiClientError(error.message, error.status, error.toJSON());
+  }
+
+  if (error instanceof Error) {
+    return new ApiClientError(error.message, 500, {
+      message: error.message,
+    });
+  }
+
+  return new ApiClientError("Request failed", 500, error);
+};
+
+const createRpcLink = (
+  baseUrl: string,
+  service: "order" | "payment" | "product",
+  options: {
+    fetchOptions?: FetchOptions;
+    token?: string;
+  } = {},
+) =>
+  new RPCLink({
+    fetch: (request, init) => {
+      const fetchInit = {
+        ...options.fetchOptions,
+        ...init,
+      };
+
+      return fetch(request, fetchInit);
+    },
+    headers: () =>
+      options.token
+        ? {
+            authorization: `Bearer ${options.token}`,
+          }
+        : {},
+    url: toRpcUrl(baseUrl, service),
+  });
+
+const createProductRpcClient = (
+  baseUrl: string,
+  options?: { fetchOptions?: FetchOptions; token?: string },
+) =>
+  createORPCClient<ContractRouterClient<ProductContract>>(
+    createRpcLink(baseUrl, "product", options),
+  );
+
+const createOrderRpcClient = (
+  baseUrl: string,
+  options?: { fetchOptions?: FetchOptions; token?: string },
+) =>
+  createORPCClient<ContractRouterClient<OrderContract>>(
+    createRpcLink(baseUrl, "order", options),
+  );
+
+const createPaymentRpcClient = (
+  baseUrl: string,
+  options?: { fetchOptions?: FetchOptions; token?: string },
+) =>
+  createORPCClient<ContractRouterClient<PaymentContract>>(
+    createRpcLink(baseUrl, "payment", options),
+  );
+
+const rpcCall = async <T>(call: () => Promise<T>) => {
+  try {
+    return await call();
+  } catch (error) {
+    throw toApiClientError(error);
+  }
+};
+
+const parseJson = async <T>(response: Response): Promise<T> => {
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message =
+      payload &&
+      typeof payload === "object" &&
+      "error" in payload &&
+      typeof payload.error === "string"
+        ? payload.error
+        : `Request failed with status ${response.status}`;
+
+    throw new ApiClientError(message, response.status, payload);
+  }
+
+  return payload as T;
+};
+
+const createServiceClient = (baseUrl: string) => ({
+  request: (path: string, init?: RequestInit) =>
+    fetch(new URL(path, baseUrl), init),
+});
+
+export const createProductServiceClient = (baseUrl: string) =>
+  createServiceClient(baseUrl);
+
+export const createOrderServiceClient = (baseUrl: string) =>
+  createServiceClient(baseUrl);
+
+export const createPaymentServiceClient = (baseUrl: string) =>
+  createServiceClient(baseUrl);
+
 export const listProducts = async (
   baseUrl: string,
   query?: ProductListQuery,
   fetchOptions?: FetchOptions,
-) => {
-  const url = new URL("/products", baseUrl);
-
-  for (const [key, value] of Object.entries(query ?? {})) {
-    if (value !== undefined) {
-      url.searchParams.set(key, String(value));
-    }
-  }
-
-  const response = await fetch(url, fetchOptions);
-
-  return parseJson<ListProductsResponse>(response);
-};
+) =>
+  rpcCall(() =>
+    createProductRpcClient(baseUrl, { fetchOptions }).product.list(query),
+  );
 
 export const getProduct = async (
   baseUrl: string,
   id: number,
   fetchOptions?: FetchOptions,
-) => {
-  const response = await createProductServiceClient(baseUrl).request(
-    `/products/${id}`,
-    fetchOptions,
+) =>
+  rpcCall(() =>
+    createProductRpcClient(baseUrl, { fetchOptions }).product.get({ id }),
   );
-
-  return parseJson<GetProductResponse>(response);
-};
 
 export const createProduct = async (
   baseUrl: string,
   payload: CreateProductRequest,
   token: string,
-) => {
-  const response = await createProductServiceClient(baseUrl).request(
-    "/products",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    },
+) =>
+  rpcCall(() =>
+    createProductRpcClient(baseUrl, { token }).product.create(payload),
   );
-
-  return parseJson<CreateProductResponse>(response);
-};
 
 export const updateProduct = async (
   baseUrl: string,
   id: number,
   payload: UpdateProductRequest,
   token: string,
-) => {
-  const response = await createProductServiceClient(baseUrl).request(
-    `/products/${id}`,
-    {
-      method: "PUT",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    },
+) =>
+  rpcCall(() =>
+    createProductRpcClient(baseUrl, { token }).product.update({ id, payload }),
   );
-
-  return parseJson<UpdateProductResponse>(response);
-};
 
 export const deleteProduct = async (
   baseUrl: string,
   id: number,
   token: string,
-) => {
-  const response = await createProductServiceClient(baseUrl).request(
-    `/products/${id}`,
-    {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    },
+) =>
+  rpcCall(() =>
+    createProductRpcClient(baseUrl, { token }).product.delete({ id }),
   );
-
-  return parseJson<DeleteProductResponse>(response);
-};
 
 export const listCategories = async (
   baseUrl: string,
   fetchOptions?: FetchOptions,
-) => {
-  const response = await createProductServiceClient(baseUrl).request(
-    "/categories",
-    fetchOptions,
+) =>
+  rpcCall(() =>
+    createProductRpcClient(baseUrl, { fetchOptions }).category.list(),
   );
-  return parseJson<ListCategoriesResponse>(response);
-};
 
 export const createCategory = async (
   baseUrl: string,
   payload: CreateCategoryRequest,
   token: string,
-) => {
-  const response = await createProductServiceClient(baseUrl).request(
-    "/categories",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    },
+) =>
+  rpcCall(() =>
+    createProductRpcClient(baseUrl, { token }).category.create(payload),
   );
-
-  return parseJson<CreateCategoryResponse>(response);
-};
 
 export const updateCategory = async (
   baseUrl: string,
   slug: string,
   payload: UpdateCategoryRequest,
   token: string,
-) => {
-  const response = await createProductServiceClient(baseUrl).request(
-    `/categories/${slug}`,
-    {
-      method: "PUT",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    },
+) =>
+  rpcCall(() =>
+    createProductRpcClient(baseUrl, { token }).category.update({
+      payload,
+      slug,
+    }),
   );
-
-  return parseJson<UpdateCategoryResponse>(response);
-};
 
 export const deleteCategory = async (
   baseUrl: string,
   slug: string,
   token: string,
-) => {
-  const response = await createProductServiceClient(baseUrl).request(
-    `/categories/${slug}`,
-    {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    },
+) =>
+  rpcCall(() =>
+    createProductRpcClient(baseUrl, { token }).category.delete({ slug }),
   );
-
-  return parseJson<DeleteCategoryResponse>(response);
-};
 
 export const getProductServiceHealth = async (
   baseUrl: string,
@@ -357,76 +368,47 @@ export const getPaymentServiceHealth = async (
 export const listOrders = async (
   baseUrl: string,
   options: AuthenticatedGetOptions,
-) => {
-  const response = await createOrderServiceClient(baseUrl).request(
-    "/api/orders",
-    {
-      headers: {
-        Authorization: `Bearer ${options.token}`,
-      },
-    },
+) =>
+  rpcCall(() =>
+    createOrderRpcClient(baseUrl, { token: options.token }).order.listAll(),
   );
-
-  return parseJson<ListOrdersResponse>(response);
-};
 
 export const listUserOrders = async (
   baseUrl: string,
   options: AuthenticatedGetOptions,
-) => {
-  const response = await createOrderServiceClient(baseUrl).request(
-    "/api/user-order",
-    {
-      headers: {
-        Authorization: `Bearer ${options.token}`,
-      },
-    },
+) =>
+  rpcCall(() =>
+    createOrderRpcClient(baseUrl, {
+      token: options.token,
+    }).order.listForUser(),
   );
-
-  return parseJson<ListUserOrdersResponse>(response);
-};
 
 export const createCheckoutSession = async (
   baseUrl: string,
   payload: CreateCheckoutSessionRequest,
   token: string,
-) => {
-  const response = await createPaymentServiceClient(baseUrl).request(
-    "/api/session/create-checkout-session",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    },
+) =>
+  rpcCall(() =>
+    createPaymentRpcClient(baseUrl, { token }).checkout.createSession(payload),
   );
-
-  return parseJson<CreateCheckoutSessionResponse>(response);
-};
 
 export const getCheckoutSessionStatus = async (
   baseUrl: string,
   sessionId: string,
   fetchOptions?: FetchOptions,
-) => {
-  const url = new URL("/api/session/status", baseUrl);
-  url.searchParams.set("sessionId", sessionId);
-
-  const response = await fetch(url, fetchOptions);
-
-  return parseJson<CheckoutSessionStatusResponse>(response);
-};
+) =>
+  rpcCall(() =>
+    createPaymentRpcClient(baseUrl, {
+      fetchOptions,
+    }).checkout.getSessionStatus({ sessionId }),
+  );
 
 export const getPaymentIntegrationEvents = async (
   baseUrl: string,
   fetchOptions?: FetchOptions,
-) => {
-  const response = await createPaymentServiceClient(baseUrl).request(
-    "/ops/events",
-    fetchOptions,
+) =>
+  rpcCall(() =>
+    createPaymentRpcClient(baseUrl, {
+      fetchOptions,
+    }).ops.integrationEvents(),
   );
-
-  return parseJson<PaymentIntegrationEventsResponse>(response);
-};

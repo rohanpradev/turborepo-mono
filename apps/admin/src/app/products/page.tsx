@@ -153,7 +153,6 @@ const ProductsPage = async () => {
                     alt={product.name}
                     width={640}
                     height={480}
-                    unoptimized
                     sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw"
                     className="h-full w-full object-contain p-4"
                   />

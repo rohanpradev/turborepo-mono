@@ -4,6 +4,7 @@ import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 import { Select } from "@/components/ui/select";
+import { sortOptions } from "@/lib/catalog";
 
 const Filter = () => {
   const searchParams = useSearchParams();
@@ -32,10 +33,10 @@ const Filter = () => {
   };
 
   return (
-    <div className="my-6 flex flex-col gap-3 rounded-[1.25rem] border border-black/5 bg-white/75 p-3 text-sm text-gray-500 shadow-sm sm:flex-row sm:items-center sm:justify-end">
+    <div className="my-6 flex flex-col gap-3 rounded-lg border border-black/10 bg-white p-3 text-sm text-gray-500 shadow-sm sm:flex-row sm:items-center sm:justify-end">
       <label
         htmlFor="sort"
-        className="text-xs uppercase tracking-[0.18em] text-gray-400"
+        className="text-xs uppercase tracking-[0.14em] text-gray-500"
       >
         Sort by
       </label>
@@ -47,10 +48,11 @@ const Filter = () => {
         value={selectedSort}
         onChange={(e) => handleFilter(e.target.value)}
       >
-        <option value="newest">Newest</option>
-        <option value="oldest">Oldest</option>
-        <option value="asc">Price: Low to High</option>
-        <option value="desc">Price: High to Low</option>
+        {sortOptions.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
       </Select>
     </div>
   );

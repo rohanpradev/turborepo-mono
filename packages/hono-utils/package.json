@@ -11,6 +11,7 @@
     "@clerk/backend": "catalog:",
     "@hono/clerk-auth": "catalog:",
     "@hono/zod-openapi": "catalog:",
+    "@orpc/server": "catalog:",
     "@repo/types": "workspace:*",
     "@scalar/hono-api-reference": "catalog:",
     "hono": "catalog:",

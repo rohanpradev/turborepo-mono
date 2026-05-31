@@ -9,6 +9,9 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@orpc/client": "catalog:",
+    "@orpc/contract": "catalog:",
+    "@repo/contracts": "workspace:*",
     "@repo/types": "workspace:*"
   },
   "devDependencies": {

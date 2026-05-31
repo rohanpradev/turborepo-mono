@@ -1,3 +1,4 @@
+import { ApiClientError, getProduct } from "@repo/api-client";
 import { createHttpException } from "@repo/hono-utils";
 import type { CheckoutSessionPayload, ProductRecord } from "@repo/types";
 import { recordIntegrationEvent } from "@/observability/integrationEvents";
@@ -45,42 +46,25 @@ const getProductServiceUrl = () =>
   process.env.NEXT_PUBLIC_PRODUCT_SERVICE_URL ??
   "http://localhost:3000";
 
-const parseCatalogResponse = async (response: Response) => {
-  const payload = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    if (response.status === 404) {
+const fetchCatalogProduct = async (productId: number) => {
+  try {
+    const response = await getProduct(getProductServiceUrl(), productId);
+    return response.data;
+  } catch (error) {
+    if (error instanceof ApiClientError && error.status === 404) {
       return null;
     }
 
-    throw createHttpException(
-      502,
-      "Unable to verify the cart against the product catalog.",
-      { productServiceStatus: response.status },
-    );
+    if (error instanceof ApiClientError) {
+      throw createHttpException(
+        502,
+        "Unable to verify the cart against the product catalog.",
+        { productServiceStatus: error.status },
+      );
+    }
+
+    throw error;
   }
-
-  if (
-    typeof payload === "object" &&
-    payload !== null &&
-    "data" in payload &&
-    typeof payload.data === "object" &&
-    payload.data !== null
-  ) {
-    return payload.data as ProductRecord;
-  }
-
-  throw createHttpException(
-    502,
-    "Product catalog returned an invalid product response.",
-  );
-};
-
-const fetchCatalogProduct = async (productId: number) => {
-  const url = new URL(`/products/${productId}`, getProductServiceUrl());
-  const response = await fetch(url);
-
-  return parseCatalogResponse(response);
 };
 
 const resolveCheckoutCatalog = async (

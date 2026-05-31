@@ -3,7 +3,7 @@ import Link from "next/link";
 
 const Footer = () => {
   return (
-    <footer className="mt-12 grid gap-8 rounded-[1.5rem] border border-black/5 bg-[#171717] p-6 text-white shadow-sm sm:grid-cols-2 sm:p-8 xl:grid-cols-4">
+    <footer className="mt-12 grid gap-8 rounded-lg border border-black/10 bg-[#171717] p-6 text-white shadow-sm sm:grid-cols-2 sm:p-8 xl:grid-cols-4">
       <div className="flex flex-col items-center gap-4 text-center sm:items-start sm:text-left">
         <Link href="/" className="flex items-center">
           <Image src="/logo.png" alt="Commerce" width={36} height={36} />

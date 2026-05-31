@@ -1,0 +1,20 @@
+{{- range $key, $service := .Values.services }}
+{{- if and $service.enabled $service.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "ecommerce.componentName" (dict "root" $ "service" $service) }}
+  labels:
+    {{- include "ecommerce.componentLabels" (dict "root" $ "service" $service) | nindent 4 }}
+spec:
+  {{- if hasKey $service.podDisruptionBudget "minAvailable" }}
+  minAvailable: {{ $service.podDisruptionBudget.minAvailable }}
+  {{- else }}
+  maxUnavailable: {{ default 1 $service.podDisruptionBudget.maxUnavailable }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "ecommerce.selectorLabels" (dict "root" $ "service" $service) | nindent 6 }}
+---
+{{- end }}
+{{- end }}

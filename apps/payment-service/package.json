@@ -8,7 +8,10 @@
   "dependencies": {
     "@repo/hono-utils": "workspace:*",
     "@repo/kafka": "workspace:*",
+    "@repo/api-client": "workspace:*",
+    "@repo/contracts": "workspace:*",
     "@repo/types": "workspace:*",
+    "hono": "catalog:",
     "stripe": "catalog:"
   },
   "devDependencies": {
