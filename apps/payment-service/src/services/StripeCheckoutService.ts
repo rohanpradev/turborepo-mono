@@ -188,7 +188,9 @@ const publishSuccessfulPaymentFromSession = async (
           quantity: item.quantity ?? 1,
           price:
             item.price?.unit_amount ??
-            Math.floor((item.amount_total ?? 0) / Math.max(item.quantity ?? 1, 1)),
+            Math.floor(
+              (item.amount_total ?? 0) / Math.max(item.quantity ?? 1, 1),
+            ),
         };
       }),
       processedAt: new Date().toISOString(),
