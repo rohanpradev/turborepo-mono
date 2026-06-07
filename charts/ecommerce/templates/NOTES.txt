@@ -1,0 +1,16 @@
+Ecommerce has been rendered for release {{ .Release.Name }} in namespace {{ .Release.Namespace }}.
+
+Ingress hosts:
+{{- range .Values.ingress.hosts }}
+  - {{ .host }}
+{{- end }}
+
+Required runtime secret:
+  {{ include "ecommerce.secretName" . }}
+
+Create it yourself or render it from values by setting:
+  secrets.create=true
+
+Useful commands:
+  helm test {{ .Release.Name }} -n {{ .Release.Namespace }}
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}

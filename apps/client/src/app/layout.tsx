@@ -55,7 +55,8 @@ export const metadata: Metadata = {
 };
 
 const isClerkConfigured = Boolean(
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
+    !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.includes("_here"),
 );
 
 export default function RootLayout({
@@ -64,7 +65,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const shell = (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.92),_rgba(246,241,232,0.98)_35%,_rgba(243,238,230,1))] text-gray-950">
+    <div className="min-h-screen bg-[#f4f6f3] text-gray-950">
       <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-4 sm:px-6 lg:px-8">
         <Navbar />
         <main className="flex-1">{children}</main>

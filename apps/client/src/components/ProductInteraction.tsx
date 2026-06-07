@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "react-toastify";
 import { Button } from "@/components/ui/button";
+import { getColorSwatchStyle } from "@/lib/catalog";
 import useCartStore from "@/stores/cartStore";
 import type { ProductType } from "@/types";
 
@@ -39,9 +40,7 @@ const ProductInteraction = ({
     if (type === "increment") {
       setQuantity((prev) => prev + 1);
     } else {
-      if (quantity > 1) {
-        setQuantity((prev) => prev - 1);
-      }
+      setQuantity((prev) => Math.max(prev - 1, 1));
     }
   };
 
@@ -118,7 +117,7 @@ const ProductInteraction = ({
             >
               <span
                 className="block size-8 rounded-full border border-black/10"
-                style={{ backgroundColor: color }}
+                style={getColorSwatchStyle(color)}
               />
             </button>
           ))}

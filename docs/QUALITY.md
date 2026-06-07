@@ -24,6 +24,7 @@ Use the smallest check that matches the risk of the change.
 | Hono services | `bun run test`, `bun run check-types`, `bun run build` |
 | Kafka contracts | `bun run test`, `bun run check-types`, `make docker-validate` |
 | Docker/Compose changes | `bun run doctor`, `make docker-validate`, `make docker-test` when DHI credentials are available |
+| Helm/Kubernetes changes | `make helm-lint`, `make helm-template`, `kubectl apply --dry-run=client --validate=false -f <rendered-manifests>` |
 
 ## Main Commands
 
@@ -36,6 +37,7 @@ bun run test
 bun run check-types
 bun run build
 make docker-validate
+make helm-lint
 ```
 
 Use the full local gate when you want a strong pre-PR signal:
@@ -70,6 +72,15 @@ make docker-test
 - Traefik routes only explicitly labelled services.
 - `make docker-validate` must pass without starting containers.
 - `make docker-test` is the source of truth for the complete containerized platform.
+
+## Kubernetes Standards
+
+- Helm charts must render deterministic manifests with `make helm-template`.
+- Application pods run as non-root with read-only root filesystems, dropped capabilities, and explicit `/tmp` volumes.
+- Workloads expose readiness and liveness probes before being routed.
+- Runtime secrets stay outside committed values files.
+- Kubernetes routing is owned by Helm through Gateway API HTTPRoutes locally, with standard Ingress still supported for clusters that enable the Kubernetes Ingress provider.
+- Docker Compose uses non-conflicting local ports when a local Kubernetes Traefik gateway is active.
 
 ## Auth And Security Standards
 

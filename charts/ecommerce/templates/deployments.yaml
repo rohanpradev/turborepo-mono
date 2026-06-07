@@ -1,0 +1,118 @@
+{{- range $key, $service := .Values.services }}
+{{- if $service.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ecommerce.componentName" (dict "root" $ "service" $service) }}
+  labels:
+    {{- include "ecommerce.componentLabels" (dict "root" $ "service" $service) | nindent 4 }}
+spec:
+  {{- if not $service.autoscaling.enabled }}
+  replicas: {{ $service.replicaCount }}
+  {{- end }}
+  revisionHistoryLimit: {{ default 3 $service.revisionHistoryLimit }}
+  selector:
+    matchLabels:
+      {{- include "ecommerce.selectorLabels" (dict "root" $ "service" $service) | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        {{- include "ecommerce.selectorLabels" (dict "root" $ "service" $service) | nindent 8 }}
+        {{- with $.Values.global.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") $ | sha256sum }}
+        {{- if $.Values.secrets.create }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") $ | sha256sum }}
+        {{- end }}
+        {{- with $.Values.global.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "ecommerce.serviceAccountName" $ }}
+      automountServiceAccountToken: {{ $.Values.serviceAccount.automountServiceAccountToken }}
+      {{- with $.Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $.Values.global.priorityClassName }}
+      priorityClassName: {{ . | quote }}
+      {{- end }}
+      securityContext:
+        {{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
+      {{- with $.Values.global.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $.Values.global.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $.Values.global.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $.Values.global.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ $service.name }}
+          image: {{ include "ecommerce.image" (dict "root" $ "service" $service) | quote }}
+          imagePullPolicy: {{ default $.Values.global.imagePullPolicy $service.image.pullPolicy }}
+          securityContext:
+            {{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ $service.containerPort }}
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "ecommerce.configMapName" $ }}
+          env:
+            {{- range $name, $value := $service.env }}
+            - name: {{ $name }}
+              value: {{ tpl (printf "%v" $value) $ | quote }}
+            {{- end }}
+            {{- range $name, $secretKey := $service.secretEnv }}
+            - name: {{ $name }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ecommerce.secretName" $ }}
+                  key: {{ $secretKey }}
+            {{- end }}
+          {{- with $service.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $service.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $service.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            {{- with $service.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        - name: tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: {{ $.Values.global.tmp.sizeLimit }}
+        {{- with $service.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+---
+{{- end }}
+{{- end }}

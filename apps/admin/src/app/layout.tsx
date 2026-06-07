@@ -1,8 +1,8 @@
 import { ClerkProvider } from "@clerk/nextjs";
-import { currentUser } from "@clerk/nextjs/server";
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import "./globals.css";
-import { cookies } from "next/headers";
+import AdminNavbar, { adminViewerFallback } from "@/components/AdminNavbar";
 import AppSidebar from "@/components/AppSidebar";
 import Navbar from "@/components/Navbar";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
@@ -30,29 +30,15 @@ export const metadata: Metadata = {
 };
 
 const isClerkConfigured = Boolean(
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
+    !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.includes("_here"),
 );
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [cookieStore, viewer] = await Promise.all([
-    cookies(),
-    currentUser().catch(() => null),
-  ]);
-  const defaultOpen = cookieStore.get("sidebar_state")?.value === "true";
-  const viewerProfile = {
-    avatarUrl: viewer?.imageUrl ?? null,
-    displayName:
-      [viewer?.firstName, viewer?.lastName].filter(Boolean).join(" ").trim() ||
-      viewer?.username ||
-      viewer?.primaryEmailAddress?.emailAddress ||
-      "Admin Operator",
-    email: viewer?.primaryEmailAddress?.emailAddress ?? null,
-  };
-
   const shell = (
     <ThemeProvider
       attribute="class"
@@ -60,10 +46,12 @@ export default async function RootLayout({
       enableSystem
       disableTransitionOnChange
     >
-      <SidebarProvider defaultOpen={defaultOpen}>
+      <SidebarProvider>
         <AppSidebar />
         <main className="min-w-0 flex-1">
-          <Navbar viewer={viewerProfile} />
+          <Suspense fallback={<Navbar viewer={adminViewerFallback} />}>
+            <AdminNavbar />
+          </Suspense>
           <div className="mx-auto w-full max-w-[1500px] px-3 sm:px-4">
             {children}
           </div>

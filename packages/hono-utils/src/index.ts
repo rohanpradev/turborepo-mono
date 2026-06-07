@@ -6,6 +6,8 @@ import {
   OpenAPIHono,
   z,
 } from "@hono/zod-openapi";
+import { type AnyRouter, ORPCError, onError } from "@orpc/server";
+import { BodyLimitPlugin, RPCHandler } from "@orpc/server/fetch";
 import type { CustomJwtSessionClaims } from "@repo/types";
 import { Scalar } from "@scalar/hono-api-reference";
 import type { Context, Env } from "hono";
@@ -49,6 +51,13 @@ type CreateServiceAppOptions = {
   tags: Array<ServiceTag>;
   theme?: ScalarTheme;
   requestTimeoutMs?: number;
+};
+
+type CreateORPCMiddlewareOptions<TRouter extends AnyRouter> = {
+  maxBodySize?: number;
+  prefix?: `/${string}`;
+  router: TRouter;
+  context?: (c: Context) => Record<string, unknown>;
 };
 
 type CreateClerkServiceAuthOptions = {
@@ -252,6 +261,36 @@ const getSessionRole = (claims?: CustomJwtSessionClaims) =>
   claims?.publicMetadata?.role ??
   claims?.public_metadata?.role;
 
+export const getAuthenticatedUserId = (c: Context) => {
+  if (!getClerkConfig()) {
+    throw createORPCException(
+      503,
+      "Clerk auth is not configured for this environment.",
+    );
+  }
+
+  const auth = getAuth(c);
+
+  if (!auth?.userId) {
+    throw createORPCException(401, "Unauthorized");
+  }
+
+  return auth.userId;
+};
+
+export const getAuthenticatedAdminUserId = (c: Context) => {
+  const userId = getAuthenticatedUserId(c);
+  const auth = getAuth(c);
+  const claims = auth?.sessionClaims as CustomJwtSessionClaims | undefined;
+  const adminUserIds = getAdminUserIds();
+
+  if (getSessionRole(claims) !== "admin" && !adminUserIds.has(userId)) {
+    throw createORPCException(403, "Forbidden");
+  }
+
+  return userId;
+};
+
 export const getRequestId = (c: Context) =>
   normalizeRequestId(c.res.headers.get("x-request-id")) ??
   normalizeRequestId(c.req.header("x-request-id"));
@@ -292,6 +331,31 @@ export const createHttpException = <
   new HTTPException(status, {
     message: error,
     cause: additional,
+  });
+
+const statusToORPCCode = (status: number) => {
+  if (status === 401) return "UNAUTHORIZED";
+  if (status === 403) return "FORBIDDEN";
+  if (status === 404) return "NOT_FOUND";
+  if (status === 408) return "TIMEOUT";
+  if (status === 409) return "CONFLICT";
+  if (status === 422) return "UNPROCESSABLE_CONTENT";
+  if (status === 502) return "BAD_GATEWAY";
+  if (status === 503) return "SERVICE_UNAVAILABLE";
+  return "INTERNAL_SERVER_ERROR";
+};
+
+export const createORPCException = <
+  TAdditional extends Record<string, unknown> = Record<string, never>,
+>(
+  status: ContentfulStatusCode,
+  message: string,
+  data?: TAdditional,
+) =>
+  new ORPCError(statusToORPCCode(status), {
+    data,
+    message,
+    status,
   });
 
 export const getCorsOrigins = () => {
@@ -590,6 +654,35 @@ export const createCorsMiddleware = () =>
     origin: getCorsOrigins(),
     credentials: true,
   });
+
+export const createORPCMiddleware = <TRouter extends AnyRouter>({
+  context,
+  maxBodySize = 1024 * 1024,
+  prefix = "/rpc",
+  router,
+}: CreateORPCMiddlewareOptions<TRouter>) => {
+  const handler = new RPCHandler(router, {
+    interceptors: [
+      onError((error) => {
+        console.error("[oRPC]", error);
+      }),
+    ],
+    plugins: [new BodyLimitPlugin({ maxBodySize })],
+  });
+
+  return createMiddleware(async (c, next) => {
+    const result = await handler.handle(c.req.raw, {
+      context: context?.(c) ?? {},
+      prefix,
+    });
+
+    if (result.matched) {
+      return c.newResponse(result.response.body, result.response);
+    }
+
+    await next();
+  });
+};
 
 export const createServiceApp = <E extends Env = Env>({
   title,

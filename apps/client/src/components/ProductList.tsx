@@ -3,14 +3,20 @@ import {
   listCategories,
   listProducts,
 } from "@repo/api-client";
-import type { CategoryRecord, ProductRecord, ProductSort } from "@repo/types";
+import type { CategoryRecord, ProductRecord } from "@repo/types";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import type { Route } from "next";
 import Categories from "@/components/Categories";
 import Filter from "@/components/Filter";
 import ProductCard from "@/components/ProductCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  buildCatalogHref,
+  HOME_PRODUCT_LIMIT,
+  normalizeSearch,
+  normalizeSort,
+  PRODUCT_PAGE_SIZE,
+} from "@/lib/catalog";
 
 type ProductListProps = {
   category?: string;
@@ -35,29 +41,27 @@ const ProductList = async ({
   let categories: Array<Pick<CategoryRecord, "name" | "slug">> = [];
   let pagination = {
     page,
-    pageSize: params === "homepage" ? 8 : 24,
+    pageSize: params === "homepage" ? HOME_PRODUCT_LIMIT : PRODUCT_PAGE_SIZE,
     total: 0,
     totalPages: 1,
     hasNextPage: false,
     hasPreviousPage: false,
   };
   let loadError: string | null = null;
-  const normalizedSearch = search?.trim() || undefined;
-  const normalizedSort =
-    sort && ["asc", "desc", "oldest", "newest"].includes(sort)
-      ? (sort as ProductSort)
-      : undefined;
+  const normalizedSearch = normalizeSearch(search);
+  const normalizedSort = normalizeSort(sort);
+  const selectedCategory = category && category !== "all" ? category : "all";
 
   try {
     const baseUrl = getProductServiceServerUrl();
     const normalizedCategory =
-      category && category !== "all" ? category : undefined;
+      selectedCategory !== "all" ? selectedCategory : undefined;
     const [productsResponse, categoriesResponse] = await Promise.all([
       listProducts(
         baseUrl,
         {
           category: normalizedCategory,
-          limit: params === "homepage" ? 8 : 24,
+          limit: params === "homepage" ? HOME_PRODUCT_LIMIT : PRODUCT_PAGE_SIZE,
           page: params === "products" ? page : undefined,
           search: normalizedSearch,
           sort: normalizedSort,
@@ -71,69 +75,42 @@ const ProductList = async ({
     pagination = productsResponse.meta;
     categories = categoriesResponse.data;
   } catch (error) {
-    loadError =
-      error instanceof Error
-        ? error.message
-        : "Unable to load products right now.";
+    console.error(error);
+    loadError = "Catalog is temporarily unavailable. Please try again soon.";
   }
 
-  const viewAllParams = new URLSearchParams();
+  const viewAllHref = buildCatalogHref({
+    category: selectedCategory,
+    path: "/products",
+    search: normalizedSearch,
+    sort: normalizedSort,
+  });
 
-  if (category) {
-    viewAllParams.set("category", category);
-  }
-
-  if (normalizedSearch) {
-    viewAllParams.set("search", normalizedSearch);
-  }
-
-  if (normalizedSort && normalizedSort !== "newest") {
-    viewAllParams.set("sort", normalizedSort);
-  }
-
-  const viewAllHref = viewAllParams.size
-    ? (`/products?${viewAllParams.toString()}` as Route)
-    : ("/products" as Route);
-
-  const getPageHref = (nextPage: number) => {
-    const pageParams = new URLSearchParams();
-
-    if (category) {
-      pageParams.set("category", category);
-    }
-
-    if (normalizedSearch) {
-      pageParams.set("search", normalizedSearch);
-    }
-
-    if (normalizedSort && normalizedSort !== "newest") {
-      pageParams.set("sort", normalizedSort);
-    }
-
-    if (nextPage > 1) {
-      pageParams.set("page", String(nextPage));
-    }
-
-    return pageParams.size
-      ? (`/products?${pageParams.toString()}` as Route)
-      : ("/products" as Route);
-  };
+  const getPageHref = (nextPage: number) =>
+    buildCatalogHref({
+      category: selectedCategory,
+      page: nextPage,
+      path: "/products",
+      search: normalizedSearch,
+      sort: normalizedSort,
+    });
 
   return (
     <section className="w-full space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-black/5 pb-5">
+      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-black/10 pb-5">
         <div className="space-y-1">
-          <Badge variant="outline" className="bg-white/80 text-gray-700">
-            Curated selection
+          <Badge variant="outline" className="bg-white text-gray-700">
+            {params === "homepage" ? "Featured selection" : "Live catalog"}
           </Badge>
-          <h2 className="text-xl font-semibold tracking-tight text-gray-950 sm:text-2xl">
+          <h2 className="text-xl font-semibold text-gray-950 sm:text-2xl">
             {params === "homepage"
               ? "Featured products"
               : "Explore the catalog"}
           </h2>
           <p className="max-w-2xl text-sm leading-6 text-gray-600">
-            A clean catalog with sharper product photography, clearer groupings,
-            and a simpler path to checkout.
+            {params === "homepage"
+              ? "Fresh picks across apparel, denim, and footwear."
+              : `${pagination.total} product${pagination.total === 1 ? "" : "s"} across every current category.`}
           </p>
         </div>
         {params === "homepage" ? (
@@ -141,28 +118,38 @@ const ProductList = async ({
             href={viewAllHref}
             variant="outline"
             size="lg"
-            className="bg-white/80"
+            className="bg-white"
           >
             View all products
           </Button>
         ) : null}
       </div>
 
-      <Categories categories={categories} />
+      <Categories
+        categories={categories}
+        path={params === "homepage" ? "/" : "/products"}
+        search={normalizedSearch}
+        selectedCategory={selectedCategory}
+        sort={normalizedSort}
+      />
       {params === "products" && <Filter />}
 
       {loadError ? (
-        <div className="rounded-[1.5rem] border border-dashed border-black/10 bg-white/80 px-4 py-10 text-center text-sm text-gray-500 shadow-sm">
+        <div className="rounded-lg border border-dashed border-black/15 bg-white px-4 py-10 text-center text-sm text-gray-500 shadow-sm">
           {loadError}
         </div>
       ) : products.length > 0 ? (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {products.map((product, index) => (
+            <ProductCard
+              key={product.id}
+              eager={params === "products" && index < 4}
+              product={product}
+            />
           ))}
         </div>
       ) : (
-        <div className="rounded-[1.5rem] border border-dashed border-black/10 bg-white/80 px-4 py-10 text-center text-sm text-gray-500 shadow-sm">
+        <div className="rounded-lg border border-dashed border-black/15 bg-white px-4 py-10 text-center text-sm text-gray-500 shadow-sm">
           No products matched the current filter.
         </div>
       )}
@@ -175,7 +162,7 @@ const ProductList = async ({
           <p className="text-sm text-gray-600">
             Page{" "}
             <span className="font-medium text-gray-950">{pagination.page}</span>{" "}
-            of {pagination.totalPages} · {pagination.total} products
+            of {pagination.totalPages} | {pagination.total} products
           </p>
           <div className="flex items-center gap-2">
             {pagination.hasPreviousPage ? (

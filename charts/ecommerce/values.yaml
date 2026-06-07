@@ -1,0 +1,446 @@
+nameOverride: ""
+fullnameOverride: ""
+
+global:
+  imageRegistry: ""
+  imagePullPolicy: IfNotPresent
+  imagePullSecrets: []
+  podAnnotations: {}
+  podLabels: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  priorityClassName: ""
+  topologySpreadConstraints: []
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 65532
+    runAsGroup: 65532
+    fsGroup: 65532
+    seccompProfile:
+      type: RuntimeDefault
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+  tmp:
+    sizeLimit: 64Mi
+  env:
+    NODE_ENV: production
+    REQUEST_TIMEOUT_MS: "30000"
+    KAFKA_BROKERS: kafka:9092
+    KAFKA_LOG_LEVEL: error
+    KAFKA_CONNECTION_TIMEOUT_MS: "3000"
+    KAFKA_REQUEST_TIMEOUT_MS: "25000"
+    KAFKA_TOPIC_NUM_PARTITIONS: "3"
+    KAFKA_TOPIC_REPLICATION_FACTOR: "3"
+    KAFKA_TOPIC_MIN_INSYNC_REPLICAS: "2"
+    KAFKA_UI_URL: https://kafka.example.com
+    CORS_ALLOWED_ORIGINS: https://shop.example.com,https://admin.example.com
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+  automountServiceAccountToken: false
+
+secrets:
+  create: false
+  name: ""
+  stringData:
+    DATABASE_URL: ""
+    MONGO_URL: ""
+    STRIPE_SECRET_KEY: ""
+    STRIPE_WEBHOOK_SECRET: ""
+    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ""
+    CLERK_PUBLISHABLE_KEY: ""
+    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ""
+    CLERK_SECRET_KEY: ""
+    ADMIN_USER_IDS: ""
+
+ingress:
+  enabled: true
+  className: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  tls:
+    enabled: true
+    secretName: ecommerce-local-tls
+  hosts:
+    - host: shop.localhost
+      paths:
+        - path: /
+          pathType: Prefix
+          service: client
+          port: http
+    - host: admin.localhost
+      paths:
+        - path: /
+          pathType: Prefix
+          service: admin
+          port: http
+    - host: api.localhost
+      paths:
+        - path: /rpc/product
+          pathType: Prefix
+          service: product
+          port: http
+        - path: /rpc/order
+          pathType: Prefix
+          service: order
+          port: http
+        - path: /rpc/payment
+          pathType: Prefix
+          service: payment
+          port: http
+        - path: /api/webhooks
+          pathType: Prefix
+          service: payment
+          port: http
+
+gateway:
+  enabled: false
+  create: false
+  name: traefik-gateway
+  namespace: traefik
+  gatewayClassName: traefik
+  sectionName: websecure
+  annotations: {}
+  labels: {}
+  listeners:
+    - name: websecure
+      hostname: "*.localhost"
+      port: 8443
+      protocol: HTTPS
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: ecommerce-local-tls
+
+services:
+  product:
+    enabled: true
+    name: product-service
+    replicaCount: 2
+    revisionHistoryLimit: 3
+    image:
+      repository: turborepo-monorepo-product-service
+      tag: latest
+      pullPolicy: ""
+    service:
+      type: ClusterIP
+      port: 3000
+    containerPort: 3000
+    env:
+      PORT: "3000"
+    secretEnv:
+      DATABASE_URL: DATABASE_URL
+      CLERK_PUBLISHABLE_KEY: CLERK_PUBLISHABLE_KEY
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+      CLERK_SECRET_KEY: CLERK_SECRET_KEY
+      ADMIN_USER_IDS: ADMIN_USER_IDS
+    readinessProbe:
+      httpGet:
+        path: /health/ready
+        port: http
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      timeoutSeconds: 3
+      failureThreshold: 6
+    livenessProbe:
+      httpGet:
+        path: /health/live
+        port: http
+      initialDelaySeconds: 30
+      periodSeconds: 20
+      timeoutSeconds: 3
+      failureThreshold: 3
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 512Mi
+    podDisruptionBudget:
+      enabled: true
+      minAvailable: 1
+    autoscaling:
+      enabled: false
+      minReplicas: 2
+      maxReplicas: 6
+      targetCPUUtilizationPercentage: 70
+
+  order:
+    enabled: true
+    name: order-service
+    replicaCount: 2
+    revisionHistoryLimit: 3
+    image:
+      repository: turborepo-monorepo-order-service
+      tag: latest
+      pullPolicy: ""
+    service:
+      type: ClusterIP
+      port: 8001
+    containerPort: 8001
+    env:
+      PORT: "8001"
+    secretEnv:
+      MONGO_URL: MONGO_URL
+      CLERK_PUBLISHABLE_KEY: CLERK_PUBLISHABLE_KEY
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+      CLERK_SECRET_KEY: CLERK_SECRET_KEY
+      ADMIN_USER_IDS: ADMIN_USER_IDS
+    readinessProbe:
+      httpGet:
+        path: /health/ready
+        port: http
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      timeoutSeconds: 3
+      failureThreshold: 6
+    livenessProbe:
+      httpGet:
+        path: /health/live
+        port: http
+      initialDelaySeconds: 30
+      periodSeconds: 20
+      timeoutSeconds: 3
+      failureThreshold: 3
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 512Mi
+    podDisruptionBudget:
+      enabled: true
+      minAvailable: 1
+    autoscaling:
+      enabled: false
+      minReplicas: 2
+      maxReplicas: 6
+      targetCPUUtilizationPercentage: 70
+
+  payment:
+    enabled: true
+    name: payment-service
+    replicaCount: 2
+    revisionHistoryLimit: 3
+    image:
+      repository: turborepo-monorepo-payment-service
+      tag: latest
+      pullPolicy: ""
+    service:
+      type: ClusterIP
+      port: 8002
+    containerPort: 8002
+    env:
+      PORT: "8002"
+      CLIENT_APP_URL: https://shop.example.com
+      PRODUCT_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-product-service:3000
+    secretEnv:
+      STRIPE_SECRET_KEY: STRIPE_SECRET_KEY
+      STRIPE_WEBHOOK_SECRET: STRIPE_WEBHOOK_SECRET
+      CLERK_PUBLISHABLE_KEY: CLERK_PUBLISHABLE_KEY
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+      CLERK_SECRET_KEY: CLERK_SECRET_KEY
+    readinessProbe:
+      httpGet:
+        path: /health/ready
+        port: http
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      timeoutSeconds: 3
+      failureThreshold: 6
+    livenessProbe:
+      httpGet:
+        path: /health/live
+        port: http
+      initialDelaySeconds: 30
+      periodSeconds: 20
+      timeoutSeconds: 3
+      failureThreshold: 3
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 512Mi
+    podDisruptionBudget:
+      enabled: true
+      minAvailable: 1
+    autoscaling:
+      enabled: false
+      minReplicas: 2
+      maxReplicas: 6
+      targetCPUUtilizationPercentage: 70
+
+  client:
+    enabled: true
+    name: client
+    replicaCount: 2
+    revisionHistoryLimit: 3
+    image:
+      repository: turborepo-monorepo-client
+      tag: latest
+      pullPolicy: ""
+    service:
+      type: ClusterIP
+      port: 3002
+    containerPort: 3002
+    env:
+      PORT: "3002"
+      HOSTNAME: 0.0.0.0
+      NEXT_TELEMETRY_DISABLED: "1"
+      CLIENT_APP_URL: https://shop.example.com
+      NEXT_PUBLIC_CLIENT_APP_URL: https://shop.example.com
+      PRODUCT_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-product-service:3000
+      ORDER_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-order-service:8001
+      PAYMENT_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-payment-service:8002
+      NEXT_PUBLIC_PRODUCT_SERVICE_URL: https://api.example.com
+      NEXT_PUBLIC_ORDER_SERVICE_URL: https://api.example.com
+      NEXT_PUBLIC_PAYMENT_SERVICE_URL: https://api.example.com
+    secretEnv:
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+      CLERK_SECRET_KEY: CLERK_SECRET_KEY
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+    readinessProbe:
+      httpGet:
+        path: /api/health
+        port: http
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      timeoutSeconds: 3
+      failureThreshold: 6
+    livenessProbe:
+      httpGet:
+        path: /api/health
+        port: http
+      initialDelaySeconds: 30
+      periodSeconds: 20
+      timeoutSeconds: 3
+      failureThreshold: 3
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 512Mi
+    podDisruptionBudget:
+      enabled: true
+      minAvailable: 1
+    autoscaling:
+      enabled: false
+      minReplicas: 2
+      maxReplicas: 6
+      targetCPUUtilizationPercentage: 70
+
+  admin:
+    enabled: true
+    name: admin
+    replicaCount: 2
+    revisionHistoryLimit: 3
+    image:
+      repository: turborepo-monorepo-admin
+      tag: latest
+      pullPolicy: ""
+    service:
+      type: ClusterIP
+      port: 3003
+    containerPort: 3003
+    env:
+      PORT: "3003"
+      HOSTNAME: 0.0.0.0
+      NEXT_TELEMETRY_DISABLED: "1"
+      ADMIN_APP_URL: https://admin.example.com
+      CLIENT_APP_URL: https://shop.example.com
+      NEXT_PUBLIC_ADMIN_APP_URL: https://admin.example.com
+      PRODUCT_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-product-service:3000
+      ORDER_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-order-service:8001
+      PAYMENT_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-payment-service:8002
+      NEXT_PUBLIC_PRODUCT_SERVICE_URL: https://api.example.com
+      NEXT_PUBLIC_ORDER_SERVICE_URL: https://api.example.com
+      NEXT_PUBLIC_PAYMENT_SERVICE_URL: https://api.example.com
+    secretEnv:
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+      CLERK_SECRET_KEY: CLERK_SECRET_KEY
+    readinessProbe:
+      httpGet:
+        path: /api/health
+        port: http
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      timeoutSeconds: 3
+      failureThreshold: 6
+    livenessProbe:
+      httpGet:
+        path: /api/health
+        port: http
+      initialDelaySeconds: 30
+      periodSeconds: 20
+      timeoutSeconds: 3
+      failureThreshold: 3
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 512Mi
+    podDisruptionBudget:
+      enabled: true
+      minAvailable: 1
+    autoscaling:
+      enabled: false
+      minReplicas: 2
+      maxReplicas: 6
+      targetCPUUtilizationPercentage: 70
+
+jobs:
+  migrate-product-db:
+    enabled: true
+    service: product
+    command:
+      - bun
+      - run
+      - --cwd
+      - packages/product-db
+      - db:deploy
+    hook: pre-install,pre-upgrade
+    hookWeight: "-10"
+    deletePolicy: before-hook-creation,hook-succeeded
+    backoffLimit: 3
+    ttlSecondsAfterFinished: 3600
+    secretEnv:
+      DATABASE_URL: DATABASE_URL
+  seed-product-db:
+    enabled: false
+    service: product
+    command:
+      - bun
+      - run
+      - apps/product-service/src/scripts/seed.ts
+    hook: post-install
+    hookWeight: "10"
+    deletePolicy: before-hook-creation,hook-succeeded
+    backoffLimit: 1
+    ttlSecondsAfterFinished: 3600
+    secretEnv:
+      DATABASE_URL: DATABASE_URL
+      STRIPE_SECRET_KEY: STRIPE_SECRET_KEY
+
+networkPolicy:
+  enabled: false
+  allowExternalEgress: true
+  ingressFrom: []
+
+helmTests:
+  enabled: true
+  image:
+    repository: curlimages/curl
+    tag: "8.11.1"
+    pullPolicy: IfNotPresent

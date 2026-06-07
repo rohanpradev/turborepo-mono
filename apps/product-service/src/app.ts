@@ -1,14 +1,14 @@
 import {
   createCorsMiddleware,
+  createORPCMiddleware,
   createRoute,
   createServiceApp,
   jsonContent,
   z,
 } from "@repo/hono-utils";
 import { clerkAuthMiddleware, type ServiceVariables } from "@/middleware/auth";
-import { categoryRoutes } from "@/routes/categoryRoutes";
 import { healthRoutes } from "@/routes/healthRoutes";
-import { productRoutes } from "@/routes/productRoutes";
+import { productRouter } from "@/rpc";
 
 const serviceInfoSchema = z.object({
   message: z.string(),
@@ -44,13 +44,19 @@ const app = createServiceApp<{ Variables: ServiceVariables }>({
 
 app.use("*", createCorsMiddleware());
 app.use("*", clerkAuthMiddleware);
+app.use(
+  "/rpc/product/*",
+  createORPCMiddleware({
+    context: (c) => ({ hono: c }),
+    prefix: "/rpc/product",
+    router: productRouter,
+  }),
+);
 
 app
   .openapi(rootRoute, (c) =>
     c.json({ message: "Product Service API", version: "1.2.0" }, 200),
   )
-  .route("/", healthRoutes)
-  .route("/", productRoutes)
-  .route("/", categoryRoutes);
+  .route("/", healthRoutes);
 
 export { app };

@@ -1,5 +1,6 @@
 import {
   createCorsMiddleware,
+  createORPCMiddleware,
   createRoute,
   createServiceApp,
   jsonContent,
@@ -7,9 +8,8 @@ import {
 } from "@repo/hono-utils";
 import { clerkAuthMiddleware, type ServiceVariables } from "@/middleware/auth";
 import { healthRoutes } from "@/routes/healthRoutes";
-import { opsRoutes } from "@/routes/opsRoutes";
-import { sessionRoutes } from "@/routes/sessionRoutes";
 import { webhookRoutes } from "@/routes/webhookRoutes";
+import { paymentRouter } from "@/rpc";
 
 const serviceInfoSchema = z.object({
   message: z.string(),
@@ -49,14 +49,20 @@ const app = createServiceApp<{ Variables: ServiceVariables }>({
 
 app.use("*", createCorsMiddleware());
 app.use("*", clerkAuthMiddleware);
+app.use(
+  "/rpc/payment/*",
+  createORPCMiddleware({
+    context: (c) => ({ hono: c }),
+    prefix: "/rpc/payment",
+    router: paymentRouter,
+  }),
+);
 
 app
   .openapi(rootRoute, (c) =>
     c.json({ message: "Payment Service API", version: "1.0.0" }, 200),
   )
   .route("/", healthRoutes)
-  .route("/", opsRoutes)
-  .route("/", sessionRoutes)
   .route("/", webhookRoutes);
 
 export { app };

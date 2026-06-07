@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import ProductList from "@/components/ProductList";
+import ProductListSkeleton from "@/components/ProductListSkeleton";
 
 export const metadata: Metadata = {
   title: "Products",
@@ -33,13 +35,20 @@ const ProductsPage = async ({
   const page = getPageParam(resolvedSearchParams.page);
 
   return (
-    <ProductList
-      category={category}
-      search={search}
-      sort={sort}
-      page={page}
-      params="products"
-    />
+    <div className="pb-10 pt-2">
+      <Suspense
+        fallback={<ProductListSkeleton itemCount={12} />}
+        key={`${category ?? "all"}-${search ?? ""}-${sort ?? ""}-${page}`}
+      >
+        <ProductList
+          category={category}
+          search={search}
+          sort={sort}
+          page={page}
+          params="products"
+        />
+      </Suspense>
+    </div>
   );
 };
 

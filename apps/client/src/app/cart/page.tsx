@@ -44,17 +44,18 @@ const CartContent = () => {
 
   return (
     <div className="space-y-8 pb-10 pt-4">
-      <section className="overflow-hidden rounded-[2rem] border border-black/5 bg-[#f7f3ea] shadow-[0_20px_60px_-30px_rgba(15,23,42,0.35)]">
+      <section className="overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm">
+        <div className="h-1 bg-[linear-gradient(90deg,#0f766e,#f97316,#111827)]" />
         <div className="grid gap-6 p-6 md:grid-cols-[1.2fr_0.8fr] md:p-10">
           <div className="space-y-5">
             <Badge
               variant="outline"
-              className="w-fit border-black/10 bg-white/80 px-3 py-1 uppercase tracking-[0.24em] text-gray-600"
+              className="w-fit border-black/10 bg-white px-3 py-1 uppercase tracking-[0.18em] text-gray-600"
             >
-              Precision Curator
+              Secure checkout
             </Badge>
             <div className="space-y-3">
-              <h1 className="text-4xl font-semibold tracking-tight text-gray-950 sm:text-5xl">
+              <h1 className="text-4xl font-semibold text-gray-950 sm:text-5xl">
                 Cart
               </h1>
               <p className="max-w-2xl text-base leading-7 text-gray-600">
@@ -68,7 +69,7 @@ const CartContent = () => {
             {steps.map((step) => (
               <div
                 key={step.id}
-                className={`rounded-2xl border px-4 py-3 shadow-sm ${
+                className={`rounded-lg border px-4 py-3 shadow-sm ${
                   step.id === activeStep
                     ? "border-gray-950 bg-gray-950 text-white"
                     : "border-black/10 bg-white/80 text-gray-600"
@@ -91,7 +92,7 @@ const CartContent = () => {
               <p className="text-xs uppercase tracking-[0.24em] text-gray-400">
                 Shopping Cart
               </p>
-              <h2 className="text-3xl font-semibold tracking-tight text-gray-950 sm:text-5xl">
+              <h2 className="text-3xl font-semibold text-gray-950 sm:text-5xl">
                 Review items
               </h2>
             </div>
@@ -100,11 +101,11 @@ const CartContent = () => {
             </Badge>
           </div>
 
-          <div className="grid gap-2 rounded-[1.5rem] border border-black/5 bg-white/80 p-2 shadow-sm backdrop-blur sm:grid-cols-3">
+          <div className="grid gap-2 rounded-lg border border-black/10 bg-white p-2 shadow-sm sm:grid-cols-3">
             {steps.map((step) => (
               <div
                 key={step.id}
-                className={`flex min-w-0 items-center gap-3 rounded-[1rem] px-3 py-3 sm:px-4 ${
+                className={`flex min-w-0 items-center gap-3 rounded-md px-3 py-3 sm:px-4 ${
                   step.id === activeStep
                     ? "bg-gray-950 text-white"
                     : "text-gray-500"
@@ -129,7 +130,7 @@ const CartContent = () => {
             ))}
           </div>
 
-          <div className="rounded-[1.75rem] border border-black/5 bg-white/80 p-5 shadow-sm md:p-6">
+          <div className="rounded-lg border border-black/10 bg-white p-5 shadow-sm md:p-6">
             {activeStep === 1 ? (
               hasItems ? (
                 <div className="space-y-4">
@@ -142,11 +143,11 @@ const CartContent = () => {
                     return (
                       <article
                         key={item.id + item.selectedSize + item.selectedColor}
-                        className="group relative overflow-hidden rounded-[1.5rem] border border-black/5 bg-white p-4 shadow-[0_24px_48px_-28px_rgba(15,23,42,0.3)] transition hover:-translate-y-0.5"
+                        className="group relative overflow-hidden rounded-lg border border-black/10 bg-white p-4 shadow-sm transition hover:-translate-y-0.5"
                       >
                         <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-gray-50 opacity-0 transition group-hover:opacity-100" />
                         <div className="relative flex flex-col gap-5 sm:flex-row sm:items-stretch">
-                          <div className="relative overflow-hidden rounded-[1.25rem] bg-[#f3f0e8] sm:w-40">
+                          <div className="relative overflow-hidden rounded-lg bg-[#f5f7f2] sm:w-40">
                             <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent" />
                             <Image
                               src={imageUrl}
@@ -164,7 +165,7 @@ const CartContent = () => {
                                 <p className="text-xs uppercase tracking-[0.18em] text-gray-400">
                                   {item.categorySlug}
                                 </p>
-                                <h3 className="line-clamp-2 text-lg font-semibold tracking-tight text-gray-950">
+                                <h3 className="line-clamp-2 text-lg font-semibold text-gray-950">
                                   {item.name}
                                 </h3>
                                 <p className="mt-1 line-clamp-2 text-sm leading-6 text-gray-600">
@@ -224,7 +225,7 @@ const CartContent = () => {
                                 <p className="text-xs uppercase tracking-[0.18em] text-gray-400">
                                   Line total
                                 </p>
-                                <p className="break-words text-2xl font-semibold tracking-tight text-gray-950">
+                                <p className="break-words text-2xl font-semibold text-gray-950">
                                   {formatUsdFromCents(
                                     item.price * item.quantity,
                                   )}
@@ -238,7 +239,7 @@ const CartContent = () => {
                   })}
                 </div>
               ) : (
-                <div className="rounded-[1.5rem] border border-dashed border-black/10 bg-white/80 px-4 py-12 text-center text-sm text-gray-500">
+                <div className="rounded-lg border border-dashed border-black/15 bg-white px-4 py-12 text-center text-sm text-gray-500">
                   Your cart is empty.
                 </div>
               )
@@ -247,7 +248,7 @@ const CartContent = () => {
             ) : activeStep === 3 && shippingForm ? (
               <StripePaymentForm shippingForm={shippingForm} />
             ) : (
-              <div className="rounded-[1.5rem] border border-dashed border-black/10 bg-white/80 px-4 py-12 text-sm text-gray-500">
+              <div className="rounded-lg border border-dashed border-black/15 bg-white px-4 py-12 text-sm text-gray-500">
                 Please fill in the shipping form to continue.
               </div>
             )}
@@ -264,14 +265,14 @@ const CartContent = () => {
         </div>
 
         <aside className="w-full xl:sticky xl:top-8 xl:w-[400px]">
-          <div className="rounded-[1.75rem] border border-black/5 bg-white/90 p-6 shadow-[0_24px_60px_-30px_rgba(15,23,42,0.3)] backdrop-blur">
+          <div className="rounded-lg border border-black/10 bg-white p-6 shadow-sm">
             <div className="mb-6 h-1 w-full rounded-full bg-gradient-to-r from-gray-950 via-gray-700 to-gray-400" />
             <div className="mb-6 flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs uppercase tracking-[0.24em] text-gray-400">
                   Summary
                 </p>
-                <h3 className="mt-1 text-2xl font-semibold tracking-tight text-gray-950">
+                <h3 className="mt-1 text-2xl font-semibold text-gray-950">
                   Order summary
                 </h3>
               </div>
@@ -300,7 +301,7 @@ const CartContent = () => {
                 <span className="text-base font-medium text-gray-950">
                   Total
                 </span>
-                <span className="text-3xl font-semibold tracking-tight text-gray-950">
+                <span className="text-3xl font-semibold text-gray-950">
                   {formatUsdFromCents(subtotalCents)}
                 </span>
               </div>
@@ -359,7 +360,7 @@ export default function CartPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-[#f7f3ea]">
+        <div className="flex min-h-screen items-center justify-center bg-[#f4f6f3]">
           <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-gray-800" />
         </div>
       }

@@ -12,3 +12,17 @@
   --font-mono-stack:
     "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
 }
+
+html {
+  color-scheme: light;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background: #f4f6f3;
+}
+
+::selection {
+  background: #0f766e;
+  color: #ffffff;
+}

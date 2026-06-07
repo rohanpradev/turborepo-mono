@@ -1,7 +1,16 @@
+import { ApiClientError, getProduct } from "@repo/api-client";
 import { createHttpException } from "@repo/hono-utils";
+import { type PaymentSuccessfulMessage, Topics } from "@repo/kafka";
 import type { CheckoutSessionPayload, ProductRecord } from "@repo/types";
+import type Stripe from "stripe";
 import { recordIntegrationEvent } from "@/observability/integrationEvents";
+import {
+  claimProcessableEvent,
+  markEventProcessed,
+  releaseProcessableEvent,
+} from "@/observability/processedEvents";
 import { StripeCatalogService } from "@/services/StripeCatalogService";
+import { producer } from "@/utils/kafka";
 import { getStripeClient } from "@/utils/stripe";
 
 type CreateCheckoutSessionInput = {
@@ -45,42 +54,25 @@ const getProductServiceUrl = () =>
   process.env.NEXT_PUBLIC_PRODUCT_SERVICE_URL ??
   "http://localhost:3000";
 
-const parseCatalogResponse = async (response: Response) => {
-  const payload = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    if (response.status === 404) {
+const fetchCatalogProduct = async (productId: number) => {
+  try {
+    const response = await getProduct(getProductServiceUrl(), productId);
+    return response.data;
+  } catch (error) {
+    if (error instanceof ApiClientError && error.status === 404) {
       return null;
     }
 
-    throw createHttpException(
-      502,
-      "Unable to verify the cart against the product catalog.",
-      { productServiceStatus: response.status },
-    );
+    if (error instanceof ApiClientError) {
+      throw createHttpException(
+        502,
+        "Unable to verify the cart against the product catalog.",
+        { productServiceStatus: error.status },
+      );
+    }
+
+    throw error;
   }
-
-  if (
-    typeof payload === "object" &&
-    payload !== null &&
-    "data" in payload &&
-    typeof payload.data === "object" &&
-    payload.data !== null
-  ) {
-    return payload.data as ProductRecord;
-  }
-
-  throw createHttpException(
-    502,
-    "Product catalog returned an invalid product response.",
-  );
-};
-
-const fetchCatalogProduct = async (productId: number) => {
-  const url = new URL(`/products/${productId}`, getProductServiceUrl());
-  const response = await fetch(url);
-
-  return parseCatalogResponse(response);
 };
 
 const resolveCheckoutCatalog = async (
@@ -123,6 +115,113 @@ const getCanonicalCartTotal = (items: Array<CheckoutCatalogItem>) =>
 
 const getProductImageUrls = (product: ProductRecord) =>
   Object.values(product.images).filter((image) => /^https?:\/\//.test(image));
+
+const getPaymentIntentId = (session: Stripe.Checkout.Session) =>
+  typeof session.payment_intent === "string"
+    ? session.payment_intent
+    : (session.payment_intent?.id ?? session.id);
+
+const getPaymentMethod = (
+  session: Stripe.Checkout.Session,
+  paymentIntent: Stripe.PaymentIntent | null,
+) =>
+  paymentIntent?.payment_method_types?.[0] ??
+  session.payment_method_types?.[0] ??
+  "unknown";
+
+const publishSuccessfulPaymentFromSession = async (
+  stripe: Stripe,
+  session: Stripe.Checkout.Session,
+) => {
+  if (session.status !== "complete" || session.payment_status !== "paid") {
+    return;
+  }
+
+  const processedEventKey = `stripe-session:${session.id}:paid`;
+
+  if (!claimProcessableEvent(processedEventKey)) {
+    return;
+  }
+
+  try {
+    const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
+      limit: 100,
+      expand: ["data.price.product"],
+    });
+    const paymentIntent =
+      typeof session.payment_intent === "string"
+        ? await stripe.paymentIntents.retrieve(session.payment_intent)
+        : (session.payment_intent ?? null);
+    const message: PaymentSuccessfulMessage = {
+      orderId: session.id,
+      userId:
+        typeof session.client_reference_id === "string"
+          ? session.client_reference_id
+          : (session.metadata?.userId ?? "unknown"),
+      email:
+        session.customer_details?.email ??
+        session.customer_email ??
+        "unknown@example.com",
+      amount: session.amount_total ?? 0,
+      currency: session.currency ?? "usd",
+      status: "success",
+      paymentMethod: getPaymentMethod(session, paymentIntent),
+      transactionId: getPaymentIntentId(session),
+      items: lineItems.data.map((item) => {
+        const expandedProduct =
+          item.price && typeof item.price.product !== "string"
+            ? item.price.product
+            : null;
+        const product =
+          expandedProduct && !("deleted" in expandedProduct)
+            ? expandedProduct
+            : null;
+
+        return {
+          productId:
+            item.price?.metadata?.sourceProductId ??
+            product?.metadata?.sourceProductId ??
+            item.price?.id ??
+            item.description ??
+            "unknown",
+          name: item.description ?? "Unknown item",
+          quantity: item.quantity ?? 1,
+          price:
+            item.price?.unit_amount ??
+            Math.floor(
+              (item.amount_total ?? 0) / Math.max(item.quantity ?? 1, 1),
+            ),
+        };
+      }),
+      processedAt: new Date().toISOString(),
+    };
+
+    await producer.send(Topics.PAYMENT_SUCCESSFUL, message, {
+      headers: {
+        "stripe-session-id": session.id,
+        source: "checkout-status",
+      },
+      key: message.orderId,
+    });
+
+    markEventProcessed(processedEventKey);
+
+    recordIntegrationEvent({
+      source: "kafka",
+      type: "payment.successful.published",
+      message: "Published payment.successful Kafka event.",
+      details: {
+        orderId: message.orderId,
+        transactionId: message.transactionId,
+        amount: message.amount,
+        itemCount: message.items.length,
+      },
+    });
+  } catch (error) {
+    releaseProcessableEvent(processedEventKey);
+    throw error;
+  }
+};
 
 const createCheckoutIdempotencyKey = async (
   input: CreateCheckoutSessionInput,
@@ -330,6 +429,8 @@ export const StripeCheckoutService = {
           paymentStatus: status.paymentStatus,
         },
       });
+
+      await publishSuccessfulPaymentFromSession(stripe, session);
 
       return { kind: "ok", data: status } as const;
     } catch (error) {

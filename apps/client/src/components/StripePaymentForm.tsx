@@ -17,7 +17,8 @@ const stripePromise: StripePromise | null = stripePublishableKey
   ? loadStripe(stripePublishableKey)
   : null;
 const isClerkConfigured = Boolean(
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
+    !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.includes("_here"),
 );
 
 type ShippingFormInputs = BaseShippingFormInputs & {

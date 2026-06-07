@@ -8,8 +8,11 @@
   "dependencies": {
     "@repo/hono-utils": "workspace:*",
     "@repo/kafka": "workspace:*",
+    "@repo/contracts": "workspace:*",
     "@repo/product-db": "workspace:*",
-    "@repo/types": "workspace:*"
+    "@repo/types": "workspace:*",
+    "@orpc/server": "catalog:",
+    "hono": "catalog:"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

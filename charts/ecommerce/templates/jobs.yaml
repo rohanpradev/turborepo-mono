@@ -1,0 +1,68 @@
+{{- range $name, $job := .Values.jobs }}
+{{- if $job.enabled }}
+{{- $service := required (printf "job %s must reference a valid service" $name) (index $.Values.services $job.service) }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ printf "%s-%s" (include "ecommerce.fullname" $) $name | trunc 63 | trimSuffix "-" }}
+  labels:
+    {{- include "ecommerce.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $name | quote }}
+  annotations:
+    "helm.sh/hook": {{ $job.hook | quote }}
+    "helm.sh/hook-weight": {{ $job.hookWeight | quote }}
+    "helm.sh/hook-delete-policy": {{ $job.deletePolicy | quote }}
+spec:
+  backoffLimit: {{ default 3 $job.backoffLimit }}
+  {{- with $job.ttlSecondsAfterFinished }}
+  ttlSecondsAfterFinished: {{ . }}
+  {{- end }}
+  template:
+    metadata:
+      labels:
+        {{- include "ecommerce.selectorLabels" (dict "root" $ "service" $service) | nindent 8 }}
+        app.kubernetes.io/job-name: {{ $name | quote }}
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: {{ include "ecommerce.serviceAccountName" $ }}
+      automountServiceAccountToken: {{ $.Values.serviceAccount.automountServiceAccountToken }}
+      securityContext:
+        {{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
+      {{- with $.Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ $name }}
+          image: {{ include "ecommerce.image" (dict "root" $ "service" $service) | quote }}
+          imagePullPolicy: {{ default $.Values.global.imagePullPolicy $service.image.pullPolicy }}
+          command:
+            {{- toYaml $job.command | nindent 12 }}
+          securityContext:
+            {{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "ecommerce.configMapName" $ }}
+          env:
+            {{- range $envName, $value := $job.env }}
+            - name: {{ $envName }}
+              value: {{ tpl (printf "%v" $value) $ | quote }}
+            {{- end }}
+            {{- range $envName, $secretKey := $job.secretEnv }}
+            - name: {{ $envName }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ecommerce.secretName" $ }}
+                  key: {{ $secretKey }}
+            {{- end }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: {{ $.Values.global.tmp.sizeLimit }}
+---
+{{- end }}
+{{- end }}

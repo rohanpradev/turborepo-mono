@@ -10,4 +10,3 @@ const auth = createClerkServiceAuth<ServiceVariables>({
 });
 
 export const clerkAuthMiddleware = auth.clerkAuthMiddleware;
-export const shouldBeUser = auth.requireUser;

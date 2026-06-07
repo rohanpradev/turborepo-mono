@@ -15,9 +15,9 @@ x-app-service: &app-service
 
 x-frontend-build-args: &frontend-build-args
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
-  NEXT_PUBLIC_PRODUCT_SERVICE_URL: ${NEXT_PUBLIC_PRODUCT_SERVICE_URL:-https://api.localhost}
-  NEXT_PUBLIC_ORDER_SERVICE_URL: ${NEXT_PUBLIC_ORDER_SERVICE_URL:-https://api.localhost}
-  NEXT_PUBLIC_PAYMENT_SERVICE_URL: ${NEXT_PUBLIC_PAYMENT_SERVICE_URL:-https://api.localhost}
+  NEXT_PUBLIC_PRODUCT_SERVICE_URL: ${DOCKER_PUBLIC_PRODUCT_SERVICE_URL:-https://api.localhost:8443}
+  NEXT_PUBLIC_ORDER_SERVICE_URL: ${DOCKER_PUBLIC_ORDER_SERVICE_URL:-https://api.localhost:8443}
+  NEXT_PUBLIC_PAYMENT_SERVICE_URL: ${DOCKER_PUBLIC_PAYMENT_SERVICE_URL:-https://api.localhost:8443}
 
 x-kafka-broker-env: &kafka-broker-env
   KAFKA_PROCESS_ROLES: broker,controller
@@ -63,8 +63,8 @@ services:
     tmpfs:
       - /tmp:size=32m,mode=1777
     ports:
-      - "80:8000"
-      - "443:8443"
+      - "${TRAEFIK_HTTP_BIND_ADDRESS:-127.0.0.1}:${TRAEFIK_HTTP_PORT:-8080}:8000"
+      - "${TRAEFIK_HTTPS_BIND_ADDRESS:-127.0.0.1}:${TRAEFIK_HTTPS_PORT:-8443}:8443"
     depends_on:
       - docker-socket-proxy
     command:
@@ -84,7 +84,6 @@ services:
       - "--providers.docker.endpoint=tcp://docker-socket-proxy:2375"
       - "--providers.docker.watch=true"
       - "--providers.docker.exposedbydefault=false"
-      - "--providers.docker.constraints=Label(`traefik.enable`,`true`)"
       - "--providers.docker.network=ecommerce-network"
       - "--providers.file.directory=/etc/traefik/dynamic"
       - "--providers.file.watch=true"
@@ -225,7 +224,7 @@ services:
       <<: *kafka-broker-env
       KAFKA_NODE_ID: 1
       KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://0.0.0.0:9094
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-1:9092,EXTERNAL://localhost:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-1:9092,EXTERNAL://${KAFKA_EXTERNAL_HOST:-localhost}:9094
     ports:
       - "9094:9094"
     volumes:
@@ -250,7 +249,7 @@ services:
       <<: *kafka-broker-env
       KAFKA_NODE_ID: 2
       KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://0.0.0.0:9095
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-2:9092,EXTERNAL://localhost:9095
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-2:9092,EXTERNAL://${KAFKA_EXTERNAL_HOST:-localhost}:9095
     ports:
       - "9095:9095"
     volumes:
@@ -275,7 +274,7 @@ services:
       <<: *kafka-broker-env
       KAFKA_NODE_ID: 3
       KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://0.0.0.0:9096
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-3:9092,EXTERNAL://localhost:9096
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-3:9092,EXTERNAL://${KAFKA_EXTERNAL_HOST:-localhost}:9096
     ports:
       - "9096:9096"
     volumes:
@@ -338,7 +337,7 @@ services:
       CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
       ADMIN_USER_IDS: ${ADMIN_USER_IDS:-}
       KAFKA_BROKERS: ${DOCKER_KAFKA_BROKERS:-kafka-broker-1:9092,kafka-broker-2:9092,kafka-broker-3:9092}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://shop.localhost,https://admin.localhost,http://localhost:3002,http://localhost:3003}
+      CORS_ALLOWED_ORIGINS: ${DOCKER_CORS_ALLOWED_ORIGINS:-https://shop.localhost:8443,https://admin.localhost:8443,http://localhost:3002,http://localhost:3003}
     expose:
       - "3000"
     depends_on:
@@ -369,7 +368,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=ecommerce-network"
-      - "traefik.http.routers.product-service.rule=Host(`api.localhost`) && (PathPrefix(`/products`) || PathPrefix(`/categories`))"
+      - "traefik.http.routers.product-service.rule=Host(`api.localhost`) && PathPrefix(`/rpc/product`)"
       - "traefik.http.routers.product-service.entrypoints=websecure"
       - "traefik.http.routers.product-service.tls=true"
       - "traefik.http.routers.product-service.priority=200"
@@ -390,7 +389,7 @@ services:
       CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
       ADMIN_USER_IDS: ${ADMIN_USER_IDS:-}
       KAFKA_BROKERS: ${DOCKER_KAFKA_BROKERS:-kafka-broker-1:9092,kafka-broker-2:9092,kafka-broker-3:9092}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://shop.localhost,https://admin.localhost,http://localhost:3002,http://localhost:3003}
+      CORS_ALLOWED_ORIGINS: ${DOCKER_CORS_ALLOWED_ORIGINS:-https://shop.localhost:8443,https://admin.localhost:8443,http://localhost:3002,http://localhost:3003}
     expose:
       - "8001"
     depends_on:
@@ -419,7 +418,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=ecommerce-network"
-      - "traefik.http.routers.order-service.rule=Host(`api.localhost`) && PathPrefix(`/api`) && !PathPrefix(`/api/session`) && !PathPrefix(`/api/webhooks`)"
+      - "traefik.http.routers.order-service.rule=Host(`api.localhost`) && PathPrefix(`/rpc/order`)"
       - "traefik.http.routers.order-service.entrypoints=websecure"
       - "traefik.http.routers.order-service.tls=true"
       - "traefik.http.routers.order-service.priority=150"
@@ -437,13 +436,13 @@ services:
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       STRIPE_WEBHOOK_SECRET_FILE: /var/run/stripe/webhook-secret
-      CLIENT_APP_URL: ${CLIENT_APP_URL:-https://shop.localhost}
+      CLIENT_APP_URL: ${DOCKER_CLIENT_APP_URL:-https://shop.localhost:8443}
       PRODUCT_SERVICE_INTERNAL_URL: http://product-service:3000
       CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY:-}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
       CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
       KAFKA_BROKERS: ${DOCKER_KAFKA_BROKERS:-kafka-broker-1:9092,kafka-broker-2:9092,kafka-broker-3:9092}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://shop.localhost,https://admin.localhost,http://localhost:3002,http://localhost:3003}
+      CORS_ALLOWED_ORIGINS: ${DOCKER_CORS_ALLOWED_ORIGINS:-https://shop.localhost:8443,https://admin.localhost:8443,http://localhost:3002,http://localhost:3003}
     expose:
       - "8002"
     volumes:
@@ -472,7 +471,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=ecommerce-network"
-      - "traefik.http.routers.payment-service.rule=Host(`api.localhost`) && PathPrefix(`/api/session`)"
+      - "traefik.http.routers.payment-service.rule=Host(`api.localhost`) && PathPrefix(`/rpc/payment`)"
       - "traefik.http.routers.payment-webhooks.rule=Host(`api.localhost`) && PathPrefix(`/api/webhooks`)"
       - "traefik.http.routers.payment-service.entrypoints=websecure"
       - "traefik.http.routers.payment-service.tls=true"
@@ -522,22 +521,22 @@ services:
       dockerfile: docker/Dockerfile.client
       args:
         <<: *frontend-build-args
-        NEXT_PUBLIC_CLIENT_APP_URL: ${NEXT_PUBLIC_CLIENT_APP_URL:-https://shop.localhost}
+        NEXT_PUBLIC_CLIENT_APP_URL: ${DOCKER_PUBLIC_CLIENT_APP_URL:-https://shop.localhost:8443}
         NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-}
     container_name: ecommerce-client
     environment:
       NODE_ENV: production
       PORT: 3002
-      CLIENT_APP_URL: ${CLIENT_APP_URL:-https://shop.localhost}
-      NEXT_PUBLIC_CLIENT_APP_URL: ${NEXT_PUBLIC_CLIENT_APP_URL:-https://shop.localhost}
+      CLIENT_APP_URL: ${DOCKER_CLIENT_APP_URL:-https://shop.localhost:8443}
+      NEXT_PUBLIC_CLIENT_APP_URL: ${DOCKER_PUBLIC_CLIENT_APP_URL:-https://shop.localhost:8443}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
       CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
       PRODUCT_SERVICE_INTERNAL_URL: http://product-service:3000
       ORDER_SERVICE_INTERNAL_URL: http://order-service:8001
       PAYMENT_SERVICE_INTERNAL_URL: http://payment-service:8002
-      NEXT_PUBLIC_PRODUCT_SERVICE_URL: ${NEXT_PUBLIC_PRODUCT_SERVICE_URL:-https://api.localhost}
-      NEXT_PUBLIC_ORDER_SERVICE_URL: ${NEXT_PUBLIC_ORDER_SERVICE_URL:-https://api.localhost}
-      NEXT_PUBLIC_PAYMENT_SERVICE_URL: ${NEXT_PUBLIC_PAYMENT_SERVICE_URL:-https://api.localhost}
+      NEXT_PUBLIC_PRODUCT_SERVICE_URL: ${DOCKER_PUBLIC_PRODUCT_SERVICE_URL:-https://api.localhost:8443}
+      NEXT_PUBLIC_ORDER_SERVICE_URL: ${DOCKER_PUBLIC_ORDER_SERVICE_URL:-https://api.localhost:8443}
+      NEXT_PUBLIC_PAYMENT_SERVICE_URL: ${DOCKER_PUBLIC_PAYMENT_SERVICE_URL:-https://api.localhost:8443}
       NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-}
     expose:
       - "3002"
@@ -579,22 +578,22 @@ services:
       dockerfile: docker/Dockerfile.admin
       args:
         <<: *frontend-build-args
-        NEXT_PUBLIC_ADMIN_APP_URL: ${NEXT_PUBLIC_ADMIN_APP_URL:-https://admin.localhost}
+        NEXT_PUBLIC_ADMIN_APP_URL: ${DOCKER_PUBLIC_ADMIN_APP_URL:-https://admin.localhost:8443}
     container_name: ecommerce-admin
     environment:
       NODE_ENV: production
       PORT: 3003
-      ADMIN_APP_URL: ${ADMIN_APP_URL:-https://admin.localhost}
-      CLIENT_APP_URL: ${CLIENT_APP_URL:-https://shop.localhost}
-      NEXT_PUBLIC_ADMIN_APP_URL: ${NEXT_PUBLIC_ADMIN_APP_URL:-https://admin.localhost}
+      ADMIN_APP_URL: ${DOCKER_ADMIN_APP_URL:-https://admin.localhost:8443}
+      CLIENT_APP_URL: ${DOCKER_CLIENT_APP_URL:-https://shop.localhost:8443}
+      NEXT_PUBLIC_ADMIN_APP_URL: ${DOCKER_PUBLIC_ADMIN_APP_URL:-https://admin.localhost:8443}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
       CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
       PRODUCT_SERVICE_INTERNAL_URL: http://product-service:3000
       ORDER_SERVICE_INTERNAL_URL: http://order-service:8001
       PAYMENT_SERVICE_INTERNAL_URL: http://payment-service:8002
-      NEXT_PUBLIC_PRODUCT_SERVICE_URL: ${NEXT_PUBLIC_PRODUCT_SERVICE_URL:-https://api.localhost}
-      NEXT_PUBLIC_ORDER_SERVICE_URL: ${NEXT_PUBLIC_ORDER_SERVICE_URL:-https://api.localhost}
-      NEXT_PUBLIC_PAYMENT_SERVICE_URL: ${NEXT_PUBLIC_PAYMENT_SERVICE_URL:-https://api.localhost}
+      NEXT_PUBLIC_PRODUCT_SERVICE_URL: ${DOCKER_PUBLIC_PRODUCT_SERVICE_URL:-https://api.localhost:8443}
+      NEXT_PUBLIC_ORDER_SERVICE_URL: ${DOCKER_PUBLIC_ORDER_SERVICE_URL:-https://api.localhost:8443}
+      NEXT_PUBLIC_PAYMENT_SERVICE_URL: ${DOCKER_PUBLIC_PAYMENT_SERVICE_URL:-https://api.localhost:8443}
     expose:
       - "3003"
     depends_on:
