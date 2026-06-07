@@ -11,6 +11,7 @@
     "@repo/contracts": "workspace:*",
     "@repo/order-db": "workspace:*",
     "@repo/types": "workspace:*",
+    "@orpc/server": "catalog:",
     "hono": "catalog:"
   },
   "devDependencies": {

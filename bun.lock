@@ -76,6 +76,7 @@
     "apps/order-service": {
       "name": "order-service",
       "dependencies": {
+        "@orpc/server": "catalog:",
         "@repo/contracts": "workspace:*",
         "@repo/hono-utils": "workspace:*",
         "@repo/kafka": "workspace:*",
@@ -92,6 +93,7 @@
     "apps/payment-service": {
       "name": "payment-service",
       "dependencies": {
+        "@orpc/server": "catalog:",
         "@repo/api-client": "workspace:*",
         "@repo/contracts": "workspace:*",
         "@repo/hono-utils": "workspace:*",
@@ -109,6 +111,7 @@
     "apps/product-service": {
       "name": "product-service",
       "dependencies": {
+        "@orpc/server": "catalog:",
         "@repo/contracts": "workspace:*",
         "@repo/hono-utils": "workspace:*",
         "@repo/kafka": "workspace:*",

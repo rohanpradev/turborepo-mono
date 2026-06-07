@@ -11,6 +11,7 @@
     "@repo/api-client": "workspace:*",
     "@repo/contracts": "workspace:*",
     "@repo/types": "workspace:*",
+    "@orpc/server": "catalog:",
     "hono": "catalog:",
     "stripe": "catalog:"
   },

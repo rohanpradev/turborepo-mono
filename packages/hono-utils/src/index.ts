@@ -677,7 +677,7 @@ export const createORPCMiddleware = <TRouter extends AnyRouter>({
     });
 
     if (result.matched) {
-      return result.response;
+      return c.newResponse(result.response.body, result.response);
     }
 
     await next();

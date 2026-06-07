@@ -12,7 +12,7 @@ export const sortOptions = [
   { label: "Price: High to Low", value: "desc" },
 ] as const satisfies ReadonlyArray<{ label: string; value: ProductSort }>;
 
-export const validSorts = sortOptions.map((option) => option.value);
+const validSorts = sortOptions.map((option) => option.value);
 
 const colorSwatches: Record<string, string> = {
   black: "#171717",
