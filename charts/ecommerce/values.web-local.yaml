@@ -3,7 +3,7 @@ global:
   env:
     NODE_ENV: production
     REQUEST_TIMEOUT_MS: "30000"
-    KAFKA_BROKERS: ""
+    KAFKA_BROKERS: host.docker.internal:9094,host.docker.internal:9095,host.docker.internal:9096
     KAFKA_LOG_LEVEL: error
     KAFKA_CONNECTION_TIMEOUT_MS: "3000"
     KAFKA_REQUEST_TIMEOUT_MS: "25000"
@@ -28,6 +28,24 @@ ingress:
           pathType: Prefix
           service: admin
           port: http
+    - host: api.localhost
+      paths:
+        - path: /rpc/product
+          pathType: Prefix
+          service: product
+          port: http
+        - path: /rpc/payment
+          pathType: Prefix
+          service: payment
+          port: http
+        - path: /rpc/order
+          pathType: Prefix
+          service: order
+          port: http
+        - path: /api/webhooks
+          pathType: Prefix
+          service: payment
+          port: http
 
 gateway:
   enabled: true
@@ -41,11 +59,23 @@ secrets:
 
 services:
   product:
-    enabled: false
+    enabled: true
+    replicaCount: 1
+    image:
+      pullPolicy: IfNotPresent
   order:
-    enabled: false
+    enabled: true
+    replicaCount: 1
+    image:
+      pullPolicy: IfNotPresent
   payment:
-    enabled: false
+    enabled: true
+    replicaCount: 1
+    image:
+      pullPolicy: IfNotPresent
+    env:
+      CLIENT_APP_URL: https://shop.localhost
+      PRODUCT_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-product-service:3000
   client:
     replicaCount: 1
     image:
@@ -53,9 +83,9 @@ services:
     env:
       CLIENT_APP_URL: https://shop.localhost
       NEXT_PUBLIC_CLIENT_APP_URL: https://shop.localhost
-      PRODUCT_SERVICE_INTERNAL_URL: http://127.0.0.1:65535
-      ORDER_SERVICE_INTERNAL_URL: http://127.0.0.1:65535
-      PAYMENT_SERVICE_INTERNAL_URL: http://127.0.0.1:65535
+      PRODUCT_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-product-service:3000
+      ORDER_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-order-service:8001
+      PAYMENT_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-payment-service:8002
       NEXT_PUBLIC_PRODUCT_SERVICE_URL: https://api.localhost
       NEXT_PUBLIC_ORDER_SERVICE_URL: https://api.localhost
       NEXT_PUBLIC_PAYMENT_SERVICE_URL: https://api.localhost
@@ -67,9 +97,9 @@ services:
       ADMIN_APP_URL: https://admin.localhost
       CLIENT_APP_URL: https://shop.localhost
       NEXT_PUBLIC_ADMIN_APP_URL: https://admin.localhost
-      PRODUCT_SERVICE_INTERNAL_URL: http://127.0.0.1:65535
-      ORDER_SERVICE_INTERNAL_URL: http://127.0.0.1:65535
-      PAYMENT_SERVICE_INTERNAL_URL: http://127.0.0.1:65535
+      PRODUCT_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-product-service:3000
+      ORDER_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-order-service:8001
+      PAYMENT_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-payment-service:8002
       NEXT_PUBLIC_PRODUCT_SERVICE_URL: https://api.localhost
       NEXT_PUBLIC_ORDER_SERVICE_URL: https://api.localhost
       NEXT_PUBLIC_PAYMENT_SERVICE_URL: https://api.localhost

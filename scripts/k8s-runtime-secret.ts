@@ -102,6 +102,12 @@ const selectedSecrets: Array<SecretEntry> = [
 
 const firstValue = (env: Map<string, string>, sources: Array<string>) => {
   for (const source of sources) {
+    const processValue = process.env[source];
+
+    if (processValue) {
+      return processValue;
+    }
+
     const value = env.get(source);
 
     if (value) {

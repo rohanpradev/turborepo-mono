@@ -8,7 +8,9 @@ const isClerkConfigured = Boolean(
     !process.env.CLERK_SECRET_KEY.includes("_here"),
 );
 const isPublicRoute = createRouteMatcher([
+  "/",
   "/api/health",
+  "/products(.*)",
   "/sign-in(.*)",
   "/sign-up(.*)",
 ]);

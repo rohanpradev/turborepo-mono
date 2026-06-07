@@ -1,7 +1,7 @@
 # E-Commerce Microservices Makefile
 # Manage all services, databases, Docker Compose, and Kubernetes/Helm workflows.
 
-.PHONY: help ensure-env install dev stop clean clean-all setup setup-base generate-client kafka-ui db-setup db-migrate db-generate db-studio db-seed local-env-file local-db-migrate local-db-seed local-urls local-dev local-fresh-dev lint type-check format audit test verify build build-client build-admin logs-product logs-order logs-payment status docker-auth docker-certs docker-validate docker-images docker-lock-images docker-build docker-up docker-up-build docker-smoke docker-test docker-down docker-down-volumes docker-logs docker-logs-traefik docker-logs-product docker-logs-order docker-logs-payment docker-logs-client docker-logs-admin docker-logs-stripe docker-ps docker-restart docker-restart-service docker-rebuild-service docker-shell-traefik docker-shell-product docker-shell-order docker-shell-payment docker-infra-only docker-infra-local docker-stripe-up docker-stripe-down docker-clean docker-clean-images docker-prune docker-kill-all docker-setup docker-fresh-start helm-lint helm-template helm-dry-run helm-package k8s-preflight k8s-namespace k8s-tls-secret k8s-runtime-secret k8s-build-images k8s-build-full-images k8s-validate k8s-validate-full k8s-diff k8s-deploy k8s-deploy-full k8s-up k8s-up-full k8s-wait k8s-smoke k8s-smoke-full k8s-test k8s-status k8s-events k8s-logs k8s-logs-client k8s-logs-admin k8s-logs-product k8s-logs-order k8s-logs-payment k8s-describe k8s-restart k8s-uninstall quick-start quick-stop restart docker-quick-start
+.PHONY: help ensure-env install dev stop clean clean-all setup setup-base generate-client kafka-ui db-setup db-migrate db-generate db-studio db-seed local-env-file local-db-migrate local-db-seed local-urls local-dev local-fresh-dev lint type-check format audit test verify build build-client build-admin logs-product logs-order logs-payment status docker-auth docker-certs docker-validate docker-images docker-lock-images docker-build docker-up docker-up-build docker-smoke docker-test docker-down docker-down-volumes docker-logs docker-logs-traefik docker-logs-product docker-logs-order docker-logs-payment docker-logs-client docker-logs-admin docker-logs-stripe docker-ps docker-restart docker-restart-service docker-rebuild-service docker-shell-traefik docker-shell-product docker-shell-order docker-shell-payment docker-infra-only docker-infra-local docker-stripe-up docker-stripe-down docker-clean docker-clean-images docker-prune docker-kill-all docker-setup docker-fresh-start helm-lint helm-template helm-dry-run helm-package k8s-preflight k8s-local-deps k8s-namespace k8s-tls-secret k8s-runtime-secret k8s-build-images k8s-build-full-images k8s-validate k8s-validate-full k8s-diff k8s-deploy k8s-deploy-full k8s-up k8s-up-full k8s-wait k8s-smoke k8s-smoke-full k8s-test k8s-status k8s-events k8s-logs k8s-logs-client k8s-logs-admin k8s-logs-product k8s-logs-order k8s-logs-payment k8s-describe k8s-restart k8s-uninstall quick-start quick-stop restart docker-quick-start
 
 .DEFAULT_GOAL := help
 
@@ -30,6 +30,8 @@ KUBECTL ?= kubectl
 HELM_CHART ?= charts/ecommerce
 HELM_RELEASE ?= ecommerce
 HELM_NAMESPACE ?= ecommerce
+TRAEFIK_NAMESPACE ?= traefik
+TRAEFIK_GATEWAY_TLS_SECRET ?= local-selfsigned-tls
 HELM_VALUES ?= charts/ecommerce/values.web-local.yaml
 HELM_FULL_VALUES ?= charts/ecommerce/values.local.yaml
 HELM_RUNTIME_SECRET ?= $(HELM_RELEASE)-runtime
@@ -37,6 +39,11 @@ HELM_TLS_SECRET ?= ecommerce-local-tls
 HELM_SET_ARGS ?= --set secrets.name=$(HELM_RUNTIME_SECRET) --set ingress.tls.secretName=$(HELM_TLS_SECRET)
 HELM_RENDERED_FILE ?= /tmp/$(HELM_RELEASE)-rendered.yaml
 HELM_PACKAGE_DIR ?= /tmp/helm-packages
+K8S_DATABASE_URL ?= postgresql://postgres:postgres@host.docker.internal:5432/product_db?schema=public
+K8S_MONGO_URL ?= mongodb://host.docker.internal:27017/order_db
+K8S_PUBLIC_CLIENT_APP_URL ?= https://shop.localhost
+K8S_PUBLIC_ADMIN_APP_URL ?= https://admin.localhost
+K8S_PUBLIC_API_URL ?= https://api.localhost
 K8S_ROLLOUT_TIMEOUT ?= 5m
 K8S_LOG_TAIL ?= 200
 K8S_SMOKE_TIMEOUT ?= 10
@@ -518,23 +525,34 @@ k8s-preflight: ## Verify local Kubernetes, Helm, kubectl, and Traefik ingress pr
 	}
 	@echo "$(GREEN)Kubernetes prerequisites passed$(NC)"
 
+k8s-local-deps: ensure-env docker-auth ## Start local external dependencies used by the Kubernetes web profile
+	@echo "$(BLUE)Starting Kubernetes local backing services...$(NC)"
+	KAFKA_EXTERNAL_HOST=host.docker.internal $(DOCKER_COMPOSE) up -d postgres mongodb kafka-broker-1 kafka-broker-2 kafka-broker-3 --wait
+	@echo "$(GREEN)Kubernetes local backing services are ready$(NC)"
+
 k8s-namespace: k8s-preflight ## Create the Kubernetes namespace if needed
 	$(KUBECTL) create namespace $(HELM_NAMESPACE) --dry-run=client -o yaml | $(KUBECTL) apply -f -
 
 k8s-tls-secret: docker-certs k8s-namespace ## Sync the local mkcert certificate into Kubernetes
 	$(KUBECTL) -n $(HELM_NAMESPACE) create secret tls $(HELM_TLS_SECRET) --cert=$(LOCAL_TLS_CERT_FILE) --key=$(LOCAL_TLS_KEY_FILE) --dry-run=client -o yaml | $(KUBECTL) apply -f -
+	$(KUBECTL) -n $(TRAEFIK_NAMESPACE) create secret tls $(TRAEFIK_GATEWAY_TLS_SECRET) --cert=$(LOCAL_TLS_CERT_FILE) --key=$(LOCAL_TLS_KEY_FILE) --dry-run=client -o yaml | $(KUBECTL) apply -f -
 
 k8s-runtime-secret: ensure-env k8s-namespace ## Sync app runtime secrets from .env into Kubernetes
 	@if [ "$$($(KUBECTL) -n $(HELM_NAMESPACE) get secret $(HELM_RUNTIME_SECRET) -o jsonpath='{.metadata.annotations.meta\.helm\.sh/release-name}' 2>/dev/null)" = "$(HELM_RELEASE)" ]; then \
 		echo "$(YELLOW)Replacing Helm-managed $(HELM_RUNTIME_SECRET) with an external runtime secret$(NC)"; \
 		$(KUBECTL) -n $(HELM_NAMESPACE) delete secret $(HELM_RUNTIME_SECRET); \
 	fi
-	@bun run scripts/k8s-runtime-secret.ts --env-file .env --name $(HELM_RUNTIME_SECRET) --namespace $(HELM_NAMESPACE) | $(KUBECTL) apply -f -
+	@K8S_DATABASE_URL="$(K8S_DATABASE_URL)" K8S_MONGO_URL="$(K8S_MONGO_URL)" bun run scripts/k8s-runtime-secret.ts --env-file .env --name $(HELM_RUNTIME_SECRET) --namespace $(HELM_NAMESPACE) | $(KUBECTL) apply -f -
 
-k8s-build-images: ensure-env docker-auth ## Build local web-tier images for Kubernetes
-	@echo "$(BLUE)Building local web-tier images for Kubernetes...$(NC)"
-	$(DOCKER_COMPOSE) build client admin
-	@echo "$(GREEN)Local web-tier images built$(NC)"
+k8s-build-images: ensure-env docker-auth ## Build local web, public catalog, and checkout images for Kubernetes
+	@echo "$(BLUE)Building local web, public catalog, and checkout images for Kubernetes...$(NC)"
+	DOCKER_PUBLIC_CLIENT_APP_URL=$(K8S_PUBLIC_CLIENT_APP_URL) \
+	DOCKER_PUBLIC_ADMIN_APP_URL=$(K8S_PUBLIC_ADMIN_APP_URL) \
+	DOCKER_PUBLIC_PRODUCT_SERVICE_URL=$(K8S_PUBLIC_API_URL) \
+	DOCKER_PUBLIC_ORDER_SERVICE_URL=$(K8S_PUBLIC_API_URL) \
+	DOCKER_PUBLIC_PAYMENT_SERVICE_URL=$(K8S_PUBLIC_API_URL) \
+	$(DOCKER_COMPOSE) build product-service order-service payment-service client admin
+	@echo "$(GREEN)Local web, public catalog, and checkout images built$(NC)"
 
 k8s-build-full-images: ensure-env docker-auth ## Build all local application images for full Kubernetes deployments
 	@echo "$(BLUE)Building all application images for Kubernetes...$(NC)"
@@ -564,7 +582,7 @@ k8s-deploy-full: helm-lint k8s-validate-full k8s-tls-secret k8s-runtime-secret #
 	$(HELM) upgrade --install $(HELM_RELEASE) $(HELM_CHART) --namespace $(HELM_NAMESPACE) --create-namespace --values $(HELM_FULL_VALUES) $(HELM_SET_ARGS) $(HELM_UPGRADE_ARGS)
 	@echo "$(GREEN)Full Kubernetes deployment submitted$(NC)"
 
-k8s-up: k8s-build-images k8s-deploy k8s-wait k8s-smoke ## Build images, deploy local web tier with Helm, wait, and smoke-test Traefik
+k8s-up: k8s-local-deps k8s-build-images k8s-deploy k8s-wait k8s-smoke ## Build images, deploy local web tier with Helm, wait, and smoke-test Traefik
 	@echo "$(GREEN)Kubernetes stack is ready$(NC)"
 
 k8s-up-full: k8s-build-full-images k8s-deploy-full k8s-wait k8s-smoke-full ## Build images and deploy the full app when backing services exist
