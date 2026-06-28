@@ -170,15 +170,17 @@ const ProductPage = async ({
       />
       <div className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)] lg:gap-12 xl:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)]">
         <section className="min-w-0 space-y-4">
-          <div className="relative aspect-[4/5] w-full overflow-hidden rounded-lg border border-black/10 bg-[#f5f7f2] shadow-[0_24px_70px_-40px_rgba(15,23,42,0.45)]">
+          <div className="relative aspect-[4/5] w-full overflow-hidden rounded-lg border border-black/10 bg-[linear-gradient(145deg,#fbfcf8_0%,#eef4ee_48%,#e5e8df_100%)] shadow-[0_24px_70px_-40px_rgba(15,23,42,0.45)]">
             <div className="absolute inset-x-0 top-0 h-1 bg-[linear-gradient(90deg,#0f766e,#f97316,#111827)]" />
+            <div className="absolute inset-x-12 bottom-12 h-6 rounded-full bg-black/10 blur-lg" />
             <Image
               src={selectedImage}
               alt={product.name}
               fill
               preload
               decoding="async"
-              className="object-contain p-8"
+              quality={85}
+              className="object-contain p-7 drop-shadow-[0_28px_30px_rgba(15,23,42,0.18)] sm:p-10"
               sizes="(min-width: 1024px) 52vw, 100vw"
             />
           </div>
@@ -190,7 +192,7 @@ const ProductPage = async ({
                   key={option.color}
                   href={`/products/${product.id}?color=${encodeURIComponent(option.color)}&size=${encodeURIComponent(selectedSize)}`}
                   prefetch={false}
-                  className={`relative aspect-square overflow-hidden rounded-lg border bg-white transition hover:border-gray-400 ${
+                  className={`relative aspect-square overflow-hidden rounded-lg border bg-[linear-gradient(145deg,#ffffff_0%,#f4f7f2_100%)] transition hover:border-gray-400 ${
                     selectedColor === option.color
                       ? "border-gray-950"
                       : "border-black/10"
@@ -201,8 +203,9 @@ const ProductPage = async ({
                     src={option.src}
                     alt={`${product.name} in ${option.color}`}
                     fill
+                    quality={75}
                     sizes="8rem"
-                    className="object-contain p-2"
+                    className="object-contain p-2 drop-shadow-[0_10px_14px_rgba(15,23,42,0.14)]"
                   />
                   <span
                     className="absolute bottom-2 right-2 size-4 rounded-full border border-black/15 shadow-sm"

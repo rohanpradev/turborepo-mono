@@ -11,6 +11,7 @@ import type {
   ProductSort,
   ProductUpdatePayload,
 } from "@repo/types";
+import { productServiceRuntime } from "@/runtime";
 import { producer } from "@/utils/kafka";
 
 type ProductFilters = {
@@ -69,16 +70,45 @@ const toProductUpdatedMessage = (product: Product): ProductUpdatedMessage => ({
   updatedAt: product.updatedAt.toISOString(),
 });
 
+const publishProductEvent = async <
+  TTopic extends (typeof Topics)[keyof typeof Topics],
+>(
+  topic: TTopic,
+  message:
+    | ProductCreatedMessage
+    | ProductDeletedMessage
+    | ProductUpdatedMessage,
+  options: { key?: string } = {},
+) => {
+  try {
+    await producer.send(topic, message as never, options);
+    productServiceRuntime.markReady("kafka.producer");
+    return true;
+  } catch (error) {
+    const detail =
+      error instanceof Error ? error.message : "Product event publish failed.";
+    productServiceRuntime.markNotReady("kafka.producer", detail);
+    console.error(`Failed to publish ${topic} event:`, error);
+    return false;
+  }
+};
+
 export const ProductService = {
   async createProduct(data: ProductPayload): Promise<ProductRecord> {
     const product = await prisma.product.create({ data });
 
     const message = toProductCreatedMessage(product);
 
-    await producer.send(Topics.PRODUCT_CREATED, message, {
-      key: message.id,
-    });
-    console.log(`Published product.created event for product ${product.id}`);
+    const published = await publishProductEvent(
+      Topics.PRODUCT_CREATED,
+      message,
+      {
+        key: message.id,
+      },
+    );
+    if (published) {
+      console.log(`Published product.created event for product ${product.id}`);
+    }
 
     return toProductRecord(product);
   },
@@ -135,10 +165,18 @@ export const ProductService = {
       });
 
       const message = toProductUpdatedMessage(product);
-      await producer.send(Topics.PRODUCT_UPDATED, message, {
-        key: message.id,
-      });
-      console.log(`Published product.updated event for product ${product.id}`);
+      const published = await publishProductEvent(
+        Topics.PRODUCT_UPDATED,
+        message,
+        {
+          key: message.id,
+        },
+      );
+      if (published) {
+        console.log(
+          `Published product.updated event for product ${product.id}`,
+        );
+      }
 
       return toProductRecord(product);
     } catch (error) {
@@ -166,10 +204,16 @@ export const ProductService = {
       deletedAt: new Date().toISOString(),
     };
 
-    await producer.send(Topics.PRODUCT_DELETED, message, {
-      key: message.id,
-    });
-    console.log(`Published product.deleted event for product ${id}`);
+    const published = await publishProductEvent(
+      Topics.PRODUCT_DELETED,
+      message,
+      {
+        key: message.id,
+      },
+    );
+    if (published) {
+      console.log(`Published product.deleted event for product ${id}`);
+    }
 
     return true;
   },

@@ -144,6 +144,34 @@ make docker-logs
 make docker-down
 ```
 
+### Local Kubernetes With Helm
+
+Use this when you want to test Kubernetes locally. It deploys the apps with Helm and Traefik while Postgres, MongoDB, and Kafka stay in Docker for a faster laptop-friendly loop.
+
+```bash
+make k8s
+```
+
+Main URLs:
+
+| Surface | URL |
+| --- | --- |
+| Storefront | `https://shop.localhost` |
+| Admin | `https://admin.localhost` |
+| API gateway | `https://api.localhost` |
+
+Useful follow-ups:
+
+```bash
+make k8s-doctor
+make k8s-status
+make k8s-test
+make k8s-open
+make k8s-clear
+```
+
+Use `make k8s-full` when you want the full local stack: it keeps Postgres, MongoDB, and Kafka in Docker, then deploys the five app workloads to Kubernetes.
+
 ### Local App Development
 
 Use this when you want apps and services running locally over HTTP while Postgres, MongoDB, and Kafka run in Docker:
@@ -284,7 +312,7 @@ The Docker path uses Docker Hardened Images for Bun, Traefik, Postgres, Kafka, a
 | `ecommerce-order-service` | `docker/Dockerfile.order-service` | Order API and MongoDB read model |
 | `ecommerce-client` | `docker/Dockerfile.client` | Customer storefront |
 | `ecommerce-admin` | `docker/Dockerfile.admin` | Admin operations dashboard |
-| `stripe-cli` | `stripe/stripe-cli` pinned by digest | Local webhook forwarding |
+| `stripe-cli` | `stripe/stripe-cli:v1.43.2` | Local webhook forwarding |
 
 The five application Dockerfiles use Turbo pruning, Bun frozen installs, and hardened Bun runtime images. Frontend images build standalone Next.js output, while service images copy only runtime code, generated clients, shared packages, and production dependencies.
 
@@ -311,16 +339,18 @@ make docker-auth
 Use Helm when you want the Kubernetes ingress controller to own bare local domains such as `https://shop.localhost`, `https://admin.localhost`, and `https://api.localhost`.
 
 ```bash
-make k8s-preflight
-make k8s-validate
-make k8s-up
+make k8s
+make ks8
+make kubernetes
 make k8s-status
+make k8s-traefik-status
+make k8s-logs-traefik
 make k8s-test
 ```
 
-The default local workflow deploys the web tier so `shop.localhost` and `admin.localhost` work on the current local Traefik Gateway without requiring Postgres, MongoDB, or Kafka. Use `make k8s-up-full` for the full application once those backing services exist in the cluster.
+`make k8s` is the one-command local Kubernetes setup: it installs or upgrades Traefik, builds the app images, validates the Helm chart, syncs TLS and runtime secrets, deploys the release, waits for rollout, and smoke-tests the routes. `make k8s-full` does the same for all five application workloads and starts Docker-backed Postgres, MongoDB, and Kafka first. `make ks8` is kept as a friendly alias for the common typo, and `make kubernetes` does the same thing as `make k8s`.
 
-The chart lives in `charts/ecommerce`. It can deploy the five application workloads, ClusterIP services, Traefik Gateway API HTTPRoutes for the local cluster, optional standard Ingress for other clusters, readiness/liveness probes, read-only security contexts, PDBs, optional HPAs, optional network policies, and Helm hook jobs for product database migration and optional seeding. Runtime infrastructure such as Postgres, MongoDB, Kafka, Clerk, and Stripe is intentionally externalized through Kubernetes Secrets and values.
+The chart lives in `charts/ecommerce`. It can deploy the five application workloads, ClusterIP services, Traefik-backed Ingress routes for the local cluster, optional Gateway API HTTPRoutes for other clusters, readiness/liveness probes, read-only security contexts, PDBs, optional HPAs, optional network policies, and Helm hook jobs for product database migration and optional seeding. Runtime infrastructure such as Postgres, MongoDB, Kafka, Clerk, and Stripe is intentionally externalized through Kubernetes Secrets and values.
 
 `make k8s-tls-secret` syncs the local mkcert certificate into the target namespace, and `make k8s-runtime-secret` syncs runtime secrets from `.env`. For cluster-native dependencies, set `K8S_DATABASE_URL` and `K8S_MONGO_URL` instead of relying on localhost URLs.
 
@@ -331,12 +361,14 @@ make helm-dry-run
 make k8s-diff
 make k8s-wait
 make k8s-smoke
+make k8s-traefik-status
 make k8s-events
+make k8s-logs-traefik
 make k8s-logs-client
 make k8s-logs-product
 make k8s-describe K8S_SERVICE=product-service
 make k8s-restart
-make k8s-uninstall
+make k8s-clear
 ```
 
 ## API Documentation

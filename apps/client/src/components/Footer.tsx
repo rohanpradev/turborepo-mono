@@ -21,8 +21,12 @@ const Footer = () => {
         <p className="text-sm text-white">Links</p>
         <Link href="/">Homepage</Link>
         <Link href="/products">Products</Link>
-        <Link href="/cart">Cart</Link>
-        <Link href="/orders">Orders</Link>
+        <Link href="/cart" prefetch={false}>
+          Cart
+        </Link>
+        <Link href="/orders" prefetch={false}>
+          Orders
+        </Link>
       </div>
       <div className="flex flex-col items-center gap-4 text-sm text-white/60 sm:items-start">
         <p className="text-sm text-white">Catalog</p>

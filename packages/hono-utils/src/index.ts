@@ -16,6 +16,7 @@ import { cors } from "hono/cors";
 import { createMiddleware } from "hono/factory";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "hono/logger";
+import { requestId } from "hono/request-id";
 import { secureHeaders } from "hono/secure-headers";
 import { timeout } from "hono/timeout";
 import { timing } from "hono/timing";
@@ -292,6 +293,9 @@ export const getAuthenticatedAdminUserId = (c: Context) => {
 };
 
 export const getRequestId = (c: Context) =>
+  normalizeRequestId(
+    (c as Context<{ Variables: { requestId?: string } }>).get("requestId"),
+  ) ??
   normalizeRequestId(c.res.headers.get("x-request-id")) ??
   normalizeRequestId(c.req.header("x-request-id"));
 
@@ -388,13 +392,10 @@ export const createServiceRouter = <E extends Env = Env>() =>
   });
 
 export const createRequestIdMiddleware = () =>
-  createMiddleware(async (c, next) => {
-    const id =
-      normalizeRequestId(c.req.header("x-request-id")) ?? generateRequestId();
-
-    c.header("x-request-id", id);
-    await next();
-    c.header("x-request-id", id);
+  requestId({
+    generator: generateRequestId,
+    headerName: "X-Request-Id",
+    limitLength: 255,
   });
 
 export const createClerkServiceAuth = <
@@ -651,6 +652,10 @@ export const createHealthRoutes = <
 
 export const createCorsMiddleware = () =>
   cors({
+    allowHeaders: ["Authorization", "Content-Type", "X-Request-Id"],
+    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    exposeHeaders: ["Server-Timing", "X-Request-Id"],
+    maxAge: 600,
     origin: getCorsOrigins(),
     credentials: true,
   });

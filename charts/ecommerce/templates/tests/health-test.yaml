@@ -11,10 +11,15 @@ metadata:
 spec:
   restartPolicy: Never
   automountServiceAccountToken: false
+  enableServiceLinks: false
+  securityContext:
+    {{- toYaml .Values.global.podSecurityContext | nindent 4 }}
   containers:
     - name: curl
       image: "{{ .Values.helmTests.image.repository }}:{{ .Values.helmTests.image.tag }}"
       imagePullPolicy: {{ .Values.helmTests.image.pullPolicy }}
+      securityContext:
+        {{- toYaml .Values.global.containerSecurityContext | nindent 8 }}
       command:
         - /bin/sh
         - -ec

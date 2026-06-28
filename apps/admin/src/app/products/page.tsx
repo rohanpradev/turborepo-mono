@@ -145,7 +145,8 @@ const ProductsPage = async () => {
                 key={product.id}
                 className="min-w-0 overflow-hidden rounded-2xl border border-dashed"
               >
-                <div className="aspect-[4/3] bg-muted">
+                <div className="relative aspect-[4/3] bg-[linear-gradient(145deg,var(--background)_0%,var(--muted)_100%)]">
+                  <div className="absolute inset-x-10 bottom-7 h-4 rounded-full bg-black/10 blur-md dark:bg-white/10" />
                   <Image
                     src={getStorefrontAssetUrl(
                       Object.values(product.images)[0] ?? "/logo.svg",
@@ -153,8 +154,9 @@ const ProductsPage = async () => {
                     alt={product.name}
                     width={640}
                     height={480}
+                    quality={75}
                     sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw"
-                    className="h-full w-full object-contain p-4"
+                    className="h-full w-full object-contain p-4 drop-shadow-[0_16px_20px_rgba(15,23,42,0.16)]"
                   />
                 </div>
                 <div className="space-y-4 p-4">

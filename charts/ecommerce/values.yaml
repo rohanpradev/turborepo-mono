@@ -5,6 +5,8 @@ global:
   imageRegistry: ""
   imagePullPolicy: IfNotPresent
   imagePullSecrets: []
+  enableServiceLinks: false
+  terminationGracePeriodSeconds: 30
   podAnnotations: {}
   podLabels: {}
   nodeSelector: {}
@@ -21,6 +23,8 @@ global:
       type: RuntimeDefault
   containerSecurityContext:
     allowPrivilegeEscalation: false
+    privileged: false
+    procMount: Default
     readOnlyRootFilesystem: true
     capabilities:
       drop:
@@ -159,6 +163,13 @@ services:
       periodSeconds: 20
       timeoutSeconds: 3
       failureThreshold: 3
+    startupProbe:
+      httpGet:
+        path: /health/live
+        port: http
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 24
     resources:
       requests:
         cpu: 100m
@@ -173,6 +184,9 @@ services:
       minReplicas: 2
       maxReplicas: 6
       targetCPUUtilizationPercentage: 70
+    rollout:
+      minReadySeconds: 5
+      progressDeadlineSeconds: 600
 
   order:
     enabled: true
@@ -211,6 +225,13 @@ services:
       periodSeconds: 20
       timeoutSeconds: 3
       failureThreshold: 3
+    startupProbe:
+      httpGet:
+        path: /health/live
+        port: http
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 24
     resources:
       requests:
         cpu: 100m
@@ -225,6 +246,9 @@ services:
       minReplicas: 2
       maxReplicas: 6
       targetCPUUtilizationPercentage: 70
+    rollout:
+      minReadySeconds: 5
+      progressDeadlineSeconds: 600
 
   payment:
     enabled: true
@@ -265,6 +289,13 @@ services:
       periodSeconds: 20
       timeoutSeconds: 3
       failureThreshold: 3
+    startupProbe:
+      httpGet:
+        path: /health/live
+        port: http
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 24
     resources:
       requests:
         cpu: 100m
@@ -279,6 +310,9 @@ services:
       minReplicas: 2
       maxReplicas: 6
       targetCPUUtilizationPercentage: 70
+    rollout:
+      minReadySeconds: 5
+      progressDeadlineSeconds: 600
 
   client:
     enabled: true
@@ -325,12 +359,26 @@ services:
       periodSeconds: 20
       timeoutSeconds: 3
       failureThreshold: 3
+    startupProbe:
+      httpGet:
+        path: /api/health
+        port: http
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 24
     resources:
       requests:
         cpu: 100m
         memory: 256Mi
       limits:
         memory: 512Mi
+    extraVolumeMounts:
+      - name: next-cache
+        mountPath: /app/apps/client/.next/cache
+    extraVolumes:
+      - name: next-cache
+        emptyDir:
+          sizeLimit: 256Mi
     podDisruptionBudget:
       enabled: true
       minAvailable: 1
@@ -339,6 +387,9 @@ services:
       minReplicas: 2
       maxReplicas: 6
       targetCPUUtilizationPercentage: 70
+    rollout:
+      minReadySeconds: 5
+      progressDeadlineSeconds: 600
 
   admin:
     enabled: true
@@ -385,6 +436,13 @@ services:
       periodSeconds: 20
       timeoutSeconds: 3
       failureThreshold: 3
+    startupProbe:
+      httpGet:
+        path: /api/health
+        port: http
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 24
     resources:
       requests:
         cpu: 100m
@@ -399,6 +457,9 @@ services:
       minReplicas: 2
       maxReplicas: 6
       targetCPUUtilizationPercentage: 70
+    rollout:
+      minReadySeconds: 5
+      progressDeadlineSeconds: 600
 
 jobs:
   migrate-product-db:
@@ -406,10 +467,7 @@ jobs:
     service: product
     command:
       - bun
-      - run
-      - --cwd
-      - packages/product-db
-      - db:deploy
+      - packages/product-db/src/deploy-migrations.ts
     hook: pre-install,pre-upgrade
     hookWeight: "-10"
     deletePolicy: before-hook-creation,hook-succeeded
@@ -424,7 +482,7 @@ jobs:
       - bun
       - run
       - apps/product-service/src/scripts/seed.ts
-    hook: post-install
+    hook: post-install,post-upgrade
     hookWeight: "10"
     deletePolicy: before-hook-creation,hook-succeeded
     backoffLimit: 1
@@ -436,11 +494,13 @@ jobs:
 networkPolicy:
   enabled: false
   allowExternalEgress: true
+  allowDnsEgress: true
   ingressFrom: []
+  extraEgress: []
 
 helmTests:
   enabled: true
   image:
     repository: curlimages/curl
-    tag: "8.11.1"
+    tag: "8.21.0"
     pullPolicy: IfNotPresent

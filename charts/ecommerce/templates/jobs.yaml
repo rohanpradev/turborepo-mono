@@ -24,8 +24,9 @@ spec:
         app.kubernetes.io/job-name: {{ $name | quote }}
     spec:
       restartPolicy: OnFailure
-      serviceAccountName: {{ include "ecommerce.serviceAccountName" $ }}
       automountServiceAccountToken: {{ $.Values.serviceAccount.automountServiceAccountToken }}
+      enableServiceLinks: {{ $.Values.global.enableServiceLinks }}
+      terminationGracePeriodSeconds: {{ $.Values.global.terminationGracePeriodSeconds }}
       securityContext:
         {{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
       {{- with $.Values.global.imagePullSecrets }}

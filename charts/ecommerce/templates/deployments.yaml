@@ -11,6 +11,14 @@ spec:
   replicas: {{ $service.replicaCount }}
   {{- end }}
   revisionHistoryLimit: {{ default 3 $service.revisionHistoryLimit }}
+  {{- with $service.rollout }}
+  {{- with .minReadySeconds }}
+  minReadySeconds: {{ . }}
+  {{- end }}
+  {{- with .progressDeadlineSeconds }}
+  progressDeadlineSeconds: {{ . }}
+  {{- end }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "ecommerce.selectorLabels" (dict "root" $ "service" $service) | nindent 6 }}
@@ -37,6 +45,8 @@ spec:
     spec:
       serviceAccountName: {{ include "ecommerce.serviceAccountName" $ }}
       automountServiceAccountToken: {{ $.Values.serviceAccount.automountServiceAccountToken }}
+      enableServiceLinks: {{ $.Values.global.enableServiceLinks }}
+      terminationGracePeriodSeconds: {{ $.Values.global.terminationGracePeriodSeconds }}
       {{- with $.Values.global.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -93,6 +103,10 @@ spec:
           {{- end }}
           {{- with $service.livenessProbe }}
           livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $service.startupProbe }}
+          startupProbe:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           {{- with $service.resources }}

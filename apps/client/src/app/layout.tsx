@@ -77,7 +77,18 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        {isClerkConfigured ? <ClerkProvider>{shell}</ClerkProvider> : shell}
+        {isClerkConfigured ? (
+          <ClerkProvider
+            signInUrl="/sign-in"
+            signUpUrl="/sign-up"
+            signInFallbackRedirectUrl="/"
+            signUpFallbackRedirectUrl="/"
+          >
+            {shell}
+          </ClerkProvider>
+        ) : (
+          shell
+        )}
         <ToastContainer position="bottom-right" />
       </body>
     </html>

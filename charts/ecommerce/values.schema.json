@@ -12,6 +12,13 @@
           "type": "string",
           "enum": ["Always", "IfNotPresent", "Never"]
         },
+        "enableServiceLinks": { "type": "boolean" },
+        "terminationGracePeriodSeconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "podSecurityContext": { "type": "object" },
+        "containerSecurityContext": { "type": "object" },
         "env": {
           "type": "object",
           "additionalProperties": {
@@ -183,6 +190,14 @@
               }
             }
           },
+          "rollout": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "minReadySeconds": { "type": "integer", "minimum": 0 },
+              "progressDeadlineSeconds": { "type": "integer", "minimum": 1 }
+            }
+          },
           "podDisruptionBudget": {
             "type": "object",
             "additionalProperties": true,
@@ -221,7 +236,10 @@
       "additionalProperties": true,
       "properties": {
         "enabled": { "type": "boolean" },
-        "allowExternalEgress": { "type": "boolean" }
+        "allowExternalEgress": { "type": "boolean" },
+        "allowDnsEgress": { "type": "boolean" },
+        "ingressFrom": { "type": "array" },
+        "extraEgress": { "type": "array" }
       }
     },
     "helmTests": {
