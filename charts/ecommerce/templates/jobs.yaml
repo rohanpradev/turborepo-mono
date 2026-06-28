@@ -41,9 +41,11 @@ spec:
             {{- toYaml $job.command | nindent 12 }}
           securityContext:
             {{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- if not (contains "pre-install" $job.hook) }}
           envFrom:
             - configMapRef:
                 name: {{ include "ecommerce.configMapName" $ }}
+          {{- end }}
           env:
             {{- range $envName, $value := $job.env }}
             - name: {{ $envName }}
