@@ -7,14 +7,16 @@ Stateful infrastructure is not bundled into this chart. Postgres, MongoDB, Kafka
 ## Local Workflow
 
 ```bash
-make k8s-preflight
-make k8s-build-images
-make k8s-validate
-make k8s-up
+make k8s
+make ks8
+make kubernetes
+make k8s-traefik-status
+make k8s-logs-traefik
+make k8s-test
 make k8s-status
 ```
 
-`make k8s-up` is the local web path: it builds client/admin images, validates the rendered manifests, syncs TLS and runtime auth secrets, deploys with Helm using `--rollback-on-failure --wait`, waits for rollout, and smoke-tests the Traefik routes. Use `make k8s-up-full` after Postgres, MongoDB, and Kafka are available in the cluster.
+`make k8s` is the one-command local Kubernetes setup: it installs or upgrades Traefik, starts Docker-backed Postgres, MongoDB, and Kafka, builds app images, loads them into kind or minikube when needed, validates the Helm chart, syncs TLS and runtime secrets, deploys the release, waits for rollout, and smoke-tests the routes. `make ks8` is kept as a friendly alias for the common typo, and `make kubernetes` does the same thing. Use `make k8s-full` only when Postgres, MongoDB, and Kafka already run inside your cluster. Run `make k8s-test` against the deployed release if you want Helm test coverage.
 
 Useful lower-level commands:
 
@@ -23,12 +25,16 @@ make helm-lint
 make helm-template
 make helm-dry-run
 make helm-package
+make k8s-doctor
 make k8s-diff
 make k8s-deploy
+make k8s-load-images
 make k8s-wait
 make k8s-smoke
+make k8s-traefik-status
 make k8s-test
 make k8s-events
+make k8s-logs-traefik
 make k8s-logs-client
 make k8s-logs-admin
 make k8s-logs-product
@@ -36,10 +42,11 @@ make k8s-logs-order
 make k8s-logs-payment
 make k8s-describe K8S_SERVICE=product-service
 make k8s-restart
+make k8s-open
 make k8s-uninstall
 ```
 
-The local values file uses Gateway API routes attached to the existing Traefik gateway at `traefik/traefik-gateway`, because the local Traefik install exposes Gateway API and Traefik CRD providers rather than the standard Kubernetes Ingress provider.
+The local workflow installs Traefik as a standard Kubernetes Ingress controller and deploys app routes with `ingressClassName: traefik`.
 
 Local routes:
 
@@ -49,7 +56,7 @@ Local routes:
 
 Docker Compose intentionally uses `https://shop.localhost:8443` so it does not fight Kubernetes for host port 443.
 
-For clusters that use the standard Kubernetes Ingress provider, set `gateway.enabled=false`, `ingress.enabled=true`, and `ingress.className` to the ingress class installed in that environment.
+For clusters that use a different Kubernetes Ingress provider, set `K8S_INGRESS_CLASS_NAME=<your-class>` and override `K8S_ROUTE_SET_ARGS` if the chart needs a different `ingress.className`.
 
 ## Secrets
 
@@ -89,5 +96,5 @@ For registries, set `global.imageRegistry` and per-service tags.
 - Use immutable image tags or digests for shared environments.
 - Keep `secrets.create=false` outside throwaway environments and wire `secrets.name` to your secret manager output.
 - Keep `ingress.tls.secretName` owned by cert-manager or the platform ingress layer outside local development.
-- Prefer Gateway API HTTPRoutes when Traefik is installed with its Gateway provider, and standard Ingress only when the Kubernetes Ingress provider is actually enabled.
+- Prefer standard Ingress for the local Traefik workflow, and use Gateway API HTTPRoutes only in clusters where the Gateway provider and CRDs are already installed.
 - Enable `networkPolicy.enabled=true` only after your cluster CNI enforces NetworkPolicy and you have modeled required egress.

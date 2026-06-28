@@ -53,20 +53,11 @@
       "cache": false
     },
     "build": {
-      "dependsOn": ["^build", "^db:generate"],
-      "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": [".next/**", "!.next/cache/**"],
-      "env": [
-        "ADMIN_APP_URL",
-        "CLIENT_APP_URL",
-        "NEXT_PUBLIC_*",
-        "ORDER_SERVICE_INTERNAL_URL",
-        "PAYMENT_SERVICE_INTERNAL_URL",
-        "PRODUCT_SERVICE_INTERNAL_URL"
-      ]
+      "dependsOn": ["^build"],
+      "outputs": []
     },
     "check-types": {
-      "dependsOn": ["^check-types", "^db:generate"]
+      "dependsOn": ["^check-types"]
     },
     "dev": {
       "dependsOn": ["^db:generate"],

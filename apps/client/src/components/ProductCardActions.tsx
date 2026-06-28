@@ -9,11 +9,19 @@ import { getColorSwatchStyle } from "@/lib/catalog";
 import useCartStore from "@/stores/cartStore";
 import type { ProductType } from "@/types";
 
-const ProductCardActions = ({ product }: { product: ProductType }) => {
+type ProductCardActionsProps = {
+  onSelectedColorChange: (color: string) => void;
+  product: ProductType;
+  selectedColor: string;
+};
+
+const ProductCardActions = ({
+  onSelectedColorChange,
+  product,
+  selectedColor,
+}: ProductCardActionsProps) => {
   const defaultSize = product.sizes[0] ?? "";
-  const defaultColor = product.colors[0] ?? "";
   const [selectedSize, setSelectedSize] = useState(defaultSize);
-  const [selectedColor, setSelectedColor] = useState(defaultColor);
   const { addToCart } = useCartStore();
 
   const handleAddToCart = () => {
@@ -60,7 +68,7 @@ const ProductCardActions = ({ product }: { product: ProductType }) => {
               key={color}
               aria-label={`Select ${color} color`}
               aria-pressed={selectedColor === color}
-              onClick={() => setSelectedColor(color)}
+              onClick={() => onSelectedColorChange(color)}
               className={`grid size-9 place-items-center rounded-full border transition ${
                 selectedColor === color
                   ? "border-gray-950 bg-gray-950"

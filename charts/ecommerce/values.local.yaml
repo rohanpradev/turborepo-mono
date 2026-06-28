@@ -3,7 +3,7 @@ global:
   env:
     NODE_ENV: production
     REQUEST_TIMEOUT_MS: "30000"
-    KAFKA_BROKERS: kafka-broker-1.kafka.svc.cluster.local:9092,kafka-broker-2.kafka.svc.cluster.local:9092,kafka-broker-3.kafka.svc.cluster.local:9092
+    KAFKA_BROKERS: host.docker.internal:9094,host.docker.internal:9095,host.docker.internal:9096
     KAFKA_LOG_LEVEL: error
     KAFKA_CONNECTION_TIMEOUT_MS: "3000"
     KAFKA_REQUEST_TIMEOUT_MS: "25000"
@@ -72,3 +72,7 @@ services:
       NEXT_PUBLIC_PRODUCT_SERVICE_URL: https://api.localhost
       NEXT_PUBLIC_ORDER_SERVICE_URL: https://api.localhost
       NEXT_PUBLIC_PAYMENT_SERVICE_URL: https://api.localhost
+
+jobs:
+  seed-product-db:
+    enabled: true

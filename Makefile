@@ -1,7 +1,7 @@
 # E-Commerce Microservices Makefile
 # Manage all services, databases, Docker Compose, and Kubernetes/Helm workflows.
 
-.PHONY: help ensure-env install dev stop clean clean-all setup setup-base generate-client kafka-ui db-setup db-migrate db-generate db-studio db-seed local-env-file local-db-migrate local-db-seed local-urls local-dev local-fresh-dev lint type-check format audit test verify build build-client build-admin logs-product logs-order logs-payment status docker-auth docker-certs docker-validate docker-images docker-lock-images docker-build docker-up docker-up-build docker-smoke docker-test docker-down docker-down-volumes docker-logs docker-logs-traefik docker-logs-product docker-logs-order docker-logs-payment docker-logs-client docker-logs-admin docker-logs-stripe docker-ps docker-restart docker-restart-service docker-rebuild-service docker-shell-traefik docker-shell-product docker-shell-order docker-shell-payment docker-infra-only docker-infra-local docker-stripe-up docker-stripe-down docker-clean docker-clean-images docker-prune docker-kill-all docker-setup docker-fresh-start helm-lint helm-template helm-dry-run helm-package k8s-preflight k8s-local-deps k8s-namespace k8s-tls-secret k8s-runtime-secret k8s-build-images k8s-build-full-images k8s-validate k8s-validate-full k8s-diff k8s-deploy k8s-deploy-full k8s-up k8s-up-full k8s-wait k8s-smoke k8s-smoke-full k8s-test k8s-status k8s-events k8s-logs k8s-logs-client k8s-logs-admin k8s-logs-product k8s-logs-order k8s-logs-payment k8s-describe k8s-restart k8s-uninstall quick-start quick-stop restart docker-quick-start
+.PHONY: help ensure-env install dev stop clean clean-all setup setup-base generate-client kafka-ui db-setup db-migrate db-generate db-studio db-seed local-env-file local-db-migrate local-db-seed local-urls local-dev local-fresh-dev lint type-check format audit test verify build build-client build-admin logs-product logs-order logs-payment status docker-auth docker-certs docker-validate docker-images docker-lock-images docker-build docker-up docker-up-build docker-smoke docker-test docker-down docker-down-volumes docker-logs docker-logs-traefik docker-logs-product docker-logs-order docker-logs-payment docker-logs-client docker-logs-admin docker-logs-stripe docker-ps docker-restart docker-restart-service docker-rebuild-service docker-shell-traefik docker-shell-product docker-shell-order docker-shell-payment docker-infra-only docker-infra-local docker-stripe-up docker-stripe-down docker-clean docker-clean-images docker-prune docker-kill-all docker-setup docker-fresh-start helm-lint helm-template helm-dry-run helm-package k8s-doctor k8s-traefik k8s-traefik-status k8s-preflight k8s-local-deps k8s-namespace k8s-tls-secret k8s-runtime-secret k8s-build-images k8s-build-full-images k8s-load-images k8s-validate k8s-validate-full k8s-diff k8s-deploy k8s-deploy-full k8s-up k8s-up-full k8s-full k8s-wait k8s-smoke k8s-smoke-full k8s-test k8s-status k8s-events k8s-logs k8s-logs-traefik k8s-logs-client k8s-logs-admin k8s-logs-product k8s-logs-order k8s-logs-payment k8s-describe k8s-restart k8s-uninstall k8s-clear k8s-open k8s ks8 kubernetes clear quick-start quick-stop restart docker-quick-start
 
 .DEFAULT_GOAL := help
 
@@ -36,7 +36,8 @@ HELM_VALUES ?= charts/ecommerce/values.web-local.yaml
 HELM_FULL_VALUES ?= charts/ecommerce/values.local.yaml
 HELM_RUNTIME_SECRET ?= $(HELM_RELEASE)-runtime
 HELM_TLS_SECRET ?= ecommerce-local-tls
-HELM_SET_ARGS ?= --set secrets.name=$(HELM_RUNTIME_SECRET) --set ingress.tls.secretName=$(HELM_TLS_SECRET)
+K8S_ROUTE_SET_ARGS ?= --set gateway.enabled=false --set ingress.enabled=true --set ingress.className=traefik
+HELM_SET_ARGS ?= --set secrets.name=$(HELM_RUNTIME_SECRET) --set ingress.tls.secretName=$(HELM_TLS_SECRET) $(K8S_ROUTE_SET_ARGS)
 HELM_RENDERED_FILE ?= /tmp/$(HELM_RELEASE)-rendered.yaml
 HELM_PACKAGE_DIR ?= /tmp/helm-packages
 K8S_DATABASE_URL ?= postgresql://postgres:postgres@host.docker.internal:5432/product_db?schema=public
@@ -44,10 +45,13 @@ K8S_MONGO_URL ?= mongodb://host.docker.internal:27017/order_db
 K8S_PUBLIC_CLIENT_APP_URL ?= https://shop.localhost
 K8S_PUBLIC_ADMIN_APP_URL ?= https://admin.localhost
 K8S_PUBLIC_API_URL ?= https://api.localhost
+K8S_INGRESS_CLASS_NAME ?= traefik
 K8S_ROLLOUT_TIMEOUT ?= 5m
 K8S_LOG_TAIL ?= 200
 K8S_SMOKE_TIMEOUT ?= 10
 K8S_SERVICE ?= client
+K8S_IMAGE_TAG ?= latest
+K8S_LOCAL_IMAGES ?= turborepo-monorepo-product-service:$(K8S_IMAGE_TAG) turborepo-monorepo-order-service:$(K8S_IMAGE_TAG) turborepo-monorepo-payment-service:$(K8S_IMAGE_TAG) turborepo-monorepo-client:$(K8S_IMAGE_TAG) turborepo-monorepo-admin:$(K8S_IMAGE_TAG)
 HELM_UPGRADE_ARGS ?= --rollback-on-failure --wait --timeout $(K8S_ROLLOUT_TIMEOUT)
 DHI_CHECK_IMAGES ?= dhi.io/bun:1-debian13 dhi.io/traefik:3.7-debian13 dhi.io/postgres:18-debian13 dhi.io/kafka:4.2-debian13-native
 DHI_AMD64_CHECK_IMAGES ?= dhi.io/mongodb:8.3-debian13
@@ -508,6 +512,39 @@ helm-package: helm-lint ## Package the Helm chart for release or registry publis
 	$(HELM) package $(HELM_CHART) --destination $(HELM_PACKAGE_DIR)
 	@echo "$(GREEN)Packaged chart in $(HELM_PACKAGE_DIR)$(NC)"
 
+k8s-doctor: ## Show local Kubernetes tooling, context, ingress, and release diagnostics
+	@echo "$(BLUE)Kubernetes doctor$(NC)"
+	@printf "  helm: "; if command -v $(HELM) >/dev/null; then $(HELM) version --short; else echo "$(RED)missing$(NC)"; fi
+	@printf "  kubectl: "; if command -v $(KUBECTL) >/dev/null; then $(KUBECTL) version --client=true --short 2>/dev/null || $(KUBECTL) version --client=true; else echo "$(RED)missing$(NC)"; fi
+	@printf "  context: "; $(KUBECTL) config current-context 2>/dev/null || echo "$(RED)unavailable$(NC)"
+	@printf "  cluster: "; $(KUBECTL) cluster-info >/dev/null 2>&1 && echo "$(GREEN)reachable$(NC)" || echo "$(RED)unreachable$(NC)"
+	@echo ""
+	@$(KUBECTL) get ingressclass "$(K8S_INGRESS_CLASS_NAME)" 2>/dev/null || echo "$(YELLOW)IngressClass '$(K8S_INGRESS_CLASS_NAME)' not found. Run 'make k8s-traefik'.$(NC)"
+	@$(KUBECTL) -n $(TRAEFIK_NAMESPACE) get pods,svc 2>/dev/null || true
+	@$(KUBECTL) -n $(HELM_NAMESPACE) get pods,svc,ingress,httproute 2>/dev/null || true
+
+k8s-traefik: ## Install or upgrade Traefik ingress for the local Kubernetes workflow
+	@echo "$(BLUE)Installing Traefik ingress...$(NC)"
+	@command -v $(HELM) >/dev/null || { echo "$(RED)helm is required$(NC)"; exit 1; }
+	@command -v $(KUBECTL) >/dev/null || { echo "$(RED)kubectl is required$(NC)"; exit 1; }
+	@$(KUBECTL) cluster-info >/dev/null
+	$(HELM) upgrade --install traefik traefik \
+		--repo https://traefik.github.io/charts \
+		--namespace $(TRAEFIK_NAMESPACE) \
+		--create-namespace \
+		--skip-crds \
+		--set ingressClass.enabled=true \
+		--set ingressClass.name=$(K8S_INGRESS_CLASS_NAME) \
+		--set providers.kubernetesIngress.enabled=true \
+		--set service.type=LoadBalancer \
+		--wait \
+		--timeout $(K8S_ROLLOUT_TIMEOUT)
+	@echo "$(GREEN)Traefik ingress is ready$(NC)"
+
+k8s-traefik-status: ## Show Traefik resources in Kubernetes
+	$(KUBECTL) -n $(TRAEFIK_NAMESPACE) get pods,svc
+	$(KUBECTL) get ingressclass $(K8S_INGRESS_CLASS_NAME)
+
 k8s-preflight: ## Verify local Kubernetes, Helm, kubectl, and Traefik ingress prerequisites
 	@echo "$(BLUE)Checking Kubernetes prerequisites...$(NC)"
 	@command -v $(HELM) >/dev/null || { echo "$(RED)helm is required$(NC)"; exit 1; }
@@ -515,12 +552,8 @@ k8s-preflight: ## Verify local Kubernetes, Helm, kubectl, and Traefik ingress pr
 	@$(KUBECTL) version --client=true >/dev/null
 	@$(HELM) version >/dev/null
 	@$(KUBECTL) cluster-info >/dev/null
-	@$(KUBECTL) get ingressclass traefik >/dev/null 2>&1 || $(KUBECTL) get gatewayclass traefik >/dev/null 2>&1 || { \
-		echo "$(YELLOW)Neither IngressClass nor GatewayClass 'traefik' was found. Install Traefik or adjust ingress/gateway values before deploying.$(NC)"; \
-		exit 1; \
-	}
-	@$(KUBECTL) get gateway traefik-gateway --namespace traefik >/dev/null 2>&1 || $(KUBECTL) get ingressclass traefik >/dev/null 2>&1 || { \
-		echo "$(YELLOW)No traefik/traefik-gateway Gateway or traefik IngressClass was found. Local values expect the Gateway API route.$(NC)"; \
+	@$(KUBECTL) get ingressclass "$(K8S_INGRESS_CLASS_NAME)" >/dev/null 2>&1 || { \
+		echo "$(YELLOW)IngressClass '$(K8S_INGRESS_CLASS_NAME)' was not found. Run 'make k8s-traefik' or 'make k8s' to install Traefik first.$(NC)"; \
 		exit 1; \
 	}
 	@echo "$(GREEN)Kubernetes prerequisites passed$(NC)"
@@ -556,8 +589,32 @@ k8s-build-images: ensure-env docker-auth ## Build local web, public catalog, and
 
 k8s-build-full-images: ensure-env docker-auth ## Build all local application images for full Kubernetes deployments
 	@echo "$(BLUE)Building all application images for Kubernetes...$(NC)"
+	DOCKER_PUBLIC_CLIENT_APP_URL=$(K8S_PUBLIC_CLIENT_APP_URL) \
+	DOCKER_PUBLIC_ADMIN_APP_URL=$(K8S_PUBLIC_ADMIN_APP_URL) \
+	DOCKER_PUBLIC_PRODUCT_SERVICE_URL=$(K8S_PUBLIC_API_URL) \
+	DOCKER_PUBLIC_ORDER_SERVICE_URL=$(K8S_PUBLIC_API_URL) \
+	DOCKER_PUBLIC_PAYMENT_SERVICE_URL=$(K8S_PUBLIC_API_URL) \
 	$(DOCKER_COMPOSE) build --pull product-service order-service payment-service client admin
 	@echo "$(GREEN)Application images built$(NC)"
+
+k8s-load-images: ## Load locally built images into kind or minikube when the current context needs it
+	@context="$$( $(KUBECTL) config current-context 2>/dev/null || true )"; \
+	case "$$context" in \
+		kind-*) \
+			command -v kind >/dev/null || { echo "$(YELLOW)kind context '$$context' detected, but kind is not installed; skipping image load.$(NC)"; exit 0; }; \
+			cluster="$${context#kind-}"; \
+			echo "$(BLUE)Loading images into kind cluster '$$cluster'...$(NC)"; \
+			kind load docker-image --name "$$cluster" $(K8S_LOCAL_IMAGES); \
+			;; \
+		minikube*) \
+			command -v minikube >/dev/null || { echo "$(YELLOW)minikube context detected, but minikube is not installed; skipping image load.$(NC)"; exit 0; }; \
+			echo "$(BLUE)Loading images into minikube...$(NC)"; \
+			for image in $(K8S_LOCAL_IMAGES); do minikube image load "$$image"; done; \
+			;; \
+		*) \
+			echo "$(YELLOW)Using cluster context '$$context'; Docker Desktop and OrbStack can usually see local Docker images directly.$(NC)"; \
+			;; \
+	esac
 
 k8s-validate: helm-lint ## Render and client-validate Kubernetes manifests without deploying
 	@echo "$(BLUE)Rendering Helm manifests to $(HELM_RENDERED_FILE)...$(NC)"
@@ -582,23 +639,35 @@ k8s-deploy-full: helm-lint k8s-validate-full k8s-tls-secret k8s-runtime-secret #
 	$(HELM) upgrade --install $(HELM_RELEASE) $(HELM_CHART) --namespace $(HELM_NAMESPACE) --create-namespace --values $(HELM_FULL_VALUES) $(HELM_SET_ARGS) $(HELM_UPGRADE_ARGS)
 	@echo "$(GREEN)Full Kubernetes deployment submitted$(NC)"
 
-k8s-up: k8s-local-deps k8s-build-images k8s-deploy k8s-wait k8s-smoke ## Build images, deploy local web tier with Helm, wait, and smoke-test Traefik
+k8s-up: k8s-traefik k8s-local-deps k8s-build-images k8s-load-images k8s-deploy k8s-wait k8s-smoke ## Build images, deploy local web tier with Helm, wait, and smoke-test Traefik
 	@echo "$(GREEN)Kubernetes stack is ready$(NC)"
 
-k8s-up-full: k8s-build-full-images k8s-deploy-full k8s-wait k8s-smoke-full ## Build images and deploy the full app when backing services exist
+k8s-up-full: k8s-traefik k8s-local-deps k8s-build-full-images k8s-load-images k8s-deploy-full k8s-wait k8s-smoke-full ## Build images, start backing services, deploy the full app, and smoke-test it
 	@echo "$(GREEN)Full Kubernetes stack is ready$(NC)"
+
+k8s: k8s-up ## One-command local Kubernetes setup with Docker-backed Postgres, MongoDB, and Kafka
+	@echo "$(GREEN)Kubernetes setup complete$(NC)"
+
+ks8: k8s ## One-command Kubernetes setup alias for the common typo
+	@echo "$(GREEN)Kubernetes setup complete$(NC)"
+
+kubernetes: k8s ## One-command Kubernetes setup alias
+	@echo "$(GREEN)Kubernetes setup complete$(NC)"
+
+k8s-full: k8s-up-full ## One-command full Kubernetes setup with Docker-backed Postgres, MongoDB, and Kafka
+	@echo "$(GREEN)Full Kubernetes setup complete$(NC)"
 
 k8s-wait: ## Wait for all ecommerce deployments to finish rolling out
 	$(KUBECTL) -n $(HELM_NAMESPACE) rollout status deployment -l app.kubernetes.io/instance=$(HELM_RELEASE) --timeout=$(K8S_ROLLOUT_TIMEOUT)
 
-k8s-smoke: ## Smoke-test local Kubernetes web routes over Traefik
+k8s-smoke: ## Smoke-test local Kubernetes web routes over HTTPS
 	@echo "$(BLUE)Smoke-testing Kubernetes ingress...$(NC)"
 	@curl -4 -skSf --max-time $(K8S_SMOKE_TIMEOUT) https://shop.localhost/api/health >/dev/null
 	@curl -4 -skSf --max-time $(K8S_SMOKE_TIMEOUT) https://admin.localhost/api/health >/dev/null
 	@curl -4 -skSf --max-time $(K8S_SMOKE_TIMEOUT) https://shop.localhost/ >/dev/null
 	@echo "$(GREEN)Kubernetes smoke tests passed$(NC)"
 
-k8s-smoke-full: k8s-smoke ## Smoke-test full Kubernetes API routes over Traefik
+k8s-smoke-full: k8s-smoke ## Smoke-test full Kubernetes API routes
 	@echo "$(BLUE)Smoke-testing Kubernetes API ingress...$(NC)"
 	@curl -4 -skSf --max-time $(K8S_SMOKE_TIMEOUT) -H 'content-type: application/json' --data '{"json":{"limit":1}}' https://api.localhost/rpc/product/product/list >/dev/null
 	@echo "$(GREEN)Full Kubernetes smoke tests passed$(NC)"
@@ -616,6 +685,9 @@ k8s-events: ## Show recent Kubernetes events for the ecommerce namespace
 
 k8s-logs: ## Stream logs for one Kubernetes service (K8S_SERVICE=client|admin|product-service|order-service|payment-service)
 	$(KUBECTL) -n $(HELM_NAMESPACE) logs -f -l app.kubernetes.io/instance=$(HELM_RELEASE),app.kubernetes.io/component=$(K8S_SERVICE) --tail=$(K8S_LOG_TAIL)
+
+k8s-logs-traefik: ## Stream Traefik logs from Kubernetes
+	$(KUBECTL) -n $(TRAEFIK_NAMESPACE) logs -f -l app.kubernetes.io/name=traefik --tail=$(K8S_LOG_TAIL)
 
 k8s-logs-client: ## Stream Kubernetes storefront logs
 	@$(MAKE) k8s-logs K8S_SERVICE=client
@@ -641,6 +713,21 @@ k8s-restart: ## Restart all ecommerce deployments and wait for rollout
 
 k8s-uninstall: ## Uninstall the ecommerce Helm release
 	$(HELM) uninstall $(HELM_RELEASE) --namespace $(HELM_NAMESPACE) --wait --timeout $(K8S_ROLLOUT_TIMEOUT)
+
+k8s-clear: ## Stop and remove local Kubernetes resources plus Docker backing services
+	@echo "$(RED)Clearing local Kubernetes and Docker resources...$(NC)"
+	-$(HELM) uninstall $(HELM_RELEASE) --namespace $(HELM_NAMESPACE) --wait --timeout $(K8S_ROLLOUT_TIMEOUT) --ignore-not-found
+	-$(HELM) uninstall traefik --namespace $(TRAEFIK_NAMESPACE) --wait --timeout $(K8S_ROLLOUT_TIMEOUT) --ignore-not-found
+	-$(KUBECTL) delete namespace $(HELM_NAMESPACE) --ignore-not-found=true --wait=true
+	-$(KUBECTL) delete namespace $(TRAEFIK_NAMESPACE) --ignore-not-found=true --wait=true
+	$(DOCKER_COMPOSE) down -v --remove-orphans
+	@echo "$(GREEN)Local Kubernetes and Docker resources cleared$(NC)"
+
+clear: k8s-clear ## Alias for k8s-clear
+
+k8s-open: ## Open the local Kubernetes routes in a browser
+	@start https://shop.localhost 2>/dev/null || open https://shop.localhost 2>/dev/null || xdg-open https://shop.localhost 2>/dev/null
+	@start https://admin.localhost 2>/dev/null || open https://admin.localhost 2>/dev/null || xdg-open https://admin.localhost 2>/dev/null
 
 ##@ Quick Commands
 

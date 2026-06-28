@@ -1,6 +1,7 @@
 {
   "extends": "@repo/typescript-config/internal-package.json",
   "compilerOptions": {
+    "types": ["bun"],
     "paths": {
       "@prisma/*": ["./generated/prisma/*"]
     }

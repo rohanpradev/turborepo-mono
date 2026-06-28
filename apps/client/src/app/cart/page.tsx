@@ -147,14 +147,15 @@ const CartContent = () => {
                       >
                         <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-gray-50 opacity-0 transition group-hover:opacity-100" />
                         <div className="relative flex flex-col gap-5 sm:flex-row sm:items-stretch">
-                          <div className="relative overflow-hidden rounded-lg bg-[#f5f7f2] sm:w-40">
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent" />
+                          <div className="relative min-h-40 overflow-hidden rounded-lg bg-[linear-gradient(145deg,#fbfcf8_0%,#eef4ee_52%,#e5e8df_100%)] sm:w-40">
+                            <div className="absolute inset-x-6 bottom-6 h-3 rounded-full bg-black/10 blur-md" />
                             <Image
                               src={imageUrl}
                               alt={item.name}
                               width={320}
                               height={320}
-                              className="h-40 w-full object-contain p-4 transition duration-700 group-hover:scale-105 sm:h-full"
+                              quality={75}
+                              className="h-40 w-full object-contain p-4 drop-shadow-[0_14px_18px_rgba(15,23,42,0.16)] transition duration-700 group-hover:scale-105 sm:h-full"
                               sizes="(min-width: 640px) 160px, 100vw"
                             />
                           </div>

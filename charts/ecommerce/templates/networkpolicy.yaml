@@ -21,10 +21,27 @@ spec:
         {{- else }}
         - namespaceSelector: {}
         {{- end }}
+      ports:
+        - protocol: TCP
+          port: http
   egress:
+    {{- if $.Values.networkPolicy.allowDnsEgress }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    {{- end }}
+    {{- with $.Values.networkPolicy.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
     {{- if $.Values.networkPolicy.allowExternalEgress }}
     - {}
-    {{- else }}
+    {{- else if and (not $.Values.networkPolicy.allowDnsEgress) (not $.Values.networkPolicy.extraEgress) }}
     []
     {{- end }}
 ---

@@ -1,7 +1,10 @@
+"use client";
+
 import { formatUsdFromCents } from "@repo/types";
 import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 import ProductCardActions from "@/components/ProductCardActions";
 import { Badge } from "@/components/ui/badge";
 import { getPrimaryProductImage } from "@/lib/catalog";
@@ -14,12 +17,14 @@ const ProductCard = ({
   eager?: boolean;
   product: ProductType;
 }) => {
-  const previewImage = getPrimaryProductImage(product);
+  const [selectedColor, setSelectedColor] = useState(product.colors[0] ?? "");
+  const previewImage = getPrimaryProductImage(product, selectedColor);
 
   return (
     <article className="group flex h-full min-h-[38rem] min-w-0 flex-col overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_70px_-40px_rgba(15,23,42,0.45)]">
       <Link href={`/products/${product.id}` as Route} className="block">
-        <div className="relative aspect-[4/5] overflow-hidden bg-[#f5f7f2]">
+        <div className="relative aspect-[4/5] overflow-hidden bg-[linear-gradient(145deg,#fbfcf8_0%,#eef4ee_48%,#e5e8df_100%)]">
+          <div className="absolute inset-x-8 bottom-8 h-4 rounded-full bg-black/10 blur-md transition duration-700 group-hover:bg-black/15" />
           <Image
             src={previewImage}
             alt={product.name}
@@ -27,7 +32,8 @@ const ProductCard = ({
             loading={eager ? "eager" : "lazy"}
             fetchPriority={eager ? "high" : "auto"}
             decoding="async"
-            className="object-contain p-5 transition-transform duration-700 group-hover:scale-105"
+            quality={85}
+            className="object-contain p-5 drop-shadow-[0_18px_22px_rgba(15,23,42,0.18)] transition-transform duration-700 group-hover:scale-105 sm:p-6"
             sizes="(min-width: 1536px) 18rem, (min-width: 1280px) 25vw, (min-width: 640px) 50vw, 100vw"
           />
           <div className="absolute inset-x-0 top-0 h-1 bg-[linear-gradient(90deg,#0f766e,#f97316,#111827)]" />
@@ -60,7 +66,11 @@ const ProductCard = ({
           </p>
         </div>
 
-        <ProductCardActions product={product} />
+        <ProductCardActions
+          product={product}
+          selectedColor={selectedColor}
+          onSelectedColorChange={setSelectedColor}
+        />
       </div>
     </article>
   );

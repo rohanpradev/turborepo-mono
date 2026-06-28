@@ -24,8 +24,9 @@ spec:
         app.kubernetes.io/job-name: {{ $name | quote }}
     spec:
       restartPolicy: OnFailure
-      serviceAccountName: {{ include "ecommerce.serviceAccountName" $ }}
       automountServiceAccountToken: {{ $.Values.serviceAccount.automountServiceAccountToken }}
+      enableServiceLinks: {{ $.Values.global.enableServiceLinks }}
+      terminationGracePeriodSeconds: {{ $.Values.global.terminationGracePeriodSeconds }}
       securityContext:
         {{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
       {{- with $.Values.global.imagePullSecrets }}
@@ -40,9 +41,11 @@ spec:
             {{- toYaml $job.command | nindent 12 }}
           securityContext:
             {{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- if not (contains "pre-install" $job.hook) }}
           envFrom:
             - configMapRef:
                 name: {{ include "ecommerce.configMapName" $ }}
+          {{- end }}
           env:
             {{- range $envName, $value := $job.env }}
             - name: {{ $envName }}

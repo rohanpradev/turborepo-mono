@@ -488,7 +488,7 @@ services:
     init: true
     restart: unless-stopped
     stop_grace_period: 30s
-    image: stripe/stripe-cli:v1.40.9@sha256:3daa717082efbbff67e05a122462ca01c6db4bfe91dcfe1105f35794fea0fdc2
+    image: stripe/stripe-cli:v1.43.2
     container_name: ecommerce-stripe-cli
     environment:
       STRIPE_API_KEY: ${STRIPE_API_KEY:-}

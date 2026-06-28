@@ -38,8 +38,9 @@ const Homepage = async ({
           alt="Commerce product lineup featuring apparel and shoes"
           fill
           preload
+          quality={85}
           sizes="(min-width: 1280px) 80rem, 100vw"
-          className="object-cover object-center opacity-80"
+          className="object-cover object-[center_45%] opacity-85"
         />
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(8,13,20,0.92),rgba(8,13,20,0.58),rgba(8,13,20,0.1))]" />
 
@@ -63,7 +64,7 @@ const Homepage = async ({
             <Button href="/products" variant="light">
               Shop products
             </Button>
-            <Button href="/cart" variant="glass">
+            <Button href="/cart" variant="glass" prefetch={false}>
               View cart
             </Button>
           </div>

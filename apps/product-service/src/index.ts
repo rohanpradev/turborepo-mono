@@ -33,7 +33,6 @@ const bootstrap = async () => {
         : "Kafka producer bootstrap failed.";
     productServiceRuntime.markNotReady("kafka.producer", message);
     console.error("Failed to initialize product Kafka producer:", error);
-    process.exit(1);
   }
 };
 
