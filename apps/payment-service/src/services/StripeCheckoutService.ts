@@ -1,26 +1,33 @@
 import { ApiClientError, getProduct } from "@repo/api-client";
 import { createHttpException } from "@repo/hono-utils";
-import { type PaymentSuccessfulMessage, Topics } from "@repo/kafka";
-import type { CheckoutSessionPayload, ProductRecord } from "@repo/types";
+import {
+  type CheckoutSessionPayload,
+  MAX_USD_AMOUNT_CENTS,
+  MIN_USD_CHARGE_CENTS,
+  type ProductRecord,
+} from "@repo/types";
 import type Stripe from "stripe";
 import { recordIntegrationEvent } from "@/observability/integrationEvents";
-import {
-  claimProcessableEvent,
-  markEventProcessed,
-  releaseProcessableEvent,
-} from "@/observability/processedEvents";
 import { StripeCatalogService } from "@/services/StripeCatalogService";
-import { producer } from "@/utils/kafka";
+import { enqueuePaidCheckoutSession } from "@/services/StripePaymentEventService";
 import { getStripeClient } from "@/utils/stripe";
 
 type CreateCheckoutSessionInput = {
   payload: CheckoutSessionPayload;
+  telemetryHeaders?: Record<string, string>;
   userId: string;
 };
 
 type CheckoutCatalogItem = CheckoutSessionPayload["cart"][number] & {
   product: ProductRecord;
 };
+
+type CatalogProductFetcher = (
+  productId: number,
+  telemetryHeaders?: Record<string, string>,
+) => Promise<ProductRecord | null>;
+
+const CHECKOUT_OUTBOUND_CONCURRENCY = 10;
 
 type CheckoutSessionStatus = {
   sessionId: string;
@@ -54,9 +61,16 @@ const getProductServiceUrl = () =>
   process.env.NEXT_PUBLIC_PRODUCT_SERVICE_URL ??
   "http://localhost:3000";
 
-const fetchCatalogProduct = async (productId: number) => {
+const fetchCatalogProduct = async (
+  productId: number,
+  telemetryHeaders?: Record<string, string>,
+) => {
   try {
-    const response = await getProduct(getProductServiceUrl(), productId);
+    const response = await getProduct(
+      getProductServiceUrl(),
+      productId,
+      telemetryHeaders ? { headers: telemetryHeaders } : undefined,
+    );
     return response.data;
   } catch (error) {
     if (error instanceof ApiClientError && error.status === 404) {
@@ -75,12 +89,56 @@ const fetchCatalogProduct = async (productId: number) => {
   }
 };
 
-const resolveCheckoutCatalog = async (
+const mapWithConcurrency = async <TInput, TOutput>(
+  items: ReadonlyArray<TInput>,
+  concurrency: number,
+  mapper: (item: TInput, index: number) => Promise<TOutput>,
+) => {
+  const results = new Array<TOutput>(items.length);
+  let nextIndex = 0;
+
+  const workers = Array.from(
+    { length: Math.min(Math.max(concurrency, 1), items.length) },
+    async () => {
+      while (nextIndex < items.length) {
+        const index = nextIndex;
+        nextIndex += 1;
+        const item = items[index];
+
+        if (item !== undefined) {
+          results[index] = await mapper(item, index);
+        }
+      }
+    },
+  );
+
+  await Promise.all(workers);
+  return results;
+};
+
+export const resolveCheckoutCatalog = async (
   payload: CheckoutSessionPayload,
-): Promise<Array<CheckoutCatalogItem>> =>
-  Promise.all(
-    payload.cart.map(async (item) => {
-      const product = await fetchCatalogProduct(item.id);
+  telemetryHeaders?: Record<string, string>,
+  fetchProduct: CatalogProductFetcher = fetchCatalogProduct,
+): Promise<Array<CheckoutCatalogItem>> => {
+  const productRequests = new Map<number, Promise<ProductRecord | null>>();
+  const getProductOnce = (productId: number) => {
+    const existingRequest = productRequests.get(productId);
+
+    if (existingRequest) {
+      return existingRequest;
+    }
+
+    const request = fetchProduct(productId, telemetryHeaders);
+    productRequests.set(productId, request);
+    return request;
+  };
+
+  return mapWithConcurrency(
+    payload.cart,
+    CHECKOUT_OUTBOUND_CONCURRENCY,
+    async (item) => {
+      const product = await getProductOnce(item.id);
 
       if (!product) {
         throw createHttpException(
@@ -107,8 +165,9 @@ const resolveCheckoutCatalog = async (
       }
 
       return { ...item, product };
-    }),
+    },
   );
+};
 
 const getCanonicalCartTotal = (items: Array<CheckoutCatalogItem>) =>
   items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
@@ -116,111 +175,16 @@ const getCanonicalCartTotal = (items: Array<CheckoutCatalogItem>) =>
 const getProductImageUrls = (product: ProductRecord) =>
   Object.values(product.images).filter((image) => /^https?:\/\//.test(image));
 
-const getPaymentIntentId = (session: Stripe.Checkout.Session) =>
-  typeof session.payment_intent === "string"
-    ? session.payment_intent
-    : (session.payment_intent?.id ?? session.id);
-
-const getPaymentMethod = (
-  session: Stripe.Checkout.Session,
-  paymentIntent: Stripe.PaymentIntent | null,
-) =>
-  paymentIntent?.payment_method_types?.[0] ??
-  session.payment_method_types?.[0] ??
-  "unknown";
-
-const publishSuccessfulPaymentFromSession = async (
-  stripe: Stripe,
-  session: Stripe.Checkout.Session,
+const isCheckoutSessionOwnedBy = (
+  session: Pick<Stripe.Checkout.Session, "client_reference_id" | "metadata">,
+  userId: string,
 ) => {
-  if (session.status !== "complete" || session.payment_status !== "paid") {
-    return;
-  }
+  const ownerIds = [
+    session.client_reference_id,
+    session.metadata?.userId,
+  ].filter((ownerId): ownerId is string => Boolean(ownerId));
 
-  const processedEventKey = `stripe-session:${session.id}:paid`;
-
-  if (!claimProcessableEvent(processedEventKey)) {
-    return;
-  }
-
-  try {
-    const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
-      limit: 100,
-      expand: ["data.price.product"],
-    });
-    const paymentIntent =
-      typeof session.payment_intent === "string"
-        ? await stripe.paymentIntents.retrieve(session.payment_intent)
-        : (session.payment_intent ?? null);
-    const message: PaymentSuccessfulMessage = {
-      orderId: session.id,
-      userId:
-        typeof session.client_reference_id === "string"
-          ? session.client_reference_id
-          : (session.metadata?.userId ?? "unknown"),
-      email:
-        session.customer_details?.email ??
-        session.customer_email ??
-        "unknown@example.com",
-      amount: session.amount_total ?? 0,
-      currency: session.currency ?? "usd",
-      status: "success",
-      paymentMethod: getPaymentMethod(session, paymentIntent),
-      transactionId: getPaymentIntentId(session),
-      items: lineItems.data.map((item) => {
-        const expandedProduct =
-          item.price && typeof item.price.product !== "string"
-            ? item.price.product
-            : null;
-        const product =
-          expandedProduct && !("deleted" in expandedProduct)
-            ? expandedProduct
-            : null;
-
-        return {
-          productId:
-            item.price?.metadata?.sourceProductId ??
-            product?.metadata?.sourceProductId ??
-            item.price?.id ??
-            item.description ??
-            "unknown",
-          name: item.description ?? "Unknown item",
-          quantity: item.quantity ?? 1,
-          price:
-            item.price?.unit_amount ??
-            Math.floor(
-              (item.amount_total ?? 0) / Math.max(item.quantity ?? 1, 1),
-            ),
-        };
-      }),
-      processedAt: new Date().toISOString(),
-    };
-
-    await producer.send(Topics.PAYMENT_SUCCESSFUL, message, {
-      headers: {
-        "stripe-session-id": session.id,
-        source: "checkout-status",
-      },
-      key: message.orderId,
-    });
-
-    markEventProcessed(processedEventKey);
-
-    recordIntegrationEvent({
-      source: "kafka",
-      type: "payment.successful.published",
-      message: "Published payment.successful Kafka event.",
-      details: {
-        orderId: message.orderId,
-        transactionId: message.transactionId,
-        amount: message.amount,
-        itemCount: message.items.length,
-      },
-    });
-  } catch (error) {
-    releaseProcessableEvent(processedEventKey);
-    throw error;
-  }
+  return ownerIds.length > 0 && ownerIds.every((ownerId) => ownerId === userId);
 };
 
 const createCheckoutIdempotencyKey = async (
@@ -228,6 +192,7 @@ const createCheckoutIdempotencyKey = async (
   canonicalTotal: number,
 ) => {
   const digestInput = JSON.stringify({
+    checkoutAttemptId: input.payload.checkoutAttemptId,
     userId: input.userId,
     cart: input.payload.cart.map((item) => ({
       id: item.id,
@@ -235,7 +200,6 @@ const createCheckoutIdempotencyKey = async (
       selectedColor: item.selectedColor,
       selectedSize: item.selectedSize,
     })),
-    shippingInfo: input.payload.shippingInfo,
     canonicalTotal,
   });
   const digest = await crypto.subtle.digest(
@@ -266,25 +230,44 @@ export const StripeCheckoutService = {
       return null;
     }
 
-    const catalogItems = await resolveCheckoutCatalog(input.payload);
+    const catalogItems = await resolveCheckoutCatalog(
+      input.payload,
+      input.telemetryHeaders,
+    );
     const canonicalTotal = getCanonicalCartTotal(catalogItems);
 
-    if (canonicalTotal !== input.payload.totalAmount) {
+    if (canonicalTotal < MIN_USD_CHARGE_CENTS) {
       throw createHttpException(
         409,
-        "Cart prices changed. Please review your cart before checkout.",
+        "Cart total is below the minimum amount accepted for checkout.",
         {
-          expectedTotalAmount: canonicalTotal,
-          submittedTotalAmount: input.payload.totalAmount,
+          minimumTotalAmount: MIN_USD_CHARGE_CENTS,
+          totalAmount: canonicalTotal,
         },
       );
     }
 
-    const lineItems = await Promise.all(
-      catalogItems.map(async (item) => {
+    if (canonicalTotal > MAX_USD_AMOUNT_CENTS) {
+      throw createHttpException(
+        409,
+        "Cart total exceeds the maximum amount accepted for checkout.",
+        {
+          maximumTotalAmount: MAX_USD_AMOUNT_CENTS,
+          totalAmount: canonicalTotal,
+        },
+      );
+    }
+
+    const lineItems = await mapWithConcurrency(
+      catalogItems,
+      CHECKOUT_OUTBOUND_CONCURRENCY,
+      async (item) => {
         const productId = item.product.id.toString();
-        const existingPriceId =
-          await StripeCatalogService.getCheckoutPriceId(productId);
+        const existingPriceId = await StripeCatalogService.getCheckoutPriceId(
+          productId,
+          item.product.price,
+          "usd",
+        );
 
         if (existingPriceId) {
           recordIntegrationEvent({
@@ -308,7 +291,7 @@ export const StripeCheckoutService = {
           message: "Using inline Stripe price data for checkout item.",
           details: {
             productId: item.id,
-            price: item.price,
+            price: item.product.price,
           },
         });
         return {
@@ -328,7 +311,7 @@ export const StripeCheckoutService = {
           },
           quantity: item.quantity,
         };
-      }),
+      },
     );
 
     const session = await stripe.checkout.sessions.create(
@@ -372,7 +355,7 @@ export const StripeCheckoutService = {
         sessionId: session.id,
         userId: input.userId,
         itemCount: input.payload.cart.length,
-        totalAmount: input.payload.totalAmount,
+        totalAmount: canonicalTotal,
       },
     });
 
@@ -384,6 +367,7 @@ export const StripeCheckoutService = {
 
   async getCheckoutSessionStatus(
     sessionId: string,
+    userId: string,
   ): Promise<CheckoutSessionStatusResult> {
     const stripe = getStripeClient();
 
@@ -404,6 +388,23 @@ export const StripeCheckoutService = {
       const session = await stripe.checkout.sessions.retrieve(sessionId, {
         expand: ["payment_intent"],
       });
+
+      if (!isCheckoutSessionOwnedBy(session, userId)) {
+        recordIntegrationEvent({
+          source: "checkout",
+          type: "checkout.session.status.owner_mismatch",
+          message: "Rejected a Checkout Session status request by a non-owner.",
+          details: {
+            sessionId,
+            userId,
+          },
+        });
+
+        return {
+          kind: "not_found",
+          message: "Checkout session not found.",
+        } as const;
+      }
 
       const paymentIntent =
         typeof session.payment_intent === "string"
@@ -430,7 +431,28 @@ export const StripeCheckoutService = {
         },
       });
 
-      await publishSuccessfulPaymentFromSession(stripe, session);
+      if (session.status === "complete" && session.payment_status === "paid") {
+        try {
+          await enqueuePaidCheckoutSession({
+            eventId: `status:${session.id}`,
+            eventType: "checkout.session.status_verified",
+            sessionId: session.id,
+            source: "checkout-status",
+            occurredAt: new Date().toISOString(),
+          });
+        } catch (error) {
+          recordIntegrationEvent({
+            source: "kafka",
+            type: "stripe.checkout.completed.fallback_failed",
+            message:
+              "Paid session status loaded, but fallback enqueue was unavailable.",
+            details: {
+              sessionId: session.id,
+              reason: error instanceof Error ? error.message : "Unknown error",
+            },
+          });
+        }
+      }
 
       return { kind: "ok", data: status } as const;
     } catch (error) {

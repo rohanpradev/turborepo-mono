@@ -1,10 +1,9 @@
 "use client";
 
 import { useAuth } from "@clerk/nextjs";
-import { createCheckoutSession, getPaymentServiceUrl } from "@repo/api-client";
 import { CheckoutElementsProvider } from "@stripe/react-stripe-js/checkout";
 import { loadStripe } from "@stripe/stripe-js";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import CheckoutForm from "@/components/CheckoutForm";
 import { Badge } from "@/components/ui/badge";
 import useCartStore from "@/stores/cartStore";
@@ -25,6 +24,34 @@ type ShippingFormInputs = BaseShippingFormInputs & {
   country?: string;
 };
 
+const createCheckoutRequest = async (
+  payload: unknown,
+  abortController: AbortController,
+) => {
+  let timedOut = false;
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    abortController.abort();
+  }, 20_000);
+
+  try {
+    return await fetch("/api/checkout", {
+      body: JSON.stringify(payload),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+      signal: abortController.signal,
+    });
+  } catch (error) {
+    if (timedOut) {
+      throw new Error("Checkout is taking too long. Please try again.");
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+};
+
 const StripePaymentForm = ({
   shippingForm,
 }: {
@@ -32,7 +59,10 @@ const StripePaymentForm = ({
 }) => {
   if (!isClerkConfigured) {
     return (
-      <div className="rounded-[1.5rem] border border-dashed border-black/10 bg-white/80 p-4 text-sm text-gray-500">
+      <div
+        role="alert"
+        className="rounded-[1.5rem] border border-dashed border-black/10 bg-white/80 p-4 text-sm text-gray-600"
+      >
         Authentication is not configured for this environment, so checkout is
         currently unavailable.
       </div>
@@ -41,7 +71,10 @@ const StripePaymentForm = ({
 
   if (!stripePromise) {
     return (
-      <div className="rounded-[1.5rem] border border-dashed border-black/10 bg-white/80 p-4 text-sm text-gray-500">
+      <div
+        role="alert"
+        className="rounded-[1.5rem] border border-dashed border-black/10 bg-white/80 p-4 text-sm text-gray-600"
+      >
         Stripe is not configured for this environment, so checkout is currently
         unavailable.
       </div>
@@ -63,35 +96,24 @@ const AuthenticatedStripePaymentForm = ({
   shippingForm: ShippingFormInputs;
   stripePromise: StripePromise;
 }) => {
-  const { getToken } = useAuth();
-  const { cart } = useCartStore();
-  const [token, setToken] = useState<string | null | undefined>(undefined);
+  const { isLoaded, isSignedIn } = useAuth();
+  const cart = useCartStore((state) => state.cart);
+  const checkoutAttemptId = useRef(crypto.randomUUID());
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let isActive = true;
+    const abortController = new AbortController();
 
-    void getToken().then((value) => {
-      if (isActive) {
-        setToken(value);
-      }
-    });
-
-    return () => {
-      isActive = false;
-    };
-  }, [getToken]);
-
-  useEffect(() => {
-    let isActive = true;
-
-    if (!token || cart.length === 0) {
+    if (!isSignedIn || cart.length === 0) {
       setClientSecret(null);
       setError(null);
 
       return () => {
         isActive = false;
+        abortController.abort();
       };
     }
 
@@ -100,31 +122,34 @@ const AuthenticatedStripePaymentForm = ({
       setClientSecret(null);
 
       try {
-        const totalAmount = cart.reduce(
-          (sum, item) => sum + item.price * item.quantity,
-          0,
+        const checkoutPayload = {
+          checkoutAttemptId: checkoutAttemptId.current,
+          cart: cart.map(({ id, quantity, selectedColor, selectedSize }) => ({
+            id,
+            quantity,
+            selectedColor,
+            selectedSize,
+          })),
+        };
+        const response = await createCheckoutRequest(
+          checkoutPayload,
+          abortController,
         );
 
-        const response = await createCheckoutSession(
-          getPaymentServiceUrl(),
-          {
-            cart,
-            totalAmount,
-            shippingInfo: {
-              email: shippingForm.email,
-              name: shippingForm.name,
-              address: {
-                line1: shippingForm.address,
-                city: shippingForm.city,
-                country: shippingForm.country || "US",
-              },
-            },
-          },
-          token,
-        );
+        const responseBody = (await response.json()) as
+          | { message: string }
+          | { data: { clientSecret: string } };
+
+        if (!response.ok || !("data" in responseBody)) {
+          throw new Error(
+            "message" in responseBody
+              ? responseBody.message
+              : "Unable to start checkout.",
+          );
+        }
 
         if (isActive) {
-          setClientSecret(response.data.clientSecret);
+          setClientSecret(responseBody.data.clientSecret);
         }
       } catch (caughtError) {
         if (isActive) {
@@ -141,36 +166,51 @@ const AuthenticatedStripePaymentForm = ({
 
     return () => {
       isActive = false;
+      abortController.abort();
     };
-  }, [
-    cart,
-    shippingForm.address,
-    shippingForm.city,
-    shippingForm.country,
-    shippingForm.email,
-    shippingForm.name,
-    token,
-  ]);
+  }, [cart, attempt, isSignedIn]);
 
-  if (token === undefined) {
+  if (!isLoaded) {
     return (
-      <div className="rounded-[1.5rem] border border-black/5 bg-white/80 p-4 text-sm text-gray-500">
+      <div
+        role="status"
+        aria-live="polite"
+        className="rounded-[1.5rem] border border-black/5 bg-white/80 p-4 text-sm text-gray-600"
+      >
         Loading checkout context...
       </div>
     );
   }
 
-  if (token === null) {
+  if (!isSignedIn) {
     return (
-      <div className="rounded-[1.5rem] border border-dashed border-black/10 bg-white/80 p-4 text-sm text-gray-500">
-        Authentication is required before checkout can start.
+      <div
+        role="alert"
+        className="rounded-[1.5rem] border border-dashed border-black/10 bg-white/80 p-4 text-sm text-gray-600"
+      >
+        <p>
+          {error ?? "Authentication is required before checkout can start."}
+        </p>
+        <button
+          type="button"
+          className="mt-3 font-medium text-gray-950 underline underline-offset-4"
+          onClick={() => {
+            setError(null);
+            setAttempt((value) => value + 1);
+          }}
+        >
+          Retry checkout
+        </button>
       </div>
     );
   }
 
   if (cart.length === 0) {
     return (
-      <div className="rounded-[1.5rem] border border-dashed border-black/10 bg-white/80 p-4 text-sm text-gray-500">
+      <div
+        role="status"
+        className="rounded-[1.5rem] border border-dashed border-black/10 bg-white/80 p-4 text-sm text-gray-600"
+      >
         <p>Your cart is empty. Please add items to proceed with checkout.</p>
       </div>
     );
@@ -178,15 +218,33 @@ const AuthenticatedStripePaymentForm = ({
 
   if (error) {
     return (
-      <div className="rounded-[1.5rem] border border-dashed border-black/10 bg-white/80 p-4 text-sm text-gray-500">
-        {error}
+      <div
+        role="alert"
+        className="rounded-[1.5rem] border border-dashed border-red-200 bg-red-50 p-4 text-sm text-red-800"
+      >
+        <p>{error}</p>
+        <button
+          type="button"
+          className="mt-3 font-medium text-gray-950 underline underline-offset-4"
+          onClick={() => {
+            setError(null);
+            setClientSecret(null);
+            setAttempt((value) => value + 1);
+          }}
+        >
+          Retry checkout
+        </button>
       </div>
     );
   }
 
   if (!clientSecret) {
     return (
-      <div className="rounded-[1.5rem] border border-black/5 bg-white/80 p-4 text-sm text-gray-500">
+      <div
+        role="status"
+        aria-live="polite"
+        className="rounded-[1.5rem] border border-black/5 bg-white/80 p-4 text-sm text-gray-600"
+      >
         Preparing checkout...
       </div>
     );

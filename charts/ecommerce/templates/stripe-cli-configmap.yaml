@@ -1,0 +1,11 @@
+{{- if .Values.stripeCli.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ecommerce.fullname" . }}-stripe-cli
+  labels:
+    {{- include "ecommerce.labels" . | nindent 4 }}
+data:
+  stripe-cli-listen.sh: |
+{{ .Files.Get "files/stripe-cli-listen.sh" | indent 4 }}
+{{- end }}

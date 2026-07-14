@@ -1,5 +1,10 @@
 import z from "zod";
 
+export const MAX_CART_ITEM_QUANTITY = 99;
+export const MAX_CHECKOUT_LINE_ITEMS = 100;
+export const MAX_USD_AMOUNT_CENTS = 99_999_999;
+export const MIN_USD_CHARGE_CENTS = 50;
+
 export const productSortSchema = z.enum(["asc", "desc", "oldest", "newest"]);
 
 export const productIdParamSchema = z.strictObject({
@@ -42,7 +47,7 @@ const productBaseSchema = z.strictObject({
   name: z.string().min(1),
   shortDescription: z.string().min(1).max(60),
   description: z.string().min(1),
-  price: z.number().nonnegative(),
+  price: z.number().int().nonnegative().max(MAX_USD_AMOUNT_CENTS),
   categorySlug: z.string().min(1),
   sizes: z.array(z.string().min(1)).min(1),
   colors: z.array(z.string().min(1)).min(1),
@@ -97,7 +102,7 @@ export const productRecordSchema = z.object({
   name: z.string(),
   shortDescription: z.string(),
   description: z.string(),
-  price: z.number(),
+  price: z.number().int().nonnegative().max(MAX_USD_AMOUNT_CENTS),
   sizes: z.array(z.string()),
   colors: z.array(z.string()),
   images: z.record(z.string(), z.string()),
@@ -114,25 +119,21 @@ export const categoryRecordSchema = z.object({
 });
 
 export const cartItemSchema = productRecordSchema.extend({
-  quantity: z.number().int().positive(),
+  quantity: z.number().int().positive().max(MAX_CART_ITEM_QUANTITY),
   selectedSize: z.string().min(1),
   selectedColor: z.string().min(1),
 });
 
-export const checkoutShippingInfoSchema = z.strictObject({
-  email: z.string().email(),
-  name: z.string().min(1),
-  address: z.strictObject({
-    line1: z.string().min(1),
-    city: z.string().min(1),
-    country: z.string().min(2),
-  }),
+export const checkoutCartItemSchema = z.strictObject({
+  id: productIdParamSchema.shape.id,
+  quantity: z.number().int().positive().max(MAX_CART_ITEM_QUANTITY),
+  selectedSize: z.string().min(1),
+  selectedColor: z.string().min(1),
 });
 
 export const checkoutSessionPayloadSchema = z.strictObject({
-  cart: z.array(cartItemSchema).min(1),
-  totalAmount: z.number().nonnegative(),
-  shippingInfo: checkoutShippingInfoSchema,
+  checkoutAttemptId: z.uuid(),
+  cart: z.array(checkoutCartItemSchema).min(1).max(MAX_CHECKOUT_LINE_ITEMS),
 });
 
 export const checkoutSessionStatusQuerySchema = z.strictObject({
@@ -181,6 +182,7 @@ export type CategoryRecord = z.infer<typeof categoryRecordSchema>;
 export type CategoryPayload = z.infer<typeof categoryPayloadSchema>;
 export type CategoryUpdatePayload = z.infer<typeof categoryUpdateSchema>;
 export type CartItem = z.infer<typeof cartItemSchema>;
+export type CheckoutCartItem = z.infer<typeof checkoutCartItemSchema>;
 export type CheckoutSessionPayload = z.infer<
   typeof checkoutSessionPayloadSchema
 >;

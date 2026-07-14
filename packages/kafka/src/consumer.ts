@@ -7,7 +7,9 @@ import type {
 } from "kafkajs";
 import {
   attachKafkaInstrumentation,
+  getTraceIdFromTraceparent,
   type KafkaEventClient,
+  readKafkaHeader,
 } from "./instrumentation";
 import type { MessageForTopic, TopicName } from "./types";
 
@@ -67,6 +69,7 @@ export class KafkaConsumer {
         eachMessage: async (messagePayload: EachMessagePayload) => {
           const { topic, partition, message } = messagePayload;
           const prefix = `${topic}[${partition} | ${message.offset}] / ${message.timestamp}`;
+          const startedAt = performance.now();
 
           try {
             const handler = this.handlers.get(topic);
@@ -75,6 +78,18 @@ export class KafkaConsumer {
               if (value) {
                 const parsedMessage = JSON.parse(value);
                 await handler(parsedMessage);
+                this.logMessageTelemetry({
+                  durationMs: performance.now() - startedAt,
+                  offset: message.offset,
+                  operationName: "receive",
+                  operationType: "receive",
+                  partition,
+                  topic,
+                  traceparent: readKafkaHeader(
+                    message.headers as Record<string, unknown> | undefined,
+                    "traceparent",
+                  ),
+                });
                 console.log(`- ${prefix} processed successfully`);
               }
             } else {
@@ -146,11 +161,24 @@ export class KafkaConsumer {
             }
 
             const prefix = `${batch.topic}[${batch.partition} | ${message.offset}] / ${message.timestamp}`;
+            const startedAt = performance.now();
             try {
               const value = message.value?.toString();
               if (value) {
                 const parsedMessage = JSON.parse(value);
                 await handler(parsedMessage);
+                this.logMessageTelemetry({
+                  durationMs: performance.now() - startedAt,
+                  offset: message.offset,
+                  operationName: "receive",
+                  operationType: "receive",
+                  partition: batch.partition,
+                  topic: batch.topic,
+                  traceparent: readKafkaHeader(
+                    message.headers as Record<string, unknown> | undefined,
+                    "traceparent",
+                  ),
+                });
                 resolveOffset(message.offset);
                 await heartbeat();
                 console.log(`- ${prefix} processed successfully`);
@@ -203,6 +231,35 @@ export class KafkaConsumer {
     );
 
     return consumer;
+  }
+
+  private logMessageTelemetry(input: {
+    durationMs: number;
+    offset: string;
+    operationName: "receive";
+    operationType: "receive";
+    partition: number;
+    topic: string;
+    traceparent?: string;
+  }) {
+    console.info(
+      JSON.stringify({
+        event: "messaging.kafka.consume",
+        timestamp: new Date().toISOString(),
+        traceId: getTraceIdFromTraceparent(input.traceparent),
+        attributes: {
+          "messaging.destination.name": input.topic,
+          "messaging.kafka.destination.partition": input.partition,
+          "messaging.kafka.message.offset": input.offset,
+          "messaging.operation.name": input.operationName,
+          "messaging.operation.type": input.operationType,
+          "messaging.system": "kafka",
+        },
+        measurements: {
+          "messaging.process.duration_ms": Number(input.durationMs.toFixed(2)),
+        },
+      }),
+    );
   }
 }
 

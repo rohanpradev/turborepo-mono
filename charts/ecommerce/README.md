@@ -4,6 +4,8 @@ This chart deploys the ecommerce application layer: storefront, admin, product s
 
 Stateful infrastructure is not bundled into this chart. Postgres, MongoDB, Kafka, Clerk, and Stripe are supplied through values and Kubernetes Secrets. That keeps the app chart portable across local clusters, staging, and production.
 
+The web-local profile enables a Stripe CLI sidecar in the payment pod. It forwards test events directly to the payment container and shares the listener-specific `whsec_...` through an in-memory file. Production defaults keep this sidecar disabled; register the public HTTPS webhook in Stripe Workbench and supply that endpoint's signing secret through your secret manager instead.
+
 ## Local Workflow
 
 ```bash
@@ -14,9 +16,13 @@ make k8s-traefik-status
 make k8s-logs-traefik
 make k8s-test
 make k8s-status
+make k8s-up-observed
+make k8s-observability-status
 ```
 
-`make k8s` is the one-command local Kubernetes setup: it installs or upgrades Traefik, starts Docker-backed Postgres, MongoDB, and Kafka, builds app images, loads them into kind or minikube when needed, validates the Helm chart, syncs TLS and runtime secrets, deploys the release, waits for rollout, and smoke-tests the routes. `make ks8` is kept as a friendly alias for the common typo, and `make kubernetes` does the same thing. Use `make k8s-full` only when Postgres, MongoDB, and Kafka already run inside your cluster. Run `make k8s-test` against the deployed release if you want Helm test coverage.
+`make k8s` is the one-command local Kubernetes setup: it installs or upgrades Traefik, starts Docker-backed Postgres, MongoDB, and Kafka, migrates and seeds the product catalog, builds app images, loads them into kind or minikube when needed, validates the Helm chart, deletes and waits for the existing application namespace, recreates the same namespace, syncs TLS and runtime secrets, deploys the release, waits for rollout, and smoke-tests the routes. This clears old pods, jobs, and other namespaced resources on every run. `make ks8` is kept as a friendly alias for the common typo, and `make kubernetes` does the same thing. Use `make k8s-full` only when Postgres, MongoDB, and Kafka already run inside your cluster. Run `make k8s-test` against the deployed release if you want Helm test coverage.
+
+Each one-command deployment generates an immutable `dev-<UTC timestamp>` image tag and passes it to Helm, so rebuilt images always produce a real rollout. To reproduce or resume a deployment across separate Make invocations, provide the same tag explicitly, for example `make k8s K8S_IMAGE_TAG=dev-my-test`.
 
 Useful lower-level commands:
 
@@ -47,6 +53,16 @@ make k8s-uninstall
 ```
 
 The local workflow installs Traefik as a standard Kubernetes Ingress controller and deploys app routes with `ingressClassName: traefik`.
+
+For Prometheus, Grafana, app metrics, Traefik metrics, and alert rules, run:
+
+```bash
+make k8s-up-observed
+make k8s-grafana
+make k8s-prometheus
+```
+
+The observed workflow installs kube-prometheus-stack, enables the Traefik metrics service, and deploys this chart with `ServiceMonitor`, `PrometheusRule`, and Grafana dashboard resources.
 
 Local routes:
 

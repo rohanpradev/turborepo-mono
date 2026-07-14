@@ -1,4 +1,4 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
 const isClerkConfigured = Boolean(
@@ -7,14 +7,18 @@ const isClerkConfigured = Boolean(
     process.env.CLERK_SECRET_KEY &&
     !process.env.CLERK_SECRET_KEY.includes("_here"),
 );
+const authorizedParties = process.env.CLERK_AUTHORIZED_PARTIES?.split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
-const isPublicRoute = createRouteMatcher(["/api/health"]);
-
-const protectedProxy = clerkMiddleware(async (auth, req) => {
-  if (!isPublicRoute(req)) {
-    await auth.protect();
-  }
-});
+const protectedProxy = clerkMiddleware(
+  async (auth, req) => {
+    if (req.nextUrl.pathname !== "/api/health") {
+      await auth.protect();
+    }
+  },
+  authorizedParties?.length ? { authorizedParties } : undefined,
+);
 
 export default isClerkConfigured ? protectedProxy : () => NextResponse.next();
 

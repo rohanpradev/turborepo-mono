@@ -8,6 +8,7 @@ import { formatUsdFromCents } from "@repo/types";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { requireAdminAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -22,18 +23,20 @@ const formatEventTimestamp = (timestamp: string) =>
   }).format(new Date(timestamp));
 
 const HomePage = async () => {
+  const { token } = await requireAdminAccess();
   const paymentServiceUrl = getPaymentServiceServerUrl();
   const paymentServicePublicUrl = getPaymentServiceUrl();
 
   const [paymentEvents, paymentHealth] = await Promise.all([
-    getPaymentIntegrationEvents(paymentServiceUrl, liveFetchOptions).catch(
-      (error) => ({
-        error:
-          error instanceof Error
-            ? error.message
-            : "Unable to load payment integration events.",
-      }),
-    ),
+    getPaymentIntegrationEvents(paymentServiceUrl, {
+      fetchOptions: liveFetchOptions,
+      token,
+    }).catch((error) => ({
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unable to load payment integration events.",
+    })),
     getPaymentServiceHealth(paymentServiceUrl, liveFetchOptions).catch(
       (error) => ({
         error:

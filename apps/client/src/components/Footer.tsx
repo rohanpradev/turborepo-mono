@@ -3,19 +3,19 @@ import Link from "next/link";
 
 const Footer = () => {
   return (
-    <footer className="mt-12 grid gap-8 rounded-lg border border-black/10 bg-[#171717] p-6 text-white shadow-sm sm:grid-cols-2 sm:p-8 xl:grid-cols-4">
+    <footer className="mt-16 grid gap-8 rounded-[2rem] bg-stone-950 p-7 text-white shadow-[0_22px_60px_-32px_rgba(39,31,25,0.7)] sm:grid-cols-2 sm:p-10 xl:grid-cols-4">
       <div className="flex flex-col items-center gap-4 text-center sm:items-start sm:text-left">
         <Link href="/" className="flex items-center">
-          <Image src="/logo.png" alt="Commerce" width={36} height={36} />
-          <p className="hidden text-md font-medium tracking-[0.24em] text-white md:block">
-            COMMERCE
+          <Image src="/logo.png" alt="Common Goods" width={36} height={36} />
+          <p className="hidden font-serif text-xl font-medium tracking-tight text-white md:block">
+            Common Goods
           </p>
         </Link>
         <p className="max-w-xs text-sm leading-6 text-white/60">
           A focused storefront for curated essentials, fast browsing, and a
           clean checkout path.
         </p>
-        <p className="text-sm text-white/50">© 2026 Commerce.</p>
+        <p className="text-sm text-white/50">© 2026 Common Goods.</p>
       </div>
       <div className="flex flex-col items-center gap-4 text-sm text-white/60 sm:items-start">
         <p className="text-sm text-white">Links</p>

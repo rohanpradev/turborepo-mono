@@ -3,6 +3,7 @@ export const Topics = {
   PRODUCT_CREATED: "product.created",
   PRODUCT_UPDATED: "product.updated",
   PRODUCT_DELETED: "product.deleted",
+  STRIPE_CHECKOUT_COMPLETED: "stripe.checkout.completed",
   PAYMENT_SUCCESSFUL: "payment.successful",
 } as const;
 
@@ -48,11 +49,20 @@ export interface PaymentSuccessfulMessage {
   processedAt: string;
 }
 
+export interface StripeCheckoutCompletedMessage {
+  eventId: string;
+  eventType: string;
+  sessionId: string;
+  source: "webhook" | "checkout-status";
+  occurredAt: string;
+}
+
 // Map topics to their message types
 export interface TopicMessageMap {
   [Topics.PRODUCT_CREATED]: ProductCreatedMessage;
   [Topics.PRODUCT_UPDATED]: ProductUpdatedMessage;
   [Topics.PRODUCT_DELETED]: ProductDeletedMessage;
+  [Topics.STRIPE_CHECKOUT_COMPLETED]: StripeCheckoutCompletedMessage;
   [Topics.PAYMENT_SUCCESSFUL]: PaymentSuccessfulMessage;
 }
 

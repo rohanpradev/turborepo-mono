@@ -1,6 +1,27 @@
+import {
+  cartItemSchema,
+  MAX_CART_ITEM_QUANTITY,
+  MAX_CHECKOUT_LINE_ITEMS,
+} from "@repo/types";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import type { CartStoreActionsType, CartStoreStateType } from "@/types";
+
+const isSameCartItem = (
+  left: CartStoreStateType["cart"][number],
+  right: CartStoreStateType["cart"][number],
+) =>
+  left.id === right.id &&
+  left.selectedSize === right.selectedSize &&
+  left.selectedColor === right.selectedColor;
+
+const clampQuantity = (quantity: number) =>
+  Math.min(
+    MAX_CART_ITEM_QUANTITY,
+    Math.max(1, Math.trunc(Number.isFinite(quantity) ? quantity : 1)),
+  );
+
+const persistedCartSchema = cartItemSchema.array().max(MAX_CHECKOUT_LINE_ITEMS);
 
 const useCartStore = create<CartStoreStateType & CartStoreActionsType>()(
   persist(
@@ -9,23 +30,27 @@ const useCartStore = create<CartStoreStateType & CartStoreActionsType>()(
       hasHydrated: false,
       addToCart: (product) =>
         set((state) => {
-          const existingIndex = state.cart.findIndex(
-            (p) =>
-              p.id === product.id &&
-              p.selectedSize === product.selectedSize &&
-              p.selectedColor === product.selectedColor,
+          const existingIndex = state.cart.findIndex((item) =>
+            isSameCartItem(item, product),
           );
 
           if (existingIndex !== -1) {
-            const updatedCart = [...state.cart];
-            const existingProduct = updatedCart[existingIndex];
+            return {
+              cart: state.cart.map((item, index) =>
+                index === existingIndex
+                  ? {
+                      ...item,
+                      quantity: clampQuantity(
+                        item.quantity + clampQuantity(product.quantity),
+                      ),
+                    }
+                  : item,
+              ),
+            };
+          }
 
-            if (!existingProduct) {
-              return state;
-            }
-
-            existingProduct.quantity += product.quantity || 1;
-            return { cart: updatedCart };
+          if (state.cart.length >= MAX_CHECKOUT_LINE_ITEMS) {
+            return state;
           }
 
           return {
@@ -33,7 +58,7 @@ const useCartStore = create<CartStoreStateType & CartStoreActionsType>()(
               ...state.cart,
               {
                 ...product,
-                quantity: product.quantity || 1,
+                quantity: clampQuantity(product.quantity),
                 selectedSize: product.selectedSize,
                 selectedColor: product.selectedColor,
               },
@@ -42,45 +67,37 @@ const useCartStore = create<CartStoreStateType & CartStoreActionsType>()(
         }),
       removeFromCart: (product) =>
         set((state) => ({
-          cart: state.cart.filter(
-            (p) =>
-              !(
-                p.id === product.id &&
-                p.selectedSize === product.selectedSize &&
-                p.selectedColor === product.selectedColor
-              ),
-          ),
+          cart: state.cart.filter((item) => !isSameCartItem(item, product)),
         })),
       setCartItemQuantity: (product, quantity) =>
         set((state) => ({
           cart:
             quantity <= 0
-              ? state.cart.filter(
-                  (p) =>
-                    !(
-                      p.id === product.id &&
-                      p.selectedSize === product.selectedSize &&
-                      p.selectedColor === product.selectedColor
-                    ),
-                )
-              : state.cart.map((p) =>
-                  p.id === product.id &&
-                  p.selectedSize === product.selectedSize &&
-                  p.selectedColor === product.selectedColor
-                    ? { ...p, quantity }
-                    : p,
+              ? state.cart.filter((item) => !isSameCartItem(item, product))
+              : state.cart.map((item) =>
+                  isSameCartItem(item, product)
+                    ? { ...item, quantity: clampQuantity(quantity) }
+                    : item,
                 ),
         })),
       clearCart: () => set({ cart: [] }),
+      setHasHydrated: (hasHydrated) => set({ hasHydrated }),
     }),
     {
       name: "cart",
       storage: createJSONStorage(() => localStorage),
-      onRehydrateStorage: () => (state) => {
-        if (state) {
-          state.hasHydrated = true;
-        }
+      partialize: (state) => ({ cart: state.cart }),
+      merge: (persistedState, currentState) => {
+        const persistedCart = (persistedState as Partial<CartStoreStateType>)
+          .cart;
+        const parsedCart = persistedCartSchema.safeParse(persistedCart);
+
+        return {
+          ...currentState,
+          cart: parsedCart.success ? parsedCart.data : [],
+        };
       },
+      onRehydrateStorage: (state) => () => state.setHasHydrated(true),
     },
   ),
 );

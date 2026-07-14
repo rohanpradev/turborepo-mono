@@ -2,8 +2,12 @@ import { describe, expect, test } from "bun:test";
 import {
   attachKafkaInstrumentation,
   buildTopicConfigs,
+  createKafkaTelemetryHeaders,
+  getTraceIdFromTraceparent,
   type KafkaInstrumentationEvent,
+  parseTraceparent,
   readKafkaBrokers,
+  readKafkaHeader,
   readKafkaTopicDefaults,
   Topics,
 } from "../packages/kafka/src/index";
@@ -134,5 +138,24 @@ describe("@repo/kafka", () => {
     remove();
 
     expect(listeners.size).toBe(0);
+  });
+
+  test("creates and reads Kafka telemetry trace headers", () => {
+    const headers = createKafkaTelemetryHeaders({
+      source: "product-service",
+    });
+    const trace = parseTraceparent(headers.traceparent);
+
+    expect(headers.source).toBe("product-service");
+    expect(trace?.traceId).toHaveLength(32);
+    expect(getTraceIdFromTraceparent(headers.traceparent)).toBe(trace?.traceId);
+    expect(
+      readKafkaHeader(
+        {
+          traceparent: new TextEncoder().encode(headers.traceparent),
+        },
+        "traceparent",
+      ),
+    ).toBe(headers.traceparent);
   });
 });

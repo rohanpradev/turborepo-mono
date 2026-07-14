@@ -7,6 +7,7 @@ type SecretEntry = {
 const cwd = new URL("..", import.meta.url).pathname;
 
 const args = process.argv.slice(2);
+const requireCommerce = args.includes("--require-commerce");
 
 const getArg = (name: string, fallback: string) => {
   const index = args.indexOf(name);
@@ -91,12 +92,16 @@ const selectedSecrets: Array<SecretEntry> = [
     key: "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
     sources: ["NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY"],
   },
-  { key: "CLERK_PUBLISHABLE_KEY", sources: ["CLERK_PUBLISHABLE_KEY"] },
+  {
+    key: "CLERK_PUBLISHABLE_KEY",
+    sources: ["CLERK_PUBLISHABLE_KEY", "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"],
+  },
   {
     key: "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
-    sources: ["NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"],
+    sources: ["NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "CLERK_PUBLISHABLE_KEY"],
   },
   { key: "CLERK_SECRET_KEY", sources: ["CLERK_SECRET_KEY"] },
+  { key: "CLERK_JWT_KEY", sources: ["CLERK_JWT_KEY"] },
   { key: "ADMIN_USER_IDS", sources: ["ADMIN_USER_IDS"] },
 ];
 
@@ -132,6 +137,22 @@ const missingRequired = selectedSecrets
   .filter(({ key, required }) => required && !stringData.get(key))
   .map(({ key }) => key);
 
+const commerceKeys = [
+  "STRIPE_SECRET_KEY",
+  "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
+  "CLERK_PUBLISHABLE_KEY",
+  "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+  "CLERK_SECRET_KEY",
+];
+
+if (requireCommerce) {
+  missingRequired.push(
+    ...commerceKeys.filter(
+      (key) => !stringData.get(key) && !missingRequired.includes(key),
+    ),
+  );
+}
+
 if (missingRequired.length > 0) {
   throw new Error(
     `Missing required Kubernetes secret values: ${missingRequired.join(", ")}`,
@@ -139,12 +160,44 @@ if (missingRequired.length > 0) {
 }
 
 const placeholderKeys = selectedSecrets
-  .filter(({ key }) => /^your_|_here$/.test(stringData.get(key) ?? ""))
+  .filter(({ key }) => {
+    const value = stringData.get(key) ?? "";
+    return value.startsWith("your_") || value.includes("_here");
+  })
   .map(({ key }) => key);
+
+if (
+  requireCommerce &&
+  placeholderKeys.some((key) => commerceKeys.includes(key))
+) {
+  throw new Error(
+    `Replace placeholder Kubernetes commerce secrets: ${placeholderKeys
+      .filter((key) => commerceKeys.includes(key))
+      .join(", ")}`,
+  );
+}
 
 if (placeholderKeys.length > 0) {
   console.warn(
     `Warning: placeholder values remain in Kubernetes secret keys: ${placeholderKeys.join(", ")}`,
+  );
+}
+
+const stripeSecretKey = stringData.get("STRIPE_SECRET_KEY") ?? "";
+const stripePublishableKey =
+  stringData.get("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY") ?? "";
+const secretMode = stripeSecretKey.match(/^(?:sk|rk)_(test|live)_/)?.[1];
+const publishableMode = stripePublishableKey.match(/^pk_(test|live)_/)?.[1];
+
+if (requireCommerce && (!secretMode || !publishableMode)) {
+  throw new Error(
+    "Stripe keys must use valid sk_/rk_ and pk_ test or live prefixes.",
+  );
+}
+
+if (secretMode && publishableMode && secretMode !== publishableMode) {
+  throw new Error(
+    `Stripe key modes do not match: secret=${secretMode}, publishable=${publishableMode}.`,
   );
 }
 

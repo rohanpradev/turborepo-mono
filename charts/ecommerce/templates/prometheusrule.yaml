@@ -1,0 +1,61 @@
+{{- if .Values.observability.prometheusRule.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "ecommerce.fullname" . }}-slo
+  labels:
+    {{- include "ecommerce.labels" . | nindent 4 }}
+    {{- with .Values.observability.prometheusRule.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: ecommerce.slo
+      rules:
+        - alert: EcommerceServiceNotReady
+          expr: ecommerce_service_ready == 0
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Ecommerce service is not ready"
+            description: "{{`{{ $labels.app_service }}`}} has reported not-ready for more than 2 minutes."
+        - alert: EcommerceHighHttp5xxRatio
+          expr: |
+            (
+              sum by (app_service) (rate(ecommerce_http_requests_total{status_code=~"5.."}[5m]))
+              /
+              clamp_min(sum by (app_service) (rate(ecommerce_http_requests_total[5m])), 1)
+            ) > {{ .Values.observability.prometheusRule.thresholds.errorRatio }}
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "High ecommerce service 5xx ratio"
+            description: "{{`{{ $labels.app_service }}`}} is above the configured 5xx ratio threshold."
+        - alert: EcommerceHighP95Latency
+          expr: |
+            histogram_quantile(
+              0.95,
+              sum by (le, app_service) (rate(ecommerce_http_request_duration_seconds_bucket[5m]))
+            ) > {{ .Values.observability.prometheusRule.thresholds.p95LatencySeconds }}
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High ecommerce service p95 latency"
+            description: "{{`{{ $labels.app_service }}`}} p95 latency is above the configured threshold."
+        - alert: TraefikHighService5xxRatio
+          expr: |
+            (
+              sum by (service) (rate(traefik_service_requests_total{code=~"5.."}[5m]))
+              /
+              clamp_min(sum by (service) (rate(traefik_service_requests_total[5m])), 1)
+            ) > {{ .Values.observability.prometheusRule.thresholds.traefikErrorRatio }}
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "High Traefik upstream 5xx ratio"
+            description: "{{`{{ $labels.service }}`}} is returning too many 5xx responses through Traefik."
+{{- end }}

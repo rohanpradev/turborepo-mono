@@ -1,37 +1,34 @@
 "use client";
 
-import { RotateCcw } from "lucide-react";
-import Link from "next/link";
+import { AlertTriangle, RotateCcw } from "lucide-react";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 
-export default function ErrorBoundary({
+export default function AdminError({
   error,
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    console.error(error);
+  }, [error]);
+
   return (
-    <section className="flex min-h-[60vh] flex-col items-center justify-center gap-4 py-12 text-center">
-      <span className="rounded-full bg-destructive/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-destructive">
-        Dashboard error
-      </span>
-      <div className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight">
-          This admin view could not load.
-        </h1>
-        <p className="max-w-xl text-sm text-muted-foreground">
-          {error.message ||
-            "An upstream service or dashboard component failed while rendering."}
+    <section className="grid min-h-[60vh] place-items-center py-8">
+      <div className="max-w-md rounded-2xl border bg-card p-7 text-center shadow-sm">
+        <div className="mx-auto grid size-12 place-items-center rounded-full bg-amber-100 text-amber-800">
+          <AlertTriangle className="size-6" aria-hidden="true" />
+        </div>
+        <h1 className="mt-5 text-xl font-semibold">Unable to load this view</h1>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          The operations data could not be refreshed. Your navigation and
+          existing data remain unchanged.
         </p>
-      </div>
-      <div className="flex flex-wrap justify-center gap-3">
-        <Button type="button" onClick={reset}>
-          <RotateCcw className="h-4 w-4" />
+        <Button type="button" className="mt-6" onClick={reset}>
+          <RotateCcw className="size-4" aria-hidden="true" />
           Try again
-        </Button>
-        <Button asChild variant="outline">
-          <Link href="/">Go to dashboard</Link>
         </Button>
       </div>
     </section>

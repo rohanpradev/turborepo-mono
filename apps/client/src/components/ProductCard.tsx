@@ -21,10 +21,10 @@ const ProductCard = ({
   const previewImage = getPrimaryProductImage(product, selectedColor);
 
   return (
-    <article className="group flex h-full min-h-[38rem] min-w-0 flex-col overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_70px_-40px_rgba(15,23,42,0.45)]">
+    <article className="group flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-stone-900/10 bg-[#fffdf9] shadow-[0_12px_30px_-24px_rgba(39,31,25,0.45)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_26px_60px_-32px_rgba(39,31,25,0.52)]">
       <Link href={`/products/${product.id}` as Route} className="block">
-        <div className="relative aspect-[4/5] overflow-hidden bg-[linear-gradient(145deg,#fbfcf8_0%,#eef4ee_48%,#e5e8df_100%)]">
-          <div className="absolute inset-x-8 bottom-8 h-4 rounded-full bg-black/10 blur-md transition duration-700 group-hover:bg-black/15" />
+        <div className="relative aspect-[4/4.25] overflow-hidden bg-[#f0eee8]">
+          <div className="absolute inset-x-[18%] bottom-[9%] h-4 rounded-full bg-black/10 blur-md transition duration-700 group-hover:bg-black/15" />
           <Image
             src={previewImage}
             alt={product.name}
@@ -33,12 +33,14 @@ const ProductCard = ({
             fetchPriority={eager ? "high" : "auto"}
             decoding="async"
             quality={85}
-            className="object-contain p-5 drop-shadow-[0_18px_22px_rgba(15,23,42,0.18)] transition-transform duration-700 group-hover:scale-105 sm:p-6"
+            className="object-cover transition-transform duration-700 group-hover:scale-[1.04]"
             sizes="(min-width: 1536px) 18rem, (min-width: 1280px) 25vw, (min-width: 640px) 50vw, 100vw"
           />
-          <div className="absolute inset-x-0 top-0 h-1 bg-[linear-gradient(90deg,#0f766e,#f97316,#111827)]" />
           <div className="absolute left-3 right-3 top-3 flex flex-wrap gap-2">
-            <Badge variant="secondary" className="bg-white/90 text-gray-950">
+            <Badge
+              variant="secondary"
+              className="bg-white/90 text-stone-950 shadow-sm"
+            >
               New
             </Badge>
             <Badge
@@ -51,17 +53,17 @@ const ProductCard = ({
         </div>
       </Link>
 
-      <div className="flex flex-1 flex-col gap-4 p-4">
+      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-5">
         <div className="space-y-1">
           <div className="grid min-h-12 grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-            <h3 className="line-clamp-2 text-base font-semibold leading-6 text-gray-950">
+            <h3 className="line-clamp-2 font-serif text-lg font-semibold leading-6 text-stone-950">
               {product.name}
             </h3>
-            <p className="max-w-24 break-words text-right text-sm font-medium text-gray-950">
+            <p className="max-w-24 break-words text-right text-sm font-semibold text-stone-950">
               {formatUsdFromCents(product.price)}
             </p>
           </div>
-          <p className="line-clamp-2 min-h-12 text-sm leading-6 text-gray-600">
+          <p className="line-clamp-2 min-h-12 text-sm leading-6 text-stone-600">
             {product.shortDescription}
           </p>
         </div>

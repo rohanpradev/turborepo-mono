@@ -31,6 +31,7 @@ const rootRoute = createRoute({
 });
 
 const app = createServiceApp<{ Variables: ServiceVariables }>({
+  serviceName: "payment-service",
   title: "Payment Service API",
   version: "1.0.0",
   description:

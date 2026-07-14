@@ -33,13 +33,14 @@ rm -f "$secret_file"
 
 awk -v secret_file="$secret_file" '
 {
-  print;
   if (match($0, /whsec_[A-Za-z0-9]+/)) {
     secret = substr($0, RSTART, RLENGTH);
     print secret > secret_file;
     close(secret_file);
-    print "Stored Stripe webhook secret in " secret_file > "/dev/stderr";
+    print "Stored Stripe webhook signing secret." > "/dev/stderr";
+    sub(/whsec_[A-Za-z0-9]+/, "whsec_[REDACTED]");
   }
+  print;
   fflush();
 }
 ' < "$log_pipe" &

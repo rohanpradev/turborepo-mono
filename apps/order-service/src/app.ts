@@ -30,6 +30,7 @@ const rootRoute = createRoute({
 });
 
 const app = createServiceApp<{ Variables: ServiceVariables }>({
+  serviceName: "order-service",
   title: "Order Service API",
   version: "1.0.0",
   description:

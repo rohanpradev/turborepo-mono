@@ -22,7 +22,7 @@ const ProductCardActions = ({
 }: ProductCardActionsProps) => {
   const defaultSize = product.sizes[0] ?? "";
   const [selectedSize, setSelectedSize] = useState(defaultSize);
-  const { addToCart } = useCartStore();
+  const addToCart = useCartStore((state) => state.addToCart);
 
   const handleAddToCart = () => {
     addToCart({

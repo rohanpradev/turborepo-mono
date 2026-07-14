@@ -9,6 +9,8 @@ import type {
 import { Partitioners } from "kafkajs";
 import {
   attachKafkaInstrumentation,
+  createKafkaTelemetryHeaders,
+  getTraceIdFromTraceparent,
   type KafkaEventClient,
 } from "./instrumentation";
 import type { MessageForTopic, TopicName } from "./types";
@@ -69,6 +71,9 @@ export class KafkaProducer {
       headers?: KafkaProducerHeaders;
     } = {},
   ): Promise<void> {
+    const startedAt = performance.now();
+    const headers = createKafkaTelemetryHeaders(options.headers);
+
     try {
       const payload: ProducerRecord = {
         topic,
@@ -76,12 +81,20 @@ export class KafkaProducer {
           {
             key: options.key,
             value: JSON.stringify(message),
-            headers: options.headers,
+            headers,
           },
         ],
       };
 
       await this.producer.send(payload);
+      this.logMessageTelemetry("messaging.kafka.produce", {
+        durationMs: performance.now() - startedAt,
+        messageCount: 1,
+        operationName: "send",
+        operationType: "send",
+        topic,
+        traceparent: headers.traceparent,
+      });
     } catch (error) {
       console.error(`Error sending message to topic ${topic}:`, error);
       throw error;
@@ -89,14 +102,19 @@ export class KafkaProducer {
   }
 
   public async sendBatch(messages: Array<TopicEnvelope>): Promise<void> {
+    const startedAt = performance.now();
+    let firstTraceparent: string | undefined;
+
     try {
       const topicMessages: Array<TopicMessages> = messages.reduce(
         (acc, { topic, message, key, headers }) => {
           const existing = acc.find((tm) => tm.topic === topic);
+          const telemetryHeaders = createKafkaTelemetryHeaders(headers);
+          firstTraceparent ??= telemetryHeaders.traceparent;
           const kafkaMessage: Message = {
             key,
             value: JSON.stringify(message),
-            headers,
+            headers: telemetryHeaders,
           };
 
           if (existing) {
@@ -112,6 +130,14 @@ export class KafkaProducer {
 
       const batch: ProducerBatch = { topicMessages };
       await this.producer.sendBatch(batch);
+      this.logMessageTelemetry("messaging.kafka.produce_batch", {
+        durationMs: performance.now() - startedAt,
+        messageCount: messages.length,
+        operationName: "send",
+        operationType: "send",
+        topic: "batch",
+        traceparent: firstTraceparent,
+      });
     } catch (error) {
       console.error("Error sending batch messages:", error);
       throw error;
@@ -134,6 +160,38 @@ export class KafkaProducer {
     );
 
     return producer;
+  }
+
+  private logMessageTelemetry(
+    event: string,
+    input: {
+      durationMs: number;
+      messageCount: number;
+      operationName: "send";
+      operationType: "send";
+      topic: string;
+      traceparent?: string;
+    },
+  ) {
+    console.info(
+      JSON.stringify({
+        event,
+        timestamp: new Date().toISOString(),
+        traceId: getTraceIdFromTraceparent(input.traceparent),
+        attributes: {
+          "messaging.batch.message_count": input.messageCount,
+          "messaging.destination.name": input.topic,
+          "messaging.operation.name": input.operationName,
+          "messaging.operation.type": input.operationType,
+          "messaging.system": "kafka",
+        },
+        measurements: {
+          "messaging.client.operation.duration_ms": Number(
+            input.durationMs.toFixed(2),
+          ),
+        },
+      }),
+    );
   }
 }
 

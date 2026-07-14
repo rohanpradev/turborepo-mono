@@ -14,6 +14,7 @@ export const ensurePaymentKafkaTopics = async () =>
     Topics.PRODUCT_CREATED,
     Topics.PRODUCT_UPDATED,
     Topics.PRODUCT_DELETED,
+    Topics.STRIPE_CHECKOUT_COMPLETED,
     Topics.PAYMENT_SUCCESSFUL,
   ]);
 

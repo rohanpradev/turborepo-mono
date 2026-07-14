@@ -3,7 +3,14 @@ import Stripe from "stripe";
 
 let stripeClient: Stripe | null | undefined;
 
-export const isStripeConfigured = () => Boolean(process.env.STRIPE_SECRET_KEY);
+const stripeSecretKeyPattern = /^(?:sk|rk)_(test|live)_[A-Za-z0-9]+$/;
+const stripeWebhookSecretPattern = /^whsec_[A-Za-z0-9]+$/;
+
+const getStripeKeyMode = (value?: string) =>
+  value?.trim().match(stripeSecretKeyPattern)?.[1] ?? null;
+
+export const isStripeConfigured = () =>
+  getStripeKeyMode(process.env.STRIPE_SECRET_KEY) !== null;
 
 export const getStripeClient = () => {
   if (!isStripeConfigured()) {
@@ -12,6 +19,10 @@ export const getStripeClient = () => {
 
   if (stripeClient === undefined) {
     stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+      appInfo: {
+        name: "ecommerce-payment-service",
+        version: "1.0.0",
+      },
       maxNetworkRetries: 2,
     });
   }
@@ -26,19 +37,19 @@ export const setStripeClientForTesting = (
 };
 
 export const getStripeWebhookSecret = () => {
-  const envSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
-
-  if (envSecret) {
-    return envSecret;
-  }
-
   const secretFile = process.env.STRIPE_WEBHOOK_SECRET_FILE?.trim();
 
-  if (!secretFile || !existsSync(secretFile)) {
-    return null;
+  if (secretFile && existsSync(secretFile)) {
+    const fileSecret = readFileSync(secretFile, "utf8").trim();
+
+    if (stripeWebhookSecretPattern.test(fileSecret)) {
+      return fileSecret;
+    }
   }
 
-  const fileSecret = readFileSync(secretFile, "utf8").trim();
+  const envSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
 
-  return fileSecret || null;
+  return envSecret && stripeWebhookSecretPattern.test(envSecret)
+    ? envSecret
+    : null;
 };

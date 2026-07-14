@@ -1,4 +1,3 @@
-import { auth } from "@clerk/nextjs/server";
 import {
   getOrderServiceServerUrl,
   getPaymentIntegrationEvents,
@@ -10,6 +9,7 @@ import {
   type PaymentIntegrationEventsResponse,
 } from "@repo/api-client";
 import type { CategoryRecord, OrderRecord, ProductRecord } from "@repo/types";
+import { requireAdminAccess } from "@/lib/auth";
 
 type IntegrationEvent =
   PaymentIntegrationEventsResponse["data"]["recentEvents"][number];
@@ -63,16 +63,22 @@ export const formatCustomerLabel = (userId: string) =>
     ? "Unknown / test session"
     : `Customer ${userId.slice(0, 8)}`;
 
-export const formatTimestamp = (timestamp: string) =>
-  new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(timestamp));
+export const formatTimestamp = (timestamp: string) => {
+  const value = new Date(timestamp);
+
+  return Number.isNaN(value.getTime())
+    ? "Timestamp unavailable"
+    : new Intl.DateTimeFormat("en-US", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(value);
+};
 
 export const loadPaymentEvents = async () => {
+  const { token } = await requireAdminAccess();
   const response = await getPaymentIntegrationEvents(
     getPaymentServiceServerUrl(),
-    liveFetchOptions,
+    { fetchOptions: liveFetchOptions, token },
   );
 
   return response.data.recentEvents;
@@ -256,15 +262,7 @@ export const buildCustomerSummaries = (
 };
 
 export const loadOptionalAdminOrders = async () => {
-  const session = await auth();
-  if (!session.userId) {
-    return null;
-  }
-
-  const token = await session.getToken();
-  if (!token) {
-    return null;
-  }
+  const { token } = await requireAdminAccess();
 
   try {
     const response = await listOrders(getOrderServiceServerUrl(), { token });
@@ -278,6 +276,7 @@ export const loadCatalogSnapshot = async (): Promise<{
   categories: Array<CategoryRecord>;
   products: Array<ProductRecord>;
 }> => {
+  await requireAdminAccess();
   const productServiceUrl = getProductServiceServerUrl();
   const [products, categories] = await Promise.all([
     listProducts(

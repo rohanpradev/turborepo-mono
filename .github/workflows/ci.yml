@@ -17,7 +17,7 @@ env:
   BUN_VERSION: 1.3.14
   NODE_VERSION: 24
   REGISTRY: ghcr.io
-  TURBO_VERSION: 2.10.0
+  TURBO_VERSION: 2.10.4
   NEXT_TELEMETRY_DISABLED: 1
   TURBO_TELEMETRY_DISABLED: 1
 
@@ -31,10 +31,13 @@ jobs:
       SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
       SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
       SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+      TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
+      TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -64,6 +67,17 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-turbo-
 
+      - name: Cache Next.js build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            apps/admin/.next/cache
+            apps/client/.next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('bun.lock') }}-${{ hashFiles('apps/admin/**', 'apps/client/**', 'packages/**', 'package.json', 'turbo.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('bun.lock') }}-
+            ${{ runner.os }}-nextjs-
+
       - name: Cache Knip
         uses: actions/cache@v4
         with:
@@ -89,6 +103,9 @@ jobs:
       - name: Knip
         run: bun run knip
 
+      - name: Package boundaries
+        run: bun run boundaries
+
       - name: Test with coverage
         run: bun run test:coverage
 
@@ -97,6 +114,26 @@ jobs:
 
       - name: Typecheck and build
         run: bun run ci:types-build
+
+      - name: Generate Turbo task graph
+        if: always()
+        run: bun run turbo:graph
+
+      - name: Render Turbo report
+        if: always()
+        run: bun run turbo:report
+
+      - name: Upload Turbo diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: turbo-diagnostics
+          path: |
+            .turbo/runs/*.json
+            docs/task-graph.mermaid
+            docs/turbo-report.md
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Configure SonarQube metadata
         if: env.SONAR_TOKEN != '' && env.SONAR_PROJECT_KEY != ''
@@ -142,7 +179,7 @@ jobs:
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 

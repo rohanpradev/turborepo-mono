@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 ARG BUN_DEV_IMAGE=dhi.io/bun:1-debian13-dev
 ARG BUN_RUNTIME_IMAGE=dhi.io/bun:1-debian13
-ARG TURBO_VERSION=2.10.0
+ARG TURBO_VERSION=2.10.4
 
 FROM ${BUN_DEV_IMAGE} AS pruner
 ENV CI=1 \
@@ -12,12 +12,23 @@ RUN --mount=type=cache,target=/root/.bun/install/cache,sharing=locked \
     bun install --global turbo@${TURBO_VERSION}
 ENV PATH="/root/.bun/bin:$PATH"
 COPY --link . .
-RUN turbo prune admin --docker
+# Turbo 2.10.4's Linux prune output can include two false future flags that
+# the same release rejects when it reads the pruned configuration.
+RUN turbo prune admin --docker \
+    && sed -i \
+      -e '/"experimentalCargoSccache": false,/d' \
+      -e '/"experimentalTaskCommand": false/d' \
+      -e 's/"experimentalCargoWorkspaces": false,/"experimentalCargoWorkspaces": false/' \
+      out/full/turbo.json
 
 FROM ${BUN_DEV_IMAGE} AS builder
+ARG TURBO_VERSION
 ENV CI=1 \
     TURBO_TELEMETRY_DISABLED=1 \
     NEXT_TELEMETRY_DISABLED=1
+RUN --mount=type=cache,target=/root/.bun/install/cache,sharing=locked \
+    bun install --global turbo@${TURBO_VERSION}
+ENV PATH="/root/.bun/bin:$PATH"
 WORKDIR /app
 
 ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=""
@@ -36,7 +47,7 @@ COPY --link --from=pruner /repo/out/json/ ./
 RUN --mount=type=cache,target=/root/.bun/install/cache,sharing=locked \
     bun install --frozen-lockfile --linker=hoisted
 COPY --link --from=pruner /repo/out/full/ ./
-RUN bunx turbo run build --filter=admin...
+RUN turbo run build --filter=admin...
 
 FROM ${BUN_RUNTIME_IMAGE} AS runner
 ENV NODE_ENV=production \

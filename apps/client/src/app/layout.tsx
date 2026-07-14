@@ -24,34 +24,13 @@ const metadataBase = createMetadataBase(
 
 export const metadata: Metadata = {
   title: {
-    default: "Commerce",
-    template: "%s | Commerce",
+    default: "Common Goods",
+    template: "%s | Common Goods",
   },
-  applicationName: "Commerce",
-  description: "Commerce storefront for browsing products and checking out.",
+  applicationName: "Common Goods",
+  description:
+    "Common Goods storefront for curated essentials and secure checkout.",
   metadataBase,
-  alternates: {
-    canonical: "/",
-  },
-  openGraph: {
-    title: "Commerce",
-    description: "Commerce storefront for browsing products and checking out.",
-    siteName: "Commerce",
-    type: "website",
-    url: "/",
-    images: [
-      {
-        url: "/featured.png",
-        alt: "Featured Commerce products",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Commerce",
-    description: "Commerce storefront for browsing products and checking out.",
-    images: ["/featured.png"],
-  },
 };
 
 const isClerkConfigured = Boolean(
@@ -65,10 +44,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const shell = (
-    <div className="min-h-screen bg-[#f4f6f3] text-gray-950">
-      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen text-stone-950">
+      <a
+        href="#main-content"
+        className="fixed left-4 top-4 z-[100] -translate-y-24 rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white shadow-lg transition-transform focus:translate-y-0"
+      >
+        Skip to main content
+      </a>
+      <div className="mx-auto flex min-h-screen w-full max-w-[88rem] flex-col px-4 py-4 sm:px-6 lg:px-8">
         <Navbar />
-        <main className="flex-1">{children}</main>
+        <main id="main-content" tabIndex={-1} className="flex-1 outline-none">
+          {children}
+        </main>
         <Footer />
       </div>
     </div>

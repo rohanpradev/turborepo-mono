@@ -3,7 +3,7 @@ global:
   env:
     NODE_ENV: production
     REQUEST_TIMEOUT_MS: "30000"
-    KAFKA_BROKERS: host.docker.internal:9094,host.docker.internal:9095,host.docker.internal:9096
+    KAFKA_BROKERS: host.docker.internal:19094,host.docker.internal:19095,host.docker.internal:19096
     KAFKA_LOG_LEVEL: error
     KAFKA_CONNECTION_TIMEOUT_MS: "3000"
     KAFKA_REQUEST_TIMEOUT_MS: "25000"
@@ -12,6 +12,11 @@ global:
     KAFKA_TOPIC_MIN_INSYNC_REPLICAS: "1"
     KAFKA_UI_URL: ""
     CORS_ALLOWED_ORIGINS: https://shop.localhost,https://admin.localhost,http://localhost:3002,http://localhost:3003
+    CLERK_AUTHORIZED_PARTIES: https://shop.localhost,https://admin.localhost,https://shop.localhost:8443,https://admin.localhost:8443,http://localhost:3002,http://localhost:3003
+    TELEMETRY_ENABLED: "true"
+    TELEMETRY_LOG_FORMAT: json
+    PROMETHEUS_METRICS_ENABLED: "true"
+    PROMETHEUS_METRICS_PATH: /metrics
 
 ingress:
   enabled: false
@@ -53,6 +58,9 @@ gateway:
   name: traefik-gateway
   namespace: traefik
   sectionName: websecure
+
+stripeCli:
+  enabled: true
 
 secrets:
   create: false
@@ -106,6 +114,6 @@ services:
 
 jobs:
   migrate-product-db:
-    enabled: false
+    enabled: true
   seed-product-db:
-    enabled: false
+    enabled: true

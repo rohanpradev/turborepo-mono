@@ -40,3 +40,26 @@ model Category {
   slug     String    @unique
   products Product[]
 }
+
+enum OutboxStatus {
+  PENDING
+  PUBLISHING
+  PUBLISHED
+}
+
+model ProductOutboxEvent {
+  id          String       @id @default(uuid())
+  topic       String
+  eventKey    String
+  payload     Json
+  status      OutboxStatus @default(PENDING)
+  attempts    Int          @default(0)
+  availableAt DateTime     @default(now())
+  leaseUntil  DateTime?
+  publishedAt DateTime?
+  lastError   String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([status, availableAt, createdAt])
+}

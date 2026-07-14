@@ -39,15 +39,16 @@ const baseClasses =
   "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]";
 
 const variantClasses: Record<NonNullable<ButtonProps["variant"]>, string> = {
-  default: "bg-gray-950 text-white shadow-sm hover:bg-gray-800",
+  default:
+    "bg-[#b94e28] text-white shadow-sm shadow-[#b94e28]/20 hover:bg-[#9f3d1e]",
   glass:
     "border border-white/25 bg-white/10 text-white shadow-sm hover:bg-white/15",
-  light: "bg-white text-gray-950 shadow-sm hover:bg-gray-100",
+  light: "bg-white text-stone-950 shadow-sm hover:bg-orange-50",
   outline:
-    "border border-black/10 bg-white text-gray-700 shadow-sm hover:bg-gray-50",
-  secondary: "bg-gray-100 text-gray-950 hover:bg-gray-200",
-  ghost: "hover:bg-gray-100 hover:text-gray-950",
-  link: "text-gray-950 underline-offset-4 hover:underline",
+    "border border-stone-900/10 bg-white text-stone-700 shadow-sm hover:border-stone-900/20 hover:bg-stone-50",
+  secondary: "bg-stone-100 text-stone-950 hover:bg-stone-200",
+  ghost: "hover:bg-stone-100 hover:text-stone-950",
+  link: "text-stone-950 underline-offset-4 hover:underline",
 };
 
 const sizeClasses: Record<NonNullable<ButtonProps["size"]>, string> = {
