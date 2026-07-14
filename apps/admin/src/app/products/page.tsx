@@ -8,6 +8,7 @@ import {
   getStorefrontProductUrl,
   loadCatalogSnapshot,
 } from "@/lib/admin-data";
+import { requireAdminAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ export const metadata: Metadata = {
 };
 
 const ProductsPage = async () => {
+  await requireAdminAccess();
   const { categories, products } = await loadCatalogSnapshot();
   const productServiceUrl = getProductServiceUrl();
   const highestPriceCents = products.reduce(

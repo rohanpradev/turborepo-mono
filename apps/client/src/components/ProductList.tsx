@@ -96,18 +96,18 @@ const ProductList = async ({
     });
 
   return (
-    <section className="w-full space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-black/10 pb-5">
+    <section className="w-full space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-stone-900/10 pb-6">
         <div className="space-y-1">
           <Badge variant="outline" className="bg-white text-gray-700">
             {params === "homepage" ? "Featured selection" : "Live catalog"}
           </Badge>
-          <h2 className="text-xl font-semibold text-gray-950 sm:text-2xl">
+          <h2 className="font-serif text-3xl font-semibold tracking-tight text-stone-950 sm:text-4xl">
             {params === "homepage"
               ? "Featured products"
               : "Explore the catalog"}
           </h2>
-          <p className="max-w-2xl text-sm leading-6 text-gray-600">
+          <p className="max-w-2xl text-sm leading-6 text-stone-600">
             {params === "homepage"
               ? "Fresh picks across apparel, denim, and footwear."
               : `${pagination.total} product${pagination.total === 1 ? "" : "s"} across every current category.`}

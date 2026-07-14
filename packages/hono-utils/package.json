@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@clerk/backend": "catalog:",
-    "@hono/clerk-auth": "catalog:",
+    "@clerk/hono": "catalog:",
     "@hono/zod-openapi": "catalog:",
     "@orpc/server": "catalog:",
     "@repo/types": "workspace:*",

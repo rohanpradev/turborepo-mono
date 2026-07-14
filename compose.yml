@@ -22,7 +22,7 @@ x-frontend-build-args: &frontend-build-args
 x-kafka-broker-env: &kafka-broker-env
   KAFKA_PROCESS_ROLES: broker,controller
   KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-broker-1:9093,2@kafka-broker-2:9093,3@kafka-broker-3:9093
-  KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+  KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT,KUBERNETES:PLAINTEXT
   KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
   KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
   KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
@@ -126,7 +126,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-product_db}
       POSTGRES_INITDB_ARGS: --auth=scram-sha-256
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_BIND_ADDRESS:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
     networks:
@@ -223,10 +223,11 @@ services:
     environment:
       <<: *kafka-broker-env
       KAFKA_NODE_ID: 1
-      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://0.0.0.0:9094
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-1:9092,EXTERNAL://${KAFKA_EXTERNAL_HOST:-localhost}:9094
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://0.0.0.0:9094,KUBERNETES://0.0.0.0:19094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-1:9092,EXTERNAL://localhost:9094,KUBERNETES://host.docker.internal:19094
     ports:
-      - "9094:9094"
+      - "${KAFKA_BIND_ADDRESS:-127.0.0.1}:9094:9094"
+      - "${KAFKA_BIND_ADDRESS:-127.0.0.1}:19094:19094"
     volumes:
       - kafka-broker-1-data:/opt/kafka/logs
     healthcheck:
@@ -248,10 +249,11 @@ services:
     environment:
       <<: *kafka-broker-env
       KAFKA_NODE_ID: 2
-      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://0.0.0.0:9095
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-2:9092,EXTERNAL://${KAFKA_EXTERNAL_HOST:-localhost}:9095
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://0.0.0.0:9095,KUBERNETES://0.0.0.0:19095
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-2:9092,EXTERNAL://localhost:9095,KUBERNETES://host.docker.internal:19095
     ports:
-      - "9095:9095"
+      - "${KAFKA_BIND_ADDRESS:-127.0.0.1}:9095:9095"
+      - "${KAFKA_BIND_ADDRESS:-127.0.0.1}:19095:19095"
     volumes:
       - kafka-broker-2-data:/opt/kafka/logs
     healthcheck:
@@ -273,10 +275,11 @@ services:
     environment:
       <<: *kafka-broker-env
       KAFKA_NODE_ID: 3
-      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://0.0.0.0:9096
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-3:9092,EXTERNAL://${KAFKA_EXTERNAL_HOST:-localhost}:9096
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://0.0.0.0:9096,KUBERNETES://0.0.0.0:19096
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-3:9092,EXTERNAL://localhost:9096,KUBERNETES://host.docker.internal:19096
     ports:
-      - "9096:9096"
+      - "${KAFKA_BIND_ADDRESS:-127.0.0.1}:9096:9096"
+      - "${KAFKA_BIND_ADDRESS:-127.0.0.1}:19096:19096"
     volumes:
       - kafka-broker-3-data:/opt/kafka/logs
     healthcheck:
@@ -335,9 +338,15 @@ services:
       CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY:-}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
       CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
+      CLERK_JWT_KEY: ${CLERK_JWT_KEY:-}
+      CLERK_AUTHORIZED_PARTIES: ${CLERK_AUTHORIZED_PARTIES:-https://shop.localhost:8443,https://admin.localhost:8443,http://localhost:3002,http://localhost:3003}
       ADMIN_USER_IDS: ${ADMIN_USER_IDS:-}
       KAFKA_BROKERS: ${DOCKER_KAFKA_BROKERS:-kafka-broker-1:9092,kafka-broker-2:9092,kafka-broker-3:9092}
       CORS_ALLOWED_ORIGINS: ${DOCKER_CORS_ALLOWED_ORIGINS:-https://shop.localhost:8443,https://admin.localhost:8443,http://localhost:3002,http://localhost:3003}
+      TELEMETRY_ENABLED: ${TELEMETRY_ENABLED:-true}
+      TELEMETRY_LOG_FORMAT: ${TELEMETRY_LOG_FORMAT:-json}
+      PROMETHEUS_METRICS_ENABLED: ${PROMETHEUS_METRICS_ENABLED:-true}
+      PROMETHEUS_METRICS_PATH: ${PROMETHEUS_METRICS_PATH:-/metrics}
     expose:
       - "3000"
     depends_on:
@@ -387,9 +396,15 @@ services:
       CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY:-}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
       CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
+      CLERK_JWT_KEY: ${CLERK_JWT_KEY:-}
+      CLERK_AUTHORIZED_PARTIES: ${CLERK_AUTHORIZED_PARTIES:-https://shop.localhost:8443,https://admin.localhost:8443,http://localhost:3002,http://localhost:3003}
       ADMIN_USER_IDS: ${ADMIN_USER_IDS:-}
       KAFKA_BROKERS: ${DOCKER_KAFKA_BROKERS:-kafka-broker-1:9092,kafka-broker-2:9092,kafka-broker-3:9092}
       CORS_ALLOWED_ORIGINS: ${DOCKER_CORS_ALLOWED_ORIGINS:-https://shop.localhost:8443,https://admin.localhost:8443,http://localhost:3002,http://localhost:3003}
+      TELEMETRY_ENABLED: ${TELEMETRY_ENABLED:-true}
+      TELEMETRY_LOG_FORMAT: ${TELEMETRY_LOG_FORMAT:-json}
+      PROMETHEUS_METRICS_ENABLED: ${PROMETHEUS_METRICS_ENABLED:-true}
+      PROMETHEUS_METRICS_PATH: ${PROMETHEUS_METRICS_PATH:-/metrics}
     expose:
       - "8001"
     depends_on:
@@ -441,8 +456,14 @@ services:
       CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY:-}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
       CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
+      CLERK_JWT_KEY: ${CLERK_JWT_KEY:-}
+      CLERK_AUTHORIZED_PARTIES: ${CLERK_AUTHORIZED_PARTIES:-https://shop.localhost:8443,https://admin.localhost:8443,http://localhost:3002,http://localhost:3003}
       KAFKA_BROKERS: ${DOCKER_KAFKA_BROKERS:-kafka-broker-1:9092,kafka-broker-2:9092,kafka-broker-3:9092}
       CORS_ALLOWED_ORIGINS: ${DOCKER_CORS_ALLOWED_ORIGINS:-https://shop.localhost:8443,https://admin.localhost:8443,http://localhost:3002,http://localhost:3003}
+      TELEMETRY_ENABLED: ${TELEMETRY_ENABLED:-true}
+      TELEMETRY_LOG_FORMAT: ${TELEMETRY_LOG_FORMAT:-json}
+      PROMETHEUS_METRICS_ENABLED: ${PROMETHEUS_METRICS_ENABLED:-true}
+      PROMETHEUS_METRICS_PATH: ${PROMETHEUS_METRICS_PATH:-/metrics}
     expose:
       - "8002"
     volumes:
@@ -516,6 +537,9 @@ services:
 
   client:
     <<: *app-service
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+      - /app/apps/client/.next/cache:size=256m,mode=1777
     build:
       context: .
       dockerfile: docker/Dockerfile.client
@@ -531,6 +555,8 @@ services:
       NEXT_PUBLIC_CLIENT_APP_URL: ${DOCKER_PUBLIC_CLIENT_APP_URL:-https://shop.localhost:8443}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
       CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
+      CLERK_JWT_KEY: ${CLERK_JWT_KEY:-}
+      CLERK_AUTHORIZED_PARTIES: ${CLERK_AUTHORIZED_PARTIES:-https://shop.localhost:8443,https://admin.localhost:8443,http://localhost:3002,http://localhost:3003}
       PRODUCT_SERVICE_INTERNAL_URL: http://product-service:3000
       ORDER_SERVICE_INTERNAL_URL: http://order-service:8001
       PAYMENT_SERVICE_INTERNAL_URL: http://payment-service:8002
@@ -573,6 +599,9 @@ services:
 
   admin:
     <<: *app-service
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+      - /app/apps/admin/.next/cache:size=256m,mode=1777
     build:
       context: .
       dockerfile: docker/Dockerfile.admin
@@ -588,6 +617,8 @@ services:
       NEXT_PUBLIC_ADMIN_APP_URL: ${DOCKER_PUBLIC_ADMIN_APP_URL:-https://admin.localhost:8443}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
       CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
+      CLERK_JWT_KEY: ${CLERK_JWT_KEY:-}
+      CLERK_AUTHORIZED_PARTIES: ${CLERK_AUTHORIZED_PARTIES:-https://shop.localhost:8443,https://admin.localhost:8443,http://localhost:3002,http://localhost:3003}
       PRODUCT_SERVICE_INTERNAL_URL: http://product-service:3000
       ORDER_SERVICE_INTERNAL_URL: http://order-service:8001
       PAYMENT_SERVICE_INTERNAL_URL: http://payment-service:8002

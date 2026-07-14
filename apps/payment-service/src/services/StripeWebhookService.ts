@@ -1,12 +1,6 @@
-import { type PaymentSuccessfulMessage, Topics } from "@repo/kafka";
 import type Stripe from "stripe";
 import { recordIntegrationEvent } from "@/observability/integrationEvents";
-import {
-  claimProcessableEvent,
-  markEventProcessed,
-  releaseProcessableEvent,
-} from "@/observability/processedEvents";
-import { producer } from "@/utils/kafka";
+import { enqueuePaidCheckoutSession } from "@/services/StripePaymentEventService";
 import { getStripeClient, getStripeWebhookSecret } from "@/utils/stripe";
 
 type WebhookResult =
@@ -19,10 +13,16 @@ const successEventTypes = new Set([
   "checkout.session.async_payment_succeeded",
 ]);
 
+const shouldEnqueueSuccessfulCheckout = (
+  eventType: string,
+  paymentStatus: Stripe.Checkout.Session.PaymentStatus,
+) => successEventTypes.has(eventType) && paymentStatus === "paid";
+
 export const StripeWebhookService = {
   async handleEvent(
     payload: Buffer,
     signature?: string,
+    enqueue: typeof enqueuePaidCheckoutSession = enqueuePaidCheckoutSession,
   ): Promise<WebhookResult> {
     const stripe = getStripeClient();
     const webhookSecret = getStripeWebhookSecret();
@@ -77,124 +77,40 @@ export const StripeWebhookService = {
       },
     });
 
-    const processedEventKey = `stripe:${event.id}`;
+    if (!successEventTypes.has(event.type)) {
+      return { status: "ok" };
+    }
 
-    if (!claimProcessableEvent(processedEventKey)) {
+    const session = event.data.object as Stripe.Checkout.Session;
+
+    if (!session.id || typeof session.id !== "string") {
+      return { status: "ok" };
+    }
+
+    if (!shouldEnqueueSuccessfulCheckout(event.type, session.payment_status)) {
       recordIntegrationEvent({
         source: "webhook",
-        type: "stripe.webhook.duplicate_ignored",
-        message: "Ignored duplicate Stripe webhook event.",
+        type: "stripe.webhook.payment_pending",
+        message:
+          "Deferred payment publication until Stripe reports the session as paid.",
         details: {
           eventId: event.id,
           eventType: event.type,
+          paymentStatus: session.payment_status,
+          sessionId: session.id,
         },
       });
       return { status: "ok" };
     }
 
-    try {
-      if (!successEventTypes.has(event.type)) {
-        markEventProcessed(processedEventKey);
-        return { status: "ok" };
-      }
+    await enqueue({
+      eventId: event.id,
+      eventType: event.type,
+      sessionId: session.id,
+      source: "webhook",
+      occurredAt: new Date(event.created * 1_000).toISOString(),
+    });
 
-      const session = event.data.object as Stripe.Checkout.Session;
-
-      if (!("id" in session) || typeof session.id !== "string") {
-        markEventProcessed(processedEventKey);
-        return { status: "ok" };
-      }
-
-      const lineItems = await stripe.checkout.sessions.listLineItems(
-        session.id,
-        {
-          limit: 100,
-          expand: ["data.price.product"],
-        },
-      );
-
-      const paymentIntentId =
-        typeof session.payment_intent === "string"
-          ? session.payment_intent
-          : (session.payment_intent?.id ?? session.id);
-      const paymentIntent =
-        paymentIntentId && paymentIntentId !== session.id
-          ? await stripe.paymentIntents.retrieve(paymentIntentId)
-          : null;
-
-      const message: PaymentSuccessfulMessage = {
-        orderId: session.id,
-        userId:
-          typeof session.client_reference_id === "string"
-            ? session.client_reference_id
-            : (session.metadata?.userId ?? "unknown"),
-        email:
-          session.customer_details?.email ??
-          session.customer_email ??
-          "unknown@example.com",
-        amount: session.amount_total ?? 0,
-        currency: session.currency ?? "usd",
-        status: "success",
-        paymentMethod:
-          paymentIntent?.payment_method_types?.[0] ??
-          session.payment_method_types?.[0] ??
-          "unknown",
-        transactionId: paymentIntentId,
-        items: lineItems.data.map((item) => {
-          const expandedProduct =
-            item.price && typeof item.price.product !== "string"
-              ? item.price.product
-              : null;
-          const product =
-            expandedProduct && !("deleted" in expandedProduct)
-              ? expandedProduct
-              : null;
-
-          return {
-            productId:
-              item.price?.metadata?.sourceProductId ??
-              product?.metadata?.sourceProductId ??
-              item.price?.id ??
-              item.description ??
-              "unknown",
-            name: item.description ?? "Unknown item",
-            quantity: item.quantity ?? 1,
-            price:
-              item.price?.unit_amount ??
-              Math.floor(
-                (item.amount_total ?? 0) / Math.max(item.quantity ?? 1, 1),
-              ),
-          };
-        }),
-        processedAt: new Date().toISOString(),
-      };
-
-      await producer.send(Topics.PAYMENT_SUCCESSFUL, message, {
-        headers: {
-          "stripe-event-id": event.id,
-          "stripe-event-type": event.type,
-        },
-        key: message.orderId,
-      });
-
-      markEventProcessed(processedEventKey);
-
-      recordIntegrationEvent({
-        source: "kafka",
-        type: "payment.successful.published",
-        message: "Published payment.successful Kafka event.",
-        details: {
-          orderId: message.orderId,
-          transactionId: message.transactionId,
-          amount: message.amount,
-          itemCount: message.items.length,
-        },
-      });
-
-      return { status: "ok" };
-    } catch (error) {
-      releaseProcessableEvent(processedEventKey);
-      throw error;
-    }
+    return { status: "ok" };
   },
 };

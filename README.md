@@ -12,7 +12,9 @@ This is not a single demo app in a big folder. It is a real distributed commerce
 - **Typed Hono microservices** for product, payment, and order domains, all with Zod contracts, OpenAPI metadata, Scalar API docs, structured error payloads, request IDs, CORS, compression, secure headers, timing, and readiness endpoints.
 - **Clerk auth everywhere it matters**: Next.js auth UI, service middleware, bearer-token authorization, admin role/session-claim checks, and local `ADMIN_USER_IDS` recovery support.
 - **Kafka integration** for catalog sync and payment/order workflows with typed topics, durable topic defaults, instrumentation hooks, and explicit topic creation.
-- **Stripe checkout** with checkout sessions, webhook handling, payment success publication, and payment event visibility in the admin app.
+- **Reliable Stripe checkout** with same-origin Clerk-authenticated BFF routes, raw-body webhook verification, asynchronous Kafka handoff, retry-safe order materialization, and a Kubernetes Stripe CLI sidecar for local event forwarding.
+- **Traceable service flows** with W3C trace headers, request IDs, structured HTTP telemetry, Kafka message telemetry, and checkout trace propagation across payment and product services.
+- **Kubernetes observability** with Prometheus Operator ServiceMonitors, app `/metrics`, Traefik metrics, alert rules, and a Grafana dashboard.
 - **Polyglot persistence** with Prisma/PostgreSQL for product catalog writes and a Kafka-fed MongoDB read model for orders.
 - **Hardened Docker stack** using Docker Hardened Images, Traefik TLS routing, Kafka UI, health waits, read-only app containers, capability drops, and reproducible image locking support.
 - **CI-grade standards**: Biome, Syncpack, Knip, Bun tests with coverage, Bun audit, type checking, Next builds, Compose validation, Docker image builds, SBOM, and provenance.
@@ -36,7 +38,7 @@ flowchart LR
 
   product -- "product.created / updated / deleted" --> kafka["Kafka"]
   kafka --> payment
-  payment -- "payment.successful" --> kafka
+  payment -- "stripe.checkout.completed / payment.successful" --> kafka
   kafka --> order
   payment --> stripe["Stripe"]
 
@@ -49,6 +51,9 @@ flowchart LR
 
 For deeper boundary, event, and runtime notes, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 For engineering standards and verification policy, see [docs/QUALITY.md](docs/QUALITY.md).
+For service and Kafka telemetry behavior, see [docs/TELEMETRY.md](docs/TELEMETRY.md).
+For Prometheus, Grafana, Traefik, and Kubernetes metrics, see [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md).
+For Stripe deployment, webhook, Clerk-auth, and incident procedures, see [docs/STRIPE_OPERATIONS.md](docs/STRIPE_OPERATIONS.md).
 
 ## Apps And Packages
 
@@ -88,9 +93,11 @@ For engineering standards and verification policy, see [docs/QUALITY.md](docs/QU
 2. `product-service` validates payloads with shared Zod schemas, writes through Prisma, and publishes catalog events to Kafka.
 3. `payment-service` consumes catalog events and keeps Stripe product/price state aligned.
 4. Customers browse and check out through `apps/client`.
-5. Stripe webhooks land in `payment-service`, which publishes `payment.successful`.
-6. `order-service` consumes successful payment events and updates the MongoDB order read model.
-7. Storefront and admin apps query typed APIs through `packages/api-client`.
+5. Authenticated checkout and return-status calls stay same-origin at the storefront, which forwards a short-lived Clerk bearer token to `payment-service`.
+6. Stripe webhooks land in `payment-service`, which verifies the raw body and publishes `stripe.checkout.completed` before responding.
+7. A payment worker enriches the session through Stripe and publishes `payment.successful`.
+8. `order-service` consumes successful payment events and idempotently updates the MongoDB order read model.
+9. Storefront and admin apps query typed APIs through `packages/api-client`.
 
 ## Prerequisites
 
@@ -214,6 +221,7 @@ bun run deps:outdated
 bun run deps:check
 bun run lint
 bun run knip
+bun run boundaries
 bun run test
 bun run check-types
 bun run build
@@ -236,6 +244,7 @@ What the gates cover:
 - dependency freshness and catalog consistency
 - formatting/lint policy with Biome
 - unused exports/dependencies with Knip
+- executable package boundary rules with Turborepo
 - shared contract and integration unit tests
 - TypeScript checks across every package
 - production builds through Turborepo
@@ -348,7 +357,7 @@ make k8s-logs-traefik
 make k8s-test
 ```
 
-`make k8s` is the one-command local Kubernetes setup: it installs or upgrades Traefik, builds the app images, validates the Helm chart, syncs TLS and runtime secrets, deploys the release, waits for rollout, and smoke-tests the routes. `make k8s-full` does the same for all five application workloads and starts Docker-backed Postgres, MongoDB, and Kafka first. `make ks8` is kept as a friendly alias for the common typo, and `make kubernetes` does the same thing as `make k8s`.
+`make k8s` is the one-command local Kubernetes setup: it installs or upgrades Traefik, builds the app images, validates the Helm chart, deletes the existing application namespace, waits for it to terminate, recreates that same namespace, syncs TLS and runtime secrets, deploys the release, waits for rollout, and smoke-tests the routes. This removes old pods, jobs, and other namespaced resources before each run. `make k8s-full` does the same for all five application workloads and starts Docker-backed Postgres, MongoDB, and Kafka first. `make ks8` is kept as a friendly alias for the common typo, and `make kubernetes` does the same thing as `make k8s`.
 
 The chart lives in `charts/ecommerce`. It can deploy the five application workloads, ClusterIP services, Traefik-backed Ingress routes for the local cluster, optional Gateway API HTTPRoutes for other clusters, readiness/liveness probes, read-only security contexts, PDBs, optional HPAs, optional network policies, and Helm hook jobs for product database migration and optional seeding. Runtime infrastructure such as Postgres, MongoDB, Kafka, Clerk, and Stripe is intentionally externalized through Kubernetes Secrets and values.
 

@@ -11,8 +11,6 @@ import type {
   ProductSort,
   ProductUpdatePayload,
 } from "@repo/types";
-import { productServiceRuntime } from "@/runtime";
-import { producer } from "@/utils/kafka";
 
 type ProductFilters = {
   sort?: ProductSort;
@@ -70,7 +68,7 @@ const toProductUpdatedMessage = (product: Product): ProductUpdatedMessage => ({
   updatedAt: product.updatedAt.toISOString(),
 });
 
-const publishProductEvent = async <
+const enqueueProductEvent = <
   TTopic extends (typeof Topics)[keyof typeof Topics],
 >(
   topic: TTopic,
@@ -79,36 +77,24 @@ const publishProductEvent = async <
     | ProductDeletedMessage
     | ProductUpdatedMessage,
   options: { key?: string } = {},
-) => {
-  try {
-    await producer.send(topic, message as never, options);
-    productServiceRuntime.markReady("kafka.producer");
-    return true;
-  } catch (error) {
-    const detail =
-      error instanceof Error ? error.message : "Product event publish failed.";
-    productServiceRuntime.markNotReady("kafka.producer", detail);
-    console.error(`Failed to publish ${topic} event:`, error);
-    return false;
-  }
-};
+) => ({
+  topic,
+  eventKey: options.key ?? crypto.randomUUID(),
+  payload: message as unknown as Prisma.InputJsonValue,
+});
 
 export const ProductService = {
   async createProduct(data: ProductPayload): Promise<ProductRecord> {
-    const product = await prisma.product.create({ data });
-
-    const message = toProductCreatedMessage(product);
-
-    const published = await publishProductEvent(
-      Topics.PRODUCT_CREATED,
-      message,
-      {
-        key: message.id,
-      },
-    );
-    if (published) {
-      console.log(`Published product.created event for product ${product.id}`);
-    }
+    const product = await prisma.$transaction(async (tx) => {
+      const created = await tx.product.create({ data });
+      const message = toProductCreatedMessage(created);
+      await tx.productOutboxEvent.create({
+        data: enqueueProductEvent(Topics.PRODUCT_CREATED, message, {
+          key: message.id,
+        }),
+      });
+      return created;
+    });
 
     return toProductRecord(product);
   },
@@ -159,24 +145,19 @@ export const ProductService = {
     updates: ProductUpdatePayload,
   ): Promise<ProductRecord | null> {
     try {
-      const product = await prisma.product.update({
-        where: { id },
-        data: updates,
+      const product = await prisma.$transaction(async (tx) => {
+        const updated = await tx.product.update({
+          where: { id },
+          data: updates,
+        });
+        const message = toProductUpdatedMessage(updated);
+        await tx.productOutboxEvent.create({
+          data: enqueueProductEvent(Topics.PRODUCT_UPDATED, message, {
+            key: message.id,
+          }),
+        });
+        return updated;
       });
-
-      const message = toProductUpdatedMessage(product);
-      const published = await publishProductEvent(
-        Topics.PRODUCT_UPDATED,
-        message,
-        {
-          key: message.id,
-        },
-      );
-      if (published) {
-        console.log(
-          `Published product.updated event for product ${product.id}`,
-        );
-      }
 
       return toProductRecord(product);
     } catch (error) {
@@ -190,29 +171,24 @@ export const ProductService = {
 
   async deleteProduct(id: number): Promise<boolean> {
     try {
-      await prisma.product.delete({ where: { id } });
+      await prisma.$transaction(async (tx) => {
+        await tx.product.delete({ where: { id } });
+        const message: ProductDeletedMessage = {
+          id: id.toString(),
+          deletedAt: new Date().toISOString(),
+        };
+        await tx.productOutboxEvent.create({
+          data: enqueueProductEvent(Topics.PRODUCT_DELETED, message, {
+            key: message.id,
+          }),
+        });
+      });
     } catch (error) {
       if (isNotFoundError(error)) {
         return false;
       }
 
       throw error;
-    }
-
-    const message: ProductDeletedMessage = {
-      id: id.toString(),
-      deletedAt: new Date().toISOString(),
-    };
-
-    const published = await publishProductEvent(
-      Topics.PRODUCT_DELETED,
-      message,
-      {
-        key: message.id,
-      },
-    );
-    if (published) {
-      console.log(`Published product.deleted event for product ${id}`);
     }
 
     return true;

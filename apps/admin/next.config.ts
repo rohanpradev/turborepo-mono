@@ -59,19 +59,23 @@ const remoteImagePatterns = Array.from(
   ).values(),
 );
 
+const workspaceRoot = path.join(__dirname, "../../");
+
 const nextConfig: NextConfig = {
   output: "standalone",
   typedRoutes: true,
-  outputFileTracingRoot: path.join(__dirname, "../../"),
+  outputFileTracingRoot: workspaceRoot,
   poweredByHeader: false,
   transpilePackages: ["@repo/api-client", "@repo/contracts", "@repo/types"],
   turbopack: {
+    root: workspaceRoot,
     resolveAlias: {
       "@": path.join(__dirname, "src"),
     },
   },
   experimental: {
     turbopackFileSystemCacheForBuild: true,
+    turbopackPluginRuntimeStrategy: "workerThreads",
   },
   async headers() {
     return [
@@ -89,6 +93,14 @@ const nextConfig: NextConfig = {
           {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=()",
+          },
+          {
+            key: "X-Frame-Options",
+            value: "DENY",
+          },
+          {
+            key: "X-Robots-Tag",
+            value: "noindex, nofollow, noarchive",
           },
         ],
       },

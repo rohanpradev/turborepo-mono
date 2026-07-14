@@ -16,10 +16,17 @@ export {
 } from "./consumer";
 export {
   attachKafkaInstrumentation,
+  createKafkaTelemetryHeaders,
+  createTraceparent,
+  getTraceIdFromTraceparent,
   type KafkaEventClient,
   type KafkaInstrumentationEvent,
   type KafkaInstrumentationLogger,
   type KafkaInstrumentationOptions,
+  type KafkaTelemetryHeaders,
+  parseTraceparent,
+  readKafkaHeader,
+  type TraceContext,
 } from "./instrumentation";
 export { createProducer, KafkaProducer } from "./topic-producer";
 export {
@@ -27,5 +34,6 @@ export {
   type ProductCreatedMessage,
   type ProductDeletedMessage,
   type ProductUpdatedMessage,
+  type StripeCheckoutCompletedMessage,
   Topics,
 } from "./types";

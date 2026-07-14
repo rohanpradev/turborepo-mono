@@ -7,6 +7,7 @@ metadata:
   labels:
     {{- include "ecommerce.componentLabels" (dict "root" $ "service" $service) | nindent 4 }}
 spec:
+  unhealthyPodEvictionPolicy: {{ default "AlwaysAllow" $service.podDisruptionBudget.unhealthyPodEvictionPolicy }}
   {{- if hasKey $service.podDisruptionBudget "minAvailable" }}
   minAvailable: {{ $service.podDisruptionBudget.minAvailable }}
   {{- else }}

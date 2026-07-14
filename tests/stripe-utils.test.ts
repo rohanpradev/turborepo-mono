@@ -36,8 +36,12 @@ afterEach(() => {
 });
 
 describe("payment-service stripe utilities", () => {
-  it("treats the env key as the source of Stripe configuration", () => {
+  it("requires a real Stripe secret-key prefix", () => {
     delete process.env.STRIPE_SECRET_KEY;
+    expect(isStripeConfigured()).toBe(false);
+    expect(getStripeClient()).toBeNull();
+
+    process.env.STRIPE_SECRET_KEY = "your_stripe_secret_key_here";
     expect(isStripeConfigured()).toBe(false);
     expect(getStripeClient()).toBeNull();
 
@@ -49,15 +53,15 @@ describe("payment-service stripe utilities", () => {
     expect(getStripeClient()).toBe(client);
   });
 
-  it("prefers STRIPE_WEBHOOK_SECRET over the secret file", () => {
+  it("prefers the listener-generated secret file over a stale env secret", () => {
     const tempDir = mkdtempSync(join(tmpdir(), "stripe-secret-"));
     const secretFile = join(tempDir, "webhook-secret");
 
-    writeFileSync(secretFile, "whsec_from_file\n");
-    process.env.STRIPE_WEBHOOK_SECRET = "whsec_from_env";
+    writeFileSync(secretFile, "whsec_fromfile123\n");
+    process.env.STRIPE_WEBHOOK_SECRET = "whsec_fromenv123";
     process.env.STRIPE_WEBHOOK_SECRET_FILE = secretFile;
 
-    expect(getStripeWebhookSecret()).toBe("whsec_from_env");
+    expect(getStripeWebhookSecret()).toBe("whsec_fromfile123");
 
     rmSync(tempDir, { force: true, recursive: true });
   });
@@ -68,10 +72,17 @@ describe("payment-service stripe utilities", () => {
 
     delete process.env.STRIPE_WEBHOOK_SECRET;
     process.env.STRIPE_WEBHOOK_SECRET_FILE = secretFile;
-    writeFileSync(secretFile, "whsec_from_file\n");
+    writeFileSync(secretFile, "whsec_fromfile123\n");
 
-    expect(getStripeWebhookSecret()).toBe("whsec_from_file");
+    expect(getStripeWebhookSecret()).toBe("whsec_fromfile123");
 
     rmSync(tempDir, { force: true, recursive: true });
+  });
+
+  it("rejects malformed webhook secrets", () => {
+    delete process.env.STRIPE_WEBHOOK_SECRET_FILE;
+    process.env.STRIPE_WEBHOOK_SECRET = "your_stripe_webhook_secret_here";
+
+    expect(getStripeWebhookSecret()).toBeNull();
   });
 });

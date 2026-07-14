@@ -1,0 +1,70 @@
+{{- if .Values.observability.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "ecommerce.fullname" . }}-apps
+  labels:
+    {{- include "ecommerce.labels" . | nindent 4 }}
+    {{- with .Values.observability.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  jobLabel: {{ .Values.observability.serviceMonitor.jobLabel | quote }}
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace | quote }}
+  selector:
+    matchExpressions:
+      - key: app.kubernetes.io/instance
+        operator: In
+        values:
+          - {{ .Release.Name | quote }}
+      - key: app.kubernetes.io/component
+        operator: In
+        values:
+          {{- range $serviceKey := .Values.observability.serviceMonitor.services }}
+          {{- $service := index $.Values.services $serviceKey }}
+          {{- if and $service $service.enabled }}
+          - {{ $service.name | quote }}
+          {{- end }}
+          {{- end }}
+  endpoints:
+    - port: http
+      path: {{ .Values.observability.serviceMonitor.path | quote }}
+      interval: {{ .Values.observability.serviceMonitor.interval | quote }}
+      scrapeTimeout: {{ .Values.observability.serviceMonitor.scrapeTimeout | quote }}
+      honorLabels: false
+      {{- with .Values.observability.serviceMonitor.metricRelabelings }}
+      metricRelabelings:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.observability.serviceMonitor.relabelings }}
+      relabelings:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+{{- end }}
+{{- if .Values.observability.traefik.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "ecommerce.fullname" . }}-traefik
+  labels:
+    {{- include "ecommerce.labels" . | nindent 4 }}
+    {{- with .Values.observability.traefik.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ .Values.observability.traefik.namespace | quote }}
+  selector:
+    matchLabels:
+      {{- toYaml .Values.observability.traefik.serviceMonitor.selector | nindent 6 }}
+  endpoints:
+    - port: {{ .Values.observability.traefik.serviceMonitor.port | quote }}
+      path: {{ .Values.observability.traefik.serviceMonitor.path | quote }}
+      interval: {{ .Values.observability.traefik.serviceMonitor.interval | quote }}
+      scrapeTimeout: {{ .Values.observability.traefik.serviceMonitor.scrapeTimeout | quote }}
+      honorLabels: false
+{{- end }}

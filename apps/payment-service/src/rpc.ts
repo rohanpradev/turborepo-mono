@@ -1,6 +1,11 @@
 import { implement } from "@orpc/server";
 import { paymentContract } from "@repo/contracts";
-import { createORPCException, getAuthenticatedUserId } from "@repo/hono-utils";
+import {
+  createORPCException,
+  getAuthenticatedAdminUserId,
+  getAuthenticatedUserId,
+  getTelemetryHeaders,
+} from "@repo/hono-utils";
 import { Topics } from "@repo/kafka";
 import type { Context } from "hono";
 import { listIntegrationEvents } from "@/observability/integrationEvents";
@@ -19,6 +24,7 @@ export const paymentRouter = os.router({
         const userId = getAuthenticatedUserId(context.hono);
         const session = await StripeCheckoutService.createCheckoutSession({
           payload: input,
+          telemetryHeaders: getTelemetryHeaders(context.hono),
           userId,
         });
 
@@ -33,9 +39,13 @@ export const paymentRouter = os.router({
       },
     ),
     getSessionStatus: os.checkout.getSessionStatus.handler(
-      async ({ input }) => {
+      async ({ context, input }) => {
+        const userId = getAuthenticatedUserId(context.hono);
         const statusResult =
-          await StripeCheckoutService.getCheckoutSessionStatus(input.sessionId);
+          await StripeCheckoutService.getCheckoutSessionStatus(
+            input.sessionId,
+            userId,
+          );
 
         if (statusResult.kind === "not_configured") {
           throw createORPCException(
@@ -53,20 +63,28 @@ export const paymentRouter = os.router({
     ),
   },
   ops: {
-    integrationEvents: os.ops.integrationEvents.handler(async () => ({
-      success: true as const,
-      data: {
-        kafkaUiUrl: process.env.KAFKA_UI_URL ?? "https://kafka.localhost",
-        topics: {
-          consumes: [
-            Topics.PRODUCT_CREATED,
-            Topics.PRODUCT_UPDATED,
-            Topics.PRODUCT_DELETED,
-          ],
-          publishes: [Topics.PAYMENT_SUCCESSFUL],
+    integrationEvents: os.ops.integrationEvents.handler(async ({ context }) => {
+      getAuthenticatedAdminUserId(context.hono);
+
+      return {
+        success: true as const,
+        data: {
+          kafkaUiUrl: process.env.KAFKA_UI_URL ?? "https://kafka.localhost",
+          topics: {
+            consumes: [
+              Topics.PRODUCT_CREATED,
+              Topics.PRODUCT_UPDATED,
+              Topics.PRODUCT_DELETED,
+              Topics.STRIPE_CHECKOUT_COMPLETED,
+            ],
+            publishes: [
+              Topics.STRIPE_CHECKOUT_COMPLETED,
+              Topics.PAYMENT_SUCCESSFUL,
+            ],
+          },
+          recentEvents: listIntegrationEvents(),
         },
-        recentEvents: listIntegrationEvents(),
-      },
-    })),
+      };
+    }),
   },
 });

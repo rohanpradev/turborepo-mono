@@ -36,6 +36,9 @@ spec:
         {{- end }}
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") $ | sha256sum }}
+        {{- if and (eq $key "payment") $.Values.stripeCli.enabled }}
+        checksum/stripe-cli-config: {{ include (print $.Template.BasePath "/stripe-cli-configmap.yaml") $ | sha256sum }}
+        {{- end }}
         {{- if $.Values.secrets.create }}
         checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") $ | sha256sum }}
         {{- end }}
@@ -90,12 +93,21 @@ spec:
             - name: {{ $name }}
               value: {{ tpl (printf "%v" $value) $ | quote }}
             {{- end }}
+            {{- if and (eq $key "payment") $.Values.stripeCli.enabled }}
+            - name: STRIPE_WEBHOOK_SECRET_FILE
+              value: {{ $.Values.stripeCli.webhookSecretFile | quote }}
+            {{- end }}
             {{- range $name, $secretKey := $service.secretEnv }}
             - name: {{ $name }}
               valueFrom:
                 secretKeyRef:
                   name: {{ include "ecommerce.secretName" $ }}
+                  {{- if kindIs "map" $secretKey }}
+                  key: {{ $secretKey.key }}
+                  optional: {{ default false $secretKey.optional }}
+                  {{- else }}
                   key: {{ $secretKey }}
+                  {{- end }}
             {{- end }}
           {{- with $service.readinessProbe }}
           readinessProbe:
@@ -116,14 +128,65 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            {{- if and (eq $key "payment") $.Values.stripeCli.enabled }}
+            - name: stripe-webhook-secret
+              mountPath: {{ dir $.Values.stripeCli.webhookSecretFile | quote }}
+            {{- end }}
             {{- with $service.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
+        {{- if and (eq $key "payment") $.Values.stripeCli.enabled }}
+        - name: stripe-cli
+          image: {{ printf "%s:%s" $.Values.stripeCli.image.repository $.Values.stripeCli.image.tag | quote }}
+          imagePullPolicy: {{ $.Values.stripeCli.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - /opt/stripe/stripe-cli-listen.sh
+          securityContext:
+            {{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          env:
+            - name: HOME
+              value: /tmp
+            - name: XDG_CONFIG_HOME
+              value: /tmp/.config
+            - name: STRIPE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ecommerce.secretName" $ }}
+                  key: STRIPE_SECRET_KEY
+            - name: STRIPE_WEBHOOK_FORWARD_TO
+              value: {{ tpl $.Values.stripeCli.forwardTo $ | quote }}
+            - name: STRIPE_WEBHOOK_SECRET_FILE
+              value: {{ $.Values.stripeCli.webhookSecretFile | quote }}
+            - name: STRIPE_CLI_EVENTS
+              value: {{ $.Values.stripeCli.events | quote }}
+          resources:
+            {{- toYaml $.Values.stripeCli.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: stripe-webhook-secret
+              mountPath: {{ dir $.Values.stripeCli.webhookSecretFile | quote }}
+            - name: stripe-cli-script
+              mountPath: /opt/stripe/stripe-cli-listen.sh
+              subPath: stripe-cli-listen.sh
+              readOnly: true
+        {{- end }}
       volumes:
         - name: tmp
           emptyDir:
             medium: Memory
             sizeLimit: {{ $.Values.global.tmp.sizeLimit }}
+        {{- if and (eq $key "payment") $.Values.stripeCli.enabled }}
+        - name: stripe-webhook-secret
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Mi
+        - name: stripe-cli-script
+          configMap:
+            name: {{ include "ecommerce.fullname" $ }}-stripe-cli
+            defaultMode: 0555
+        {{- end }}
         {{- with $service.extraVolumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

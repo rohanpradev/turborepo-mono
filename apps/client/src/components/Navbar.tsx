@@ -1,5 +1,5 @@
 import { Show, SignInButton } from "@clerk/nextjs";
-import { Search, ShoppingBag } from "lucide-react";
+import { ArrowUpRight, Search, ShoppingBag } from "lucide-react";
 import type { Route } from "next";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -17,17 +17,17 @@ const isClerkConfigured = Boolean(
 
 const Navbar = () => {
   return (
-    <nav className="sticky top-3 z-40 mb-6 flex w-full flex-wrap items-center justify-between gap-3 rounded-lg border border-black/10 bg-white/90 px-3 py-3 shadow-sm shadow-black/[0.03] backdrop-blur-xl sm:px-5">
-      <Link href="/" className="flex min-w-0 items-center gap-2">
-        <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-gray-950 text-white shadow-sm">
+    <nav className="sticky top-3 z-40 mb-8 flex w-full flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-900/10 bg-[#fffdf9]/90 px-3 py-3 shadow-[0_14px_40px_-24px_rgba(39,31,25,0.45)] backdrop-blur-xl sm:px-5">
+      <Link href="/" className="flex min-w-0 items-center gap-3">
+        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-stone-950 text-white shadow-lg shadow-stone-900/15">
           <ShoppingBag className="size-5" aria-hidden="true" />
         </span>
         <div className="min-w-0">
-          <p className="truncate text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
-            Commerce
+          <p className="truncate font-serif text-lg font-semibold leading-5 tracking-tight text-stone-950">
+            Common Goods
           </p>
-          <p className="truncate text-sm font-semibold text-gray-950">
-            Modern essentials
+          <p className="truncate text-[10px] font-semibold uppercase tracking-[0.18em] text-stone-500">
+            Everyday objects
           </p>
         </div>
       </Link>
@@ -44,9 +44,10 @@ const Navbar = () => {
         </Suspense>
         <Link
           href={"/products" as Route}
-          className="hidden h-10 items-center rounded-full border border-black/10 bg-white px-4 text-sm font-medium text-gray-700 shadow-sm transition hover:border-black/20 hover:bg-gray-50 sm:inline-flex"
+          className="hidden h-10 items-center gap-1 rounded-full px-4 text-sm font-medium text-stone-700 transition hover:bg-stone-100 sm:inline-flex"
         >
           Products
+          <ArrowUpRight className="size-3.5" />
         </Link>
         <Link
           href={"/products" as Route}

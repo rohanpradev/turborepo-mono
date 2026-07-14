@@ -2,7 +2,6 @@ import {
   getOrderServiceHealth,
   getOrderServiceServerUrl,
   getOrderServiceUrl,
-  getPaymentIntegrationEvents,
   getPaymentServiceHealth,
   getPaymentServiceServerUrl,
   getPaymentServiceUrl,
@@ -10,14 +9,15 @@ import {
   getProductServiceServerUrl,
   getProductServiceUrl,
 } from "@repo/api-client";
-import type { Metadata } from "next";
 import { connection } from "next/server";
+import { createStoreMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
-  title: "Diagnostics",
+export const metadata = createStoreMetadata({
+  title: "Platform status",
   description:
-    "Live service health, documentation links, and payment integration events for the storefront stack.",
-};
+    "Current availability for the public services that power the storefront.",
+  noIndex: true,
+});
 
 const liveFetchOptions = {
   cache: "no-store" as const,
@@ -47,17 +47,6 @@ const services = [
 const DiagnosticsPage = async () => {
   await connection();
 
-  const paymentEvents = await getPaymentIntegrationEvents(
-    getPaymentServiceServerUrl(),
-    liveFetchOptions,
-  ).catch((error) => ({
-    error:
-      error instanceof Error
-        ? error.message
-        : "Unable to load payment integration events.",
-    data: null,
-  }));
-
   const snapshots = await Promise.all(
     services.map(async (service) => {
       try {
@@ -69,106 +58,86 @@ const DiagnosticsPage = async () => {
         return {
           name: service.name,
           publicBaseUrl: service.publicBaseUrl,
-          serverBaseUrl: service.serverBaseUrl,
           health,
           error: null,
         };
-      } catch (error) {
+      } catch {
         return {
           name: service.name,
           publicBaseUrl: service.publicBaseUrl,
-          serverBaseUrl: service.serverBaseUrl,
           health: null,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Unable to load service diagnostics.",
+          error: true,
         };
       }
     }),
   );
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold">Platform Diagnostics</h1>
-        <p className="text-sm text-gray-500">
-          Live service health and documentation endpoints for the storefront
-          stack.
+    <div className="space-y-8 pb-10 pt-4">
+      <div className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-stone-500">
+          System availability
         </p>
-        <div className="flex flex-wrap gap-3 pt-2 text-sm">
-          <a href="https://kafka.localhost" className="underline">
-            Kafka UI
-          </a>
-          <a
-            href="https://dashboard.localhost/dashboard/"
-            className="underline"
-          >
-            Traefik Dashboard
-          </a>
-        </div>
+        <h1 className="font-serif text-4xl font-semibold text-stone-950 sm:text-5xl">
+          Platform status
+        </h1>
+        <p className="max-w-2xl text-sm leading-6 text-stone-600">
+          Live availability for the public catalog, order, and payment services
+          used by this storefront. Operational event data remains restricted to
+          authorized administrators.
+        </p>
       </div>
 
-      <div className="grid gap-4">
+      <div className="grid gap-4 md:grid-cols-3">
         {snapshots.map((snapshot) => (
           <section
             key={snapshot.name}
-            className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+            className="rounded-2xl border border-stone-900/10 bg-[#fffdf9] p-5 shadow-sm"
           >
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="font-medium">{snapshot.name}</h2>
-                <p className="text-sm text-gray-500">
-                  Internal: {snapshot.serverBaseUrl}
-                </p>
-                <p className="text-sm text-gray-500">
-                  Public: {snapshot.publicBaseUrl}
+                <h2 className="font-semibold text-stone-950">
+                  {snapshot.name}
+                </h2>
+                <p className="mt-1 break-all text-xs text-stone-500">
+                  {snapshot.publicBaseUrl}
                 </p>
               </div>
+              <span
+                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                  snapshot.health?.ready
+                    ? "bg-emerald-100 text-emerald-800"
+                    : "bg-amber-100 text-amber-800"
+                }`}
+              >
+                {snapshot.health?.ready ? "Operational" : "Unavailable"}
+              </span>
             </div>
 
             {snapshot.error ? (
-              <p className="mt-4 rounded-md border border-dashed border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {snapshot.error}
+              <p className="mt-5 rounded-xl border border-dashed border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800">
+                Status is temporarily unavailable. The service may be starting
+                or undergoing maintenance.
               </p>
             ) : (
-              <pre className="mt-4 overflow-auto rounded-md bg-gray-950 p-4 text-xs text-gray-50">
-                {JSON.stringify(snapshot.health, null, 2)}
-              </pre>
+              <dl className="mt-5 grid gap-3 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-stone-500">Readiness</dt>
+                  <dd className="font-medium text-stone-950">
+                    {snapshot.health?.ready ? "Ready" : "Degraded"}
+                  </dd>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-stone-500">Uptime</dt>
+                  <dd className="font-medium text-stone-950">
+                    {Math.floor(snapshot.health?.uptimeSeconds ?? 0)} seconds
+                  </dd>
+                </div>
+              </dl>
             )}
           </section>
         ))}
       </div>
-
-      <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h2 className="font-medium">Payment Integration Events</h2>
-            <p className="text-sm text-gray-500">
-              Recent Kafka, Stripe, checkout, and webhook activity from the
-              payment service.
-            </p>
-          </div>
-          {"data" in paymentEvents && paymentEvents.data ? (
-            <a
-              href={paymentEvents.data.kafkaUiUrl}
-              className="text-sm font-medium text-black underline"
-            >
-              Open Kafka UI
-            </a>
-          ) : null}
-        </div>
-
-        {"error" in paymentEvents && paymentEvents.error ? (
-          <p className="mt-4 rounded-md border border-dashed border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {paymentEvents.error}
-          </p>
-        ) : (
-          <pre className="mt-4 overflow-auto rounded-md bg-gray-950 p-4 text-xs text-gray-50">
-            {JSON.stringify(paymentEvents.data, null, 2)}
-          </pre>
-        )}
-      </section>
     </div>
   );
 };

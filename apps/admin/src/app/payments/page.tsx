@@ -7,6 +7,7 @@ import {
 import { formatUsdFromCents } from "@repo/types";
 import type { Metadata } from "next";
 import { Badge } from "@/components/ui/badge";
+import { requireAdminAccess } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Payments",
@@ -19,6 +20,7 @@ const liveFetchOptions = {
 };
 
 const PaymentsPage = async () => {
+  const { token } = await requireAdminAccess();
   const paymentServiceUrl = getPaymentServiceServerUrl();
   const paymentServicePublicUrl = getPaymentServiceUrl();
 
@@ -31,14 +33,15 @@ const PaymentsPage = async () => {
             : "Unable to load payment service health.",
       }),
     ),
-    getPaymentIntegrationEvents(paymentServiceUrl, liveFetchOptions).catch(
-      (error) => ({
-        error:
-          error instanceof Error
-            ? error.message
-            : "Unable to load payment integration events.",
-      }),
-    ),
+    getPaymentIntegrationEvents(paymentServiceUrl, {
+      fetchOptions: liveFetchOptions,
+      token,
+    }).catch((error) => ({
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unable to load payment integration events.",
+    })),
   ]);
 
   const eventPayload = "data" in paymentEvents ? paymentEvents.data : null;

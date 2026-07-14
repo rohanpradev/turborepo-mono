@@ -43,6 +43,29 @@
         "name": { "type": "string" }
       }
     },
+    "stripeCli": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "forwardTo": { "type": "string", "minLength": 1 },
+        "webhookSecretFile": { "type": "string", "pattern": "^/" },
+        "events": { "type": "string", "minLength": 1 },
+        "image": {
+          "type": "object",
+          "required": ["repository", "tag", "pullPolicy"],
+          "properties": {
+            "repository": { "type": "string", "minLength": 1 },
+            "tag": { "type": "string", "minLength": 1 },
+            "pullPolicy": {
+              "type": "string",
+              "enum": ["Always", "IfNotPresent", "Never"]
+            }
+          }
+        },
+        "resources": { "type": "object" }
+      }
+    },
     "secrets": {
       "type": "object",
       "additionalProperties": true,
@@ -138,6 +161,97 @@
         }
       }
     },
+    "observability": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "serviceMonitor": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "labels": {
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            },
+            "interval": { "type": "string", "minLength": 1 },
+            "scrapeTimeout": { "type": "string", "minLength": 1 },
+            "path": { "type": "string", "pattern": "^/" },
+            "jobLabel": { "type": "string", "minLength": 1 },
+            "services": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["product", "order", "payment", "client", "admin"]
+              }
+            },
+            "metricRelabelings": { "type": "array" },
+            "relabelings": { "type": "array" }
+          }
+        },
+        "traefik": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "namespace": { "type": "string", "minLength": 1 },
+            "serviceMonitor": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "labels": {
+                  "type": "object",
+                  "additionalProperties": { "type": "string" }
+                },
+                "interval": { "type": "string", "minLength": 1 },
+                "scrapeTimeout": { "type": "string", "minLength": 1 },
+                "path": { "type": "string", "pattern": "^/" },
+                "port": { "type": "string", "minLength": 1 },
+                "selector": {
+                  "type": "object",
+                  "additionalProperties": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "prometheusRule": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "labels": {
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            },
+            "thresholds": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "errorRatio": { "type": "number", "minimum": 0 },
+                "p95LatencySeconds": { "type": "number", "minimum": 0 },
+                "traefikErrorRatio": { "type": "number", "minimum": 0 }
+              }
+            }
+          }
+        },
+        "grafanaDashboard": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "labels": {
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            },
+            "annotations": {
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
     "services": {
       "type": "object",
       "additionalProperties": {
@@ -203,6 +317,10 @@
             "additionalProperties": true,
             "properties": {
               "enabled": { "type": "boolean" },
+              "unhealthyPodEvictionPolicy": {
+                "type": "string",
+                "enum": ["AlwaysAllow", "IfHealthyBudget"]
+              },
               "minAvailable": { "type": ["integer", "string"] },
               "maxUnavailable": { "type": ["integer", "string"] }
             }

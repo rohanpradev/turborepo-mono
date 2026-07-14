@@ -39,49 +39,49 @@ const CheckoutForm = ({
       setIsSyncingDetails(true);
       setMessage(null);
 
-      const emailResult = await checkoutApi.updateEmail(shippingForm.email);
-      if (!isActive) {
-        return;
-      }
+      try {
+        const emailResult = await checkoutApi.updateEmail(shippingForm.email);
+        if (!isActive) return;
 
-      if (emailResult.type === "error") {
-        setMessage(emailResult.error.message);
-        setIsSyncingDetails(false);
-        return;
-      }
+        if (emailResult.type === "error") {
+          setMessage(emailResult.error.message);
+          return;
+        }
 
-      const phoneResult = await checkoutApi.updatePhoneNumber(
-        shippingForm.phone,
-      );
-      if (!isActive) {
-        return;
-      }
+        const phoneResult = await checkoutApi.updatePhoneNumber(
+          shippingForm.phone,
+        );
+        if (!isActive) return;
 
-      if (phoneResult.type === "error") {
-        setMessage("Unable to sync the phone number with Stripe.");
-        setIsSyncingDetails(false);
-        return;
-      }
+        if (phoneResult.type === "error") {
+          setMessage("Unable to sync the phone number with Stripe.");
+          return;
+        }
 
-      const shippingResult = await checkoutApi.updateShippingAddress({
-        name: shippingForm.name,
-        address: {
-          line1: shippingForm.address,
-          city: shippingForm.city,
-          country: shippingForm.country ?? "US",
-        },
-      });
-      if (!isActive) {
-        return;
-      }
+        const shippingResult = await checkoutApi.updateShippingAddress({
+          name: shippingForm.name,
+          address: {
+            line1: shippingForm.address,
+            city: shippingForm.city,
+            country: shippingForm.country ?? "US",
+          },
+        });
+        if (!isActive) return;
 
-      if (shippingResult.type === "error") {
-        setMessage(shippingResult.error.message);
-        setIsSyncingDetails(false);
-        return;
+        if (shippingResult.type === "error") {
+          setMessage(shippingResult.error.message);
+        }
+      } catch {
+        if (isActive) {
+          setMessage(
+            "Unable to sync delivery details. Check your connection and try again.",
+          );
+        }
+      } finally {
+        if (isActive) {
+          setIsSyncingDetails(false);
+        }
       }
-
-      setIsSyncingDetails(false);
     };
 
     void syncCheckoutDetails();
@@ -106,19 +106,31 @@ const CheckoutForm = ({
       return;
     }
 
+    setMessage(null);
     setIsLoading(true);
-    const result = await checkout.confirm();
 
-    if (result.type === "error") {
-      setMessage(result.error.message || "An unexpected error occurred.");
+    try {
+      const result = await checkout.confirm();
+
+      if (result.type === "error") {
+        setMessage(result.error.message || "Unable to complete payment.");
+      }
+    } catch {
+      setMessage(
+        "Payment confirmation was interrupted. Check your connection and try again.",
+      );
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   if (checkoutState.type === "loading") {
     return (
-      <div className="rounded-[1.25rem] border border-black/5 bg-white/80 p-4 text-sm text-gray-500">
+      <div
+        role="status"
+        aria-live="polite"
+        className="rounded-[1.25rem] border border-black/5 bg-white/80 p-4 text-sm text-gray-600"
+      >
         Loading checkout...
       </div>
     );
@@ -126,7 +138,10 @@ const CheckoutForm = ({
 
   if (checkoutState.type === "error") {
     return (
-      <div className="rounded-[1.25rem] border border-dashed border-red-200 bg-red-50 p-4 text-sm text-red-700">
+      <div
+        role="alert"
+        className="rounded-[1.25rem] border border-dashed border-red-200 bg-red-50 p-4 text-sm text-red-700"
+      >
         {checkoutState.error.message}
       </div>
     );
@@ -135,11 +150,12 @@ const CheckoutForm = ({
   return (
     <form
       onSubmit={handleSubmit}
+      aria-busy={isLoading || isSyncingDetails}
       className="mx-auto w-full max-w-2xl space-y-6 px-0 py-2 sm:p-4"
     >
       <div className="space-y-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.22em] text-gray-400">
+          <p className="text-xs uppercase tracking-[0.22em] text-gray-600">
             Delivery
           </p>
           <h2 className="mt-1 text-xl font-semibold tracking-tight text-gray-950">
@@ -155,7 +171,7 @@ const CheckoutForm = ({
             ["Country", shippingForm.country ?? "US"],
           ].map(([label, value]) => (
             <div key={label} className="min-w-0 space-y-1">
-              <p className="text-xs uppercase tracking-[0.16em] text-gray-400">
+              <p className="text-xs uppercase tracking-[0.16em] text-gray-600">
                 {label}
               </p>
               <p className="break-words font-medium text-gray-950">{value}</p>
@@ -166,7 +182,7 @@ const CheckoutForm = ({
 
       <div className="space-y-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.22em] text-gray-400">
+          <p className="text-xs uppercase tracking-[0.22em] text-gray-600">
             Payment
           </p>
           <h2 className="mt-1 text-xl font-semibold tracking-tight text-gray-950">
@@ -175,7 +191,7 @@ const CheckoutForm = ({
         </div>
         <PaymentElement />
         {isSyncingDetails ? (
-          <p className="text-sm text-gray-500">
+          <p role="status" aria-live="polite" className="text-sm text-gray-600">
             Syncing shipping details with Stripe...
           </p>
         ) : null}
@@ -191,7 +207,10 @@ const CheckoutForm = ({
       </Button>
 
       {message && (
-        <div className="mt-4 rounded-[1.25rem] border border-red-200 bg-red-50 p-4">
+        <div
+          role="alert"
+          className="mt-4 rounded-[1.25rem] border border-red-200 bg-red-50 p-4"
+        >
           <p className="text-sm text-red-800">{message}</p>
         </div>
       )}

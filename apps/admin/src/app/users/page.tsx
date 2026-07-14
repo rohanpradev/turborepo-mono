@@ -9,6 +9,7 @@ import {
   loadOptionalAdminOrders,
   loadPaymentEvents,
 } from "@/lib/admin-data";
+import { requireAdminAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,7 @@ export const metadata: Metadata = {
 };
 
 const UsersPage = async () => {
+  await requireAdminAccess();
   const [events, orders] = await Promise.all([
     loadPaymentEvents(),
     loadOptionalAdminOrders(),

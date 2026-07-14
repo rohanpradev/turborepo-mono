@@ -1,46 +1,88 @@
 "use client";
 
-import {
-  getCheckoutSessionStatus,
-  getPaymentServiceUrl,
-} from "@repo/api-client";
+import type { CheckoutSessionStatusResponse } from "@repo/api-client";
 import { ArrowRight, CheckCircle2, ShoppingBag } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { getCheckoutSessionStatusPath } from "@/lib/checkout";
 import useCartStore from "@/stores/cartStore";
+import useCheckoutStore from "@/stores/checkoutStore";
 
-function ReturnContent() {
+const isClerkConfigured = Boolean(
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
+    !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.includes("_here"),
+);
+
+function AuthenticatedReturnContent() {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<string>("processing");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
+  const [verificationAttempt, setVerificationAttempt] = useState(0);
   const { clearCart } = useCartStore();
+  const { clearShippingForm } = useCheckoutStore();
   const isPaid = status === "paid";
 
   useEffect(() => {
     const currentSessionId = searchParams.get("session_id");
+    let isActive = true;
+    let pollTimeout: ReturnType<typeof setTimeout> | undefined;
 
     if (!currentSessionId) {
-      setStatus("default");
+      setStatus("unavailable");
       return;
     }
 
-    getCheckoutSessionStatus(getPaymentServiceUrl(), currentSessionId)
-      .then((response) => {
-        setSessionId(response.data.sessionId);
-        setPaymentIntentId(response.data.paymentIntentId);
-        setStatus(response.data.paymentStatus);
+    setStatus("processing");
 
-        if (response.data.paymentStatus === "paid") {
-          clearCart();
+    const verifySession = async (pollCount: number) => {
+      try {
+        const response = await fetch(
+          getCheckoutSessionStatusPath(currentSessionId),
+          {
+            cache: "no-store",
+            headers: { accept: "application/json" },
+          },
+        );
+        const payload = (await response
+          .json()
+          .catch(() => null)) as CheckoutSessionStatusResponse | null;
+
+        if (!response.ok || !payload?.success) {
+          throw new Error("Payment verification is unavailable.");
         }
-      })
-      .catch(() => {
-        setStatus("default");
-      });
-  }, [clearCart, searchParams]);
+
+        if (isActive) {
+          setSessionId(payload.data.sessionId);
+          setPaymentIntentId(payload.data.paymentIntentId);
+          setStatus(payload.data.paymentStatus);
+
+          if (payload.data.paymentStatus === "paid") {
+            clearCart();
+            clearShippingForm();
+          } else if (pollCount < 4) {
+            pollTimeout = setTimeout(
+              () => void verifySession(pollCount + 1),
+              2_000,
+            );
+          }
+        }
+      } catch {
+        if (isActive) {
+          setStatus("unavailable");
+        }
+      }
+    };
+
+    void verifySession(0);
+
+    return () => {
+      isActive = false;
+      if (pollTimeout) clearTimeout(pollTimeout);
+    };
+  }, [clearCart, clearShippingForm, searchParams, verificationAttempt]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 px-4 py-10">
@@ -76,7 +118,11 @@ function ReturnContent() {
           </div>
         </div>
 
-        <p className="max-w-xl text-sm text-muted-foreground">
+        <p
+          role="status"
+          aria-live="polite"
+          className="max-w-xl text-sm text-muted-foreground"
+        >
           {isPaid
             ? "Your payment is confirmed, the cart has been cleared, and the order is ready for the next step."
             : "We are still verifying the checkout session. You can safely return to the cart or continue browsing."}
@@ -121,11 +167,61 @@ function ReturnContent() {
             <ArrowRight className="size-4" />
           </Button>
           {!isPaid && (
-            <Button href="/cart" variant="outline" className="w-full sm:w-auto">
-              Back to cart
-            </Button>
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() => setVerificationAttempt((value) => value + 1)}
+              >
+                Verify again
+              </Button>
+              <Button
+                href="/cart"
+                variant="outline"
+                className="w-full sm:w-auto"
+              >
+                Back to cart
+              </Button>
+            </>
           )}
+          {isPaid ? (
+            <Button
+              href="/orders"
+              variant="outline"
+              className="w-full sm:w-auto"
+            >
+              View orders
+            </Button>
+          ) : null}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ReturnContent() {
+  if (isClerkConfigured) {
+    return <AuthenticatedReturnContent />;
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 px-4 py-10">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 rounded-3xl border bg-white p-6 shadow-sm sm:p-10">
+        <Badge variant="outline" className="w-fit">
+          Payment status unavailable
+        </Badge>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Authentication is not configured.
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Add valid Clerk credentials to verify an authenticated checkout
+          session.
+        </p>
+        <Button href="/" className="w-fit">
+          Continue shopping
+          <ArrowRight className="size-4" />
+        </Button>
       </div>
     </div>
   );
@@ -135,8 +231,12 @@ export default function ReturnPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex items-center justify-center min-h-screen bg-gray-50">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div
+          role="status"
+          aria-label="Loading payment status"
+          className="flex min-h-screen items-center justify-center bg-gray-50"
+        >
+          <div className="size-12 animate-spin rounded-full border-b-2 border-stone-800" />
         </div>
       }
     >

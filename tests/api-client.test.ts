@@ -5,6 +5,7 @@ import {
   createProduct,
   deleteProduct,
   getCheckoutSessionStatus,
+  getPaymentIntegrationEvents,
   listProducts,
   updateProduct,
 } from "../packages/api-client/src/index";
@@ -95,32 +96,15 @@ describe("@repo/api-client", () => {
     await createCheckoutSession(
       "https://payments.localhost",
       {
+        checkoutAttemptId: "019f50b2-4dd4-7000-8000-000000000001",
         cart: [
           {
             id: 1,
-            name: "Product",
-            shortDescription: "Short description",
-            description: "Long description",
-            price: 4999,
-            sizes: ["m"],
-            colors: ["black"],
-            images: { black: "/product.png" },
-            categorySlug: "outerwear",
             quantity: 1,
             selectedSize: "m",
             selectedColor: "black",
           },
         ],
-        totalAmount: 4999,
-        shippingInfo: {
-          email: "buyer@example.com",
-          name: "Buyer",
-          address: {
-            line1: "123 Market Street",
-            city: "New York",
-            country: "US",
-          },
-        },
       },
       "test-token",
     );
@@ -137,10 +121,15 @@ describe("@repo/api-client", () => {
     );
     expect(capturedRequest && (await capturedRequest.json())).toMatchObject({
       json: {
-        totalAmount: 4999,
-        shippingInfo: {
-          email: "buyer@example.com",
-        },
+        checkoutAttemptId: "019f50b2-4dd4-7000-8000-000000000001",
+        cart: [
+          {
+            id: 1,
+            quantity: 1,
+            selectedColor: "black",
+            selectedSize: "m",
+          },
+        ],
       },
     });
   });
@@ -226,6 +215,44 @@ describe("@repo/api-client", () => {
     ).toBe(true);
   });
 
+  it("sends operational payment requests with admin auth", async () => {
+    let capturedRequest: Request | null = null;
+
+    globalThis.fetch = (async (input, init) => {
+      capturedRequest = new Request(input, init);
+
+      return new Response(
+        JSON.stringify({
+          json: {
+            success: true,
+            data: {
+              kafkaUiUrl: "https://kafka.localhost",
+              topics: { consumes: [], publishes: [] },
+              recentEvents: [],
+            },
+          },
+        }),
+        {
+          headers: {
+            "content-type": "application/json",
+          },
+        },
+      );
+    }) as typeof fetch;
+
+    await getPaymentIntegrationEvents("https://payments.localhost", {
+      fetchOptions: { cache: "no-store" },
+      token: "admin-token",
+    });
+
+    expect(capturedRequest?.url).toBe(
+      "https://payments.localhost/rpc/payment/ops/integrationEvents",
+    );
+    expect(capturedRequest?.headers.get("authorization")).toBe(
+      "Bearer admin-token",
+    );
+  });
+
   it("surfaces typed API errors from JSON responses", async () => {
     globalThis.fetch = (async () =>
       new Response(
@@ -249,6 +276,7 @@ describe("@repo/api-client", () => {
     const failure = getCheckoutSessionStatus(
       "https://payments.localhost",
       "cs_test_123",
+      "test-token",
     );
 
     await expect(failure).rejects.toBeInstanceOf(ApiClientError);

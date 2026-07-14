@@ -1,13 +1,15 @@
 {
+  "tags": ["app:web"],
   "extends": ["//"],
   "tasks": {
     "build": {
       "dependsOn": ["$TURBO_EXTENDS$"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": [".next/**", "!.next/cache/**"],
+      "outputs": ["$TURBO_EXTENDS$", ".next/**", "!.next/cache/**"],
       "env": [
         "ADMIN_APP_URL",
         "CLIENT_APP_URL",
+        "NEXT_IMAGE_ALLOW_LOCAL_IP",
         "NEXT_PUBLIC_*",
         "ORDER_SERVICE_INTERNAL_URL",
         "PAYMENT_SERVICE_INTERNAL_URL",

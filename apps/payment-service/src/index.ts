@@ -1,14 +1,30 @@
 import { app } from "@/app";
 import { recordIntegrationEvent } from "@/observability/integrationEvents";
+import { STRIPE_WEBHOOK_MAX_BODY_SIZE_BYTES } from "@/routes/webhookRoutes";
 import { paymentServiceRuntime } from "@/runtime";
 import { consumer, ensurePaymentKafkaTopics, producer } from "@/utils/kafka";
-import { isStripeConfigured } from "@/utils/stripe";
+import {
+  getStripeClient,
+  getStripeWebhookSecret,
+  isStripeConfigured,
+} from "@/utils/stripe";
 import { runKafkaSubscriptions } from "@/utils/subscriptions";
 
 const port = +(process.env.PORT ?? 8002);
+const DEPENDENCY_RETRY_MAX_MS = 30_000;
 let isShuttingDown = false;
+let kafkaRetryTimer: ReturnType<typeof setTimeout> | undefined;
+let stripeRetryTimer: ReturnType<typeof setTimeout> | undefined;
+let webhookSecretTimer: ReturnType<typeof setInterval> | undefined;
 
-const bootstrap = async () => {
+const retryDelay = (attempt: number) =>
+  Math.min(DEPENDENCY_RETRY_MAX_MS, 1_000 * 2 ** Math.min(attempt, 5));
+
+const connectKafka = async (attempt = 0): Promise<void> => {
+  if (isShuttingDown) return;
+
+  let failed = false;
+
   try {
     await ensurePaymentKafkaTopics();
     await producer.start();
@@ -20,6 +36,7 @@ const bootstrap = async () => {
     });
     console.log("Kafka producer connected");
   } catch (error) {
+    failed = true;
     const message =
       error instanceof Error
         ? error.message
@@ -35,7 +52,6 @@ const bootstrap = async () => {
       },
     });
     console.error("Failed to initialize payment Kafka producer:", error);
-    process.exit(1);
   }
 
   try {
@@ -48,6 +64,7 @@ const bootstrap = async () => {
     });
     console.log("Kafka subscriptions started");
   } catch (error) {
+    failed = true;
     const message =
       error instanceof Error
         ? error.message
@@ -63,28 +80,86 @@ const bootstrap = async () => {
       },
     });
     console.error("Failed to initialize payment Kafka consumer:", error);
-    process.exit(1);
   }
 
-  if (isStripeConfigured()) {
-    paymentServiceRuntime.markReady("stripe", "Stripe API keys configured.");
+  if (!failed || isShuttingDown) return;
+
+  const delay = retryDelay(attempt);
+  console.warn(`Retrying payment Kafka dependencies in ${delay}ms.`);
+  kafkaRetryTimer = setTimeout(() => void connectKafka(attempt + 1), delay);
+};
+
+const validateStripeApi = async (attempt = 0): Promise<void> => {
+  if (isShuttingDown) return;
+
+  const stripe = getStripeClient();
+
+  if (!stripe || !isStripeConfigured()) {
+    paymentServiceRuntime.markNotReady(
+      "stripe.api",
+      "A valid Stripe secret key is not configured.",
+    );
     recordIntegrationEvent({
       source: "service",
-      type: "stripe.ready",
-      message: "Stripe integration is configured.",
+      type: "stripe.disabled",
+      message: "Stripe API integration is not configured.",
     });
     return;
   }
 
-  paymentServiceRuntime.markDisabled(
-    "stripe",
-    "Stripe API keys are not configured for this environment.",
+  try {
+    await stripe.balance.retrieve();
+    paymentServiceRuntime.markReady(
+      "stripe.api",
+      "Stripe API credential verified.",
+    );
+    recordIntegrationEvent({
+      source: "service",
+      type: "stripe.ready",
+      message: "Stripe API credential verified.",
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Stripe API verification failed.";
+    paymentServiceRuntime.markNotReady("stripe.api", message);
+    recordIntegrationEvent({
+      source: "service",
+      type: "stripe.failed",
+      message: "Stripe API credential verification failed.",
+      details: { reason: message },
+    });
+    const delay = retryDelay(attempt);
+    console.error("Failed to verify the Stripe API credential:", error);
+    console.warn(`Retrying Stripe API verification in ${delay}ms.`);
+    stripeRetryTimer = setTimeout(
+      () => void validateStripeApi(attempt + 1),
+      delay,
+    );
+  }
+};
+
+const refreshWebhookSecretStatus = () => {
+  if (getStripeWebhookSecret()) {
+    paymentServiceRuntime.markReady(
+      "stripe.webhook",
+      "Stripe webhook signing secret available.",
+    );
+    return;
+  }
+
+  paymentServiceRuntime.markNotReady(
+    "stripe.webhook",
+    "A valid Stripe webhook signing secret is not available.",
   );
-  recordIntegrationEvent({
-    source: "service",
-    type: "stripe.disabled",
-    message: "Stripe integration is disabled in this environment.",
-  });
+};
+
+const bootstrap = () => {
+  refreshWebhookSecretStatus();
+  webhookSecretTimer = setInterval(refreshWebhookSecretStatus, 1_000);
+  void connectKafka();
+  void validateStripeApi();
 };
 
 const shutdown = async (signal: string) => {
@@ -103,9 +178,16 @@ const shutdown = async (signal: string) => {
     `Shutdown triggered by ${signal}.`,
   );
   paymentServiceRuntime.markNotReady(
-    "stripe",
+    "stripe.api",
     `Shutdown triggered by ${signal}.`,
   );
+  paymentServiceRuntime.markNotReady(
+    "stripe.webhook",
+    `Shutdown triggered by ${signal}.`,
+  );
+  if (kafkaRetryTimer) clearTimeout(kafkaRetryTimer);
+  if (stripeRetryTimer) clearTimeout(stripeRetryTimer);
+  if (webhookSecretTimer) clearInterval(webhookSecretTimer);
   recordIntegrationEvent({
     source: "service",
     type: "shutdown.started",
@@ -128,11 +210,12 @@ const shutdown = async (signal: string) => {
   process.exit(failed ? 1 : 0);
 };
 
-void bootstrap();
+bootstrap();
 process.on("SIGINT", () => void shutdown("SIGINT"));
 process.on("SIGTERM", () => void shutdown("SIGTERM"));
 
 export default {
   port,
   fetch: app.fetch,
+  maxRequestBodySize: STRIPE_WEBHOOK_MAX_BODY_SIZE_BYTES,
 };

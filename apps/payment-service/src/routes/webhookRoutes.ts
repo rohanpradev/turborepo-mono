@@ -1,4 +1,5 @@
 import {
+  createErrorResponse,
   createHttpException,
   createRoute,
   createServiceRouter,
@@ -6,7 +7,10 @@ import {
   jsonContent,
   z,
 } from "@repo/hono-utils";
+import { bodyLimit } from "hono/body-limit";
 import { StripeWebhookService } from "@/services/StripeWebhookService";
+
+export const STRIPE_WEBHOOK_MAX_BODY_SIZE_BYTES = 1024 * 1024;
 
 const webhookResponseSchema = z
   .object({
@@ -28,6 +32,10 @@ const stripeWebhookRoute = createRoute({
       description: "The webhook payload or signature was invalid.",
       content: jsonContent(errorResponseSchema),
     },
+    413: {
+      description: "The webhook payload exceeded the accepted size limit.",
+      content: jsonContent(errorResponseSchema),
+    },
     503: {
       description:
         "Stripe webhook handling is not configured for this environment.",
@@ -36,7 +44,18 @@ const stripeWebhookRoute = createRoute({
   },
 });
 
-export const webhookRoutes = createServiceRouter().openapi(
+const webhookRouter = createServiceRouter();
+
+webhookRouter.use(
+  "/api/webhooks/stripe",
+  bodyLimit({
+    maxSize: STRIPE_WEBHOOK_MAX_BODY_SIZE_BYTES,
+    onError: (c) =>
+      createErrorResponse(c, 413, "Stripe webhook payload is too large."),
+  }),
+);
+
+export const webhookRoutes = webhookRouter.openapi(
   stripeWebhookRoute,
   async (c) => {
     const signature = c.req.header("stripe-signature");

@@ -1,6 +1,10 @@
 import { connectProductDB, disconnectProductDB } from "@repo/product-db";
 import { app } from "@/app";
 import { productServiceRuntime } from "@/runtime";
+import {
+  startProductOutboxRelay,
+  stopProductOutboxRelay,
+} from "@/services/ProductOutboxRelay";
 import { ensureProductKafkaTopics, producer } from "@/utils/kafka";
 
 const port = +(process.env.PORT ?? 3000);
@@ -34,6 +38,7 @@ const bootstrap = async () => {
     productServiceRuntime.markNotReady("kafka.producer", message);
     console.error("Failed to initialize product Kafka producer:", error);
   }
+  startProductOutboxRelay();
 };
 
 const shutdown = async (signal: string) => {
@@ -42,6 +47,7 @@ const shutdown = async (signal: string) => {
   }
 
   isShuttingDown = true;
+  stopProductOutboxRelay();
   console.log(`Received ${signal}. Shutting down product service...`);
   productServiceRuntime.markNotReady(
     "database",

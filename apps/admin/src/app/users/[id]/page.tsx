@@ -1,5 +1,6 @@
 import { formatUsdFromCents } from "@repo/types";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import {
   buildCustomerSummaries,
   buildPaymentActivities,
@@ -7,6 +8,7 @@ import {
   formatTimestamp,
   loadPaymentEvents,
 } from "@/lib/admin-data";
+import { requireAdminAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +19,7 @@ type UserDetailsPageProps = {
 };
 
 const UserDetailsPage = async ({ params }: UserDetailsPageProps) => {
+  await requireAdminAccess();
   const { id } = await params;
   const events = await loadPaymentEvents();
 
@@ -27,20 +30,7 @@ const UserDetailsPage = async ({ params }: UserDetailsPageProps) => {
   const customer = buildCustomerSummaries(customerActivities, [])[0];
 
   if (!customer) {
-    return (
-      <section className="space-y-4 py-4">
-        <Link href="/users" className="text-sm underline">
-          Back to customer directory
-        </Link>
-        <div className="rounded-2xl border bg-card p-6 shadow-sm">
-          <h1 className="text-2xl font-semibold">Customer not found</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            No checkout activity is currently available for `{id}` in the live
-            payment event stream.
-          </p>
-        </div>
-      </section>
-    );
+    notFound();
   }
 
   return (

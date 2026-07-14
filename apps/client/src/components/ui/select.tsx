@@ -11,7 +11,7 @@ function Select({
     <div data-slot="select" className="relative w-full">
       <select
         className={cn(
-          "flex h-11 w-full appearance-none rounded-full border border-black/10 bg-white/90 px-4 pr-10 text-sm text-gray-900 shadow-sm outline-none transition focus:border-black/20 focus:ring-2 focus:ring-black/5 disabled:cursor-not-allowed disabled:opacity-50",
+          "flex h-11 w-full appearance-none rounded-full border border-stone-500 bg-white/90 px-4 pr-10 text-sm text-stone-950 shadow-sm outline-none transition focus-visible:border-orange-700 focus-visible:ring-2 focus-visible:ring-orange-700/30 disabled:cursor-not-allowed disabled:opacity-50",
           className,
         )}
         {...props}

@@ -172,8 +172,18 @@ export const StripeCatalogService = {
     });
   },
 
-  async getCheckoutPriceId(sourceProductId: string) {
+  async getCheckoutPriceId(
+    sourceProductId: string,
+    expectedUnitAmount: number,
+    currency: string,
+  ) {
     const prices = await listProductPrices(priceLookupKey(sourceProductId));
-    return prices[0]?.id ?? null;
+    return (
+      prices.find(
+        (price) =>
+          price.unit_amount === expectedUnitAmount &&
+          price.currency.toLowerCase() === currency.toLowerCase(),
+      )?.id ?? null
+    );
   },
 };

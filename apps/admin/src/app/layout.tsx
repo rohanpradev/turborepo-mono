@@ -27,6 +27,11 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_ADMIN_APP_URL ?? process.env.ADMIN_APP_URL,
     "http://localhost:3003",
   ),
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+  },
 };
 
 const isClerkConfigured = Boolean(
@@ -47,8 +52,14 @@ export default function RootLayout({
       disableTransitionOnChange
     >
       <SidebarProvider>
+        <a
+          href="#admin-content"
+          className="fixed left-3 top-3 z-[100] -translate-y-24 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-lg transition focus:translate-y-0"
+        >
+          Skip to content
+        </a>
         <AppSidebar />
-        <main className="min-w-0 flex-1">
+        <main id="admin-content" className="min-w-0 flex-1" tabIndex={-1}>
           <Suspense fallback={<Navbar viewer={adminViewerFallback} />}>
             <AdminNavbar />
           </Suspense>

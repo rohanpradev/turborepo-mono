@@ -1,4 +1,8 @@
-import { getProduct, getProductServiceServerUrl } from "@repo/api-client";
+import {
+  ApiClientError,
+  getProduct,
+  getProductServiceServerUrl,
+} from "@repo/api-client";
 import { formatUsdFromCents } from "@repo/types";
 import type { Metadata } from "next";
 import Image from "next/image";
@@ -53,8 +57,12 @@ const loadProduct = cache(async (id: number) => {
       liveCatalogFetchOptions,
     );
     return response.data;
-  } catch {
-    return null;
+  } catch (error) {
+    if (error instanceof ApiClientError && error.status === 404) {
+      return null;
+    }
+
+    throw error;
   }
 });
 
@@ -143,7 +151,7 @@ const ProductPage = async ({
     "@type": "Product",
     brand: {
       "@type": "Brand",
-      name: "Commerce",
+      name: "Common Goods",
     },
     category: product.categorySlug,
     description: product.description,
@@ -170,8 +178,7 @@ const ProductPage = async ({
       />
       <div className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)] lg:gap-12 xl:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)]">
         <section className="min-w-0 space-y-4">
-          <div className="relative aspect-[4/5] w-full overflow-hidden rounded-lg border border-black/10 bg-[linear-gradient(145deg,#fbfcf8_0%,#eef4ee_48%,#e5e8df_100%)] shadow-[0_24px_70px_-40px_rgba(15,23,42,0.45)]">
-            <div className="absolute inset-x-0 top-0 h-1 bg-[linear-gradient(90deg,#0f766e,#f97316,#111827)]" />
+          <div className="relative aspect-[4/5] w-full overflow-hidden rounded-[2rem] bg-[linear-gradient(145deg,#f7f3ec_0%,#e9e2d5_48%,#ddd1c0_100%)] shadow-[0_28px_70px_-38px_rgba(39,31,25,0.5)]">
             <div className="absolute inset-x-12 bottom-12 h-6 rounded-full bg-black/10 blur-lg" />
             <Image
               src={selectedImage}
@@ -192,10 +199,10 @@ const ProductPage = async ({
                   key={option.color}
                   href={`/products/${product.id}?color=${encodeURIComponent(option.color)}&size=${encodeURIComponent(selectedSize)}`}
                   prefetch={false}
-                  className={`relative aspect-square overflow-hidden rounded-lg border bg-[linear-gradient(145deg,#ffffff_0%,#f4f7f2_100%)] transition hover:border-gray-400 ${
+                  className={`relative aspect-square overflow-hidden rounded-xl border bg-[linear-gradient(145deg,#fffdf9_0%,#f4eee5_100%)] transition hover:border-stone-400 ${
                     selectedColor === option.color
-                      ? "border-gray-950"
-                      : "border-black/10"
+                      ? "border-stone-950"
+                      : "border-stone-900/10"
                   }`}
                   aria-label={`View ${option.color} ${product.name}`}
                 >
@@ -217,11 +224,11 @@ const ProductPage = async ({
           ) : null}
         </section>
 
-        <section className="min-w-0 rounded-lg border border-black/10 bg-white p-5 shadow-sm sm:p-7">
+        <section className="min-w-0 rounded-[2rem] border border-stone-900/10 bg-[#fffdf9] p-6 shadow-[0_20px_50px_-36px_rgba(39,31,25,0.45)] sm:p-8">
           <div className="space-y-6">
             <div className="space-y-4">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className="bg-white text-gray-700">
+                <Badge variant="outline" className="bg-white text-stone-700">
                   {product.categorySlug}
                 </Badge>
                 <Badge variant="secondary">
@@ -229,23 +236,23 @@ const ProductPage = async ({
                 </Badge>
               </div>
               <div className="space-y-3">
-                <h1 className="text-3xl font-semibold text-gray-950 sm:text-4xl xl:text-5xl">
+                <h1 className="font-serif text-4xl font-semibold leading-[1.02] text-stone-950 sm:text-5xl xl:text-6xl">
                   {product.name}
                 </h1>
-                <p className="max-w-2xl text-base leading-7 text-gray-600">
+                <p className="max-w-2xl text-base leading-7 text-stone-600">
                   {product.description}
                 </p>
               </div>
-              <div className="flex min-w-0 flex-wrap items-end justify-between gap-4 border-y border-black/10 py-4">
+              <div className="flex min-w-0 flex-wrap items-end justify-between gap-4 border-y border-stone-900/10 py-5">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.22em] text-gray-400">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-stone-400">
                     Price
                   </p>
-                  <p className="break-words text-3xl font-semibold text-gray-950">
+                  <p className="break-words font-serif text-4xl font-semibold text-stone-950">
                     {formatUsdFromCents(product.price)}
                   </p>
                 </div>
-                <div className="text-left text-xs leading-5 text-gray-500 sm:text-right">
+                <div className="text-left text-xs leading-5 text-stone-500 sm:text-right">
                   <p>Secure checkout</p>
                   <p>Stripe-backed payment</p>
                 </div>

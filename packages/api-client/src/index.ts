@@ -29,9 +29,15 @@ export class ApiClientError extends Error {
   }
 }
 
-type FetchOptions = RequestInit;
+type HeaderSource = ConstructorParameters<typeof Headers>[0];
+type FetchOptions = RequestInit & {
+  headers?: HeaderSource;
+};
 type AuthenticatedGetOptions = {
   token: string;
+};
+type AuthenticatedFetchOptions = AuthenticatedGetOptions & {
+  fetchOptions?: FetchOptions;
 };
 
 type ServiceDependency = {
@@ -139,6 +145,22 @@ export const getPaymentServiceServerUrl = () =>
 const toRpcUrl = (baseUrl: string, service: string) =>
   new URL(`/rpc/${service}`, baseUrl).toString();
 
+const mergeHeaders = (...sources: Array<HeaderSource | undefined>) => {
+  const headers = new Headers();
+
+  for (const source of sources) {
+    if (!source) {
+      continue;
+    }
+
+    new Headers(source).forEach((value, key) => {
+      headers.set(key, value);
+    });
+  }
+
+  return headers;
+};
+
 const toApiClientError = (error: unknown): ApiClientError => {
   if (error instanceof ApiClientError) {
     return error;
@@ -167,9 +189,22 @@ const createRpcLink = (
 ) =>
   new RPCLink({
     fetch: (request, init) => {
+      const initWithHeaders = init as RequestInit & {
+        headers?: HeaderSource;
+      };
+      const requestHeaders =
+        request instanceof Request ? request.headers : undefined;
       const fetchInit = {
         ...options.fetchOptions,
         ...init,
+        headers: mergeHeaders(
+          requestHeaders,
+          options.fetchOptions?.headers,
+          initWithHeaders.headers,
+          options.token
+            ? { authorization: `Bearer ${options.token}` }
+            : undefined,
+        ),
       };
 
       return fetch(request, fetchInit);
@@ -395,20 +430,21 @@ export const createCheckoutSession = async (
 export const getCheckoutSessionStatus = async (
   baseUrl: string,
   sessionId: string,
-  fetchOptions?: FetchOptions,
+  token: string,
 ) =>
   rpcCall(() =>
     createPaymentRpcClient(baseUrl, {
-      fetchOptions,
+      token,
     }).checkout.getSessionStatus({ sessionId }),
   );
 
 export const getPaymentIntegrationEvents = async (
   baseUrl: string,
-  fetchOptions?: FetchOptions,
+  options: AuthenticatedFetchOptions,
 ) =>
   rpcCall(() =>
     createPaymentRpcClient(baseUrl, {
-      fetchOptions,
+      fetchOptions: options.fetchOptions,
+      token: options.token,
     }).ops.integrationEvents(),
   );

@@ -23,6 +23,122 @@ type KafkaInstrumentationOptions = {
   logger?: KafkaInstrumentationLogger;
 };
 
+export type KafkaTelemetryHeaders = Record<string, string>;
+
+export type TraceContext = {
+  version: string;
+  traceId: string;
+  parentId: string;
+  traceFlags: string;
+};
+
+const traceparentPattern =
+  /^([0-9a-f]{2})-([0-9a-f]{32})-([0-9a-f]{16})-([0-9a-f]{2})$/;
+
+const textDecoder = new TextDecoder();
+
+const isZeroHex = (value: string) => /^0+$/.test(value);
+
+const createRandomHex = (byteLength: number) => {
+  const bytes = new Uint8Array(byteLength);
+  crypto.getRandomValues(bytes);
+  return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+};
+
+const createNonZeroRandomHex = (byteLength: number) => {
+  let value = createRandomHex(byteLength);
+
+  while (isZeroHex(value)) {
+    value = createRandomHex(byteLength);
+  }
+
+  return value;
+};
+
+const createTraceId = () => createNonZeroRandomHex(16);
+
+const createSpanId = () => createNonZeroRandomHex(8);
+
+const normalizeTraceId = (traceId: string) =>
+  /^[0-9a-f]{32}$/.test(traceId) && !isZeroHex(traceId)
+    ? traceId
+    : createTraceId();
+
+export const parseTraceparent = (
+  value?: string | null,
+): TraceContext | null => {
+  const match = value?.trim().toLowerCase().match(traceparentPattern);
+
+  if (!match) {
+    return null;
+  }
+
+  const version = match[1];
+  const traceId = match[2];
+  const parentId = match[3];
+  const traceFlags = match[4];
+
+  if (
+    !version ||
+    version === "ff" ||
+    !traceId ||
+    !parentId ||
+    !traceFlags ||
+    isZeroHex(traceId) ||
+    isZeroHex(parentId)
+  ) {
+    return null;
+  }
+
+  return {
+    version,
+    traceId,
+    parentId,
+    traceFlags,
+  };
+};
+
+export const createTraceparent = (traceId = createTraceId()) =>
+  `00-${normalizeTraceId(traceId)}-${createSpanId()}-01`;
+
+export const getTraceIdFromTraceparent = (value?: string | null) =>
+  parseTraceparent(value)?.traceId;
+
+const headerValueToString = (value: unknown): string | undefined => {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (value instanceof Uint8Array) {
+    return textDecoder.decode(value);
+  }
+
+  if (Array.isArray(value)) {
+    return headerValueToString(value[0]);
+  }
+
+  return undefined;
+};
+
+export const readKafkaHeader = (
+  headers: Record<string, unknown> | undefined,
+  key: string,
+) =>
+  headerValueToString(headers?.[key]) ??
+  headerValueToString(headers?.[key.toLowerCase()]) ??
+  headerValueToString(headers?.[key.toUpperCase()]);
+
+export const createKafkaTelemetryHeaders = (
+  headers: KafkaTelemetryHeaders = {},
+): KafkaTelemetryHeaders => {
+  const trace = parseTraceparent(headers.traceparent);
+
+  return {
+    ...headers,
+    traceparent: createTraceparent(trace?.traceId),
+  };
+};
+
 const toErrorPayload = (error: unknown) =>
   error instanceof Error
     ? { errorName: error.name, errorMessage: error.message }

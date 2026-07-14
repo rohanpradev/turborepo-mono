@@ -1,4 +1,4 @@
-import { clerkMiddleware, getAuth } from "@hono/clerk-auth";
+import { clerkMiddleware, getAuth } from "@clerk/hono";
 import type { Hook } from "@hono/zod-openapi";
 import {
   createRoute,
@@ -15,8 +15,8 @@ import { compress } from "hono/compress";
 import { cors } from "hono/cors";
 import { createMiddleware } from "hono/factory";
 import { HTTPException } from "hono/http-exception";
-import { logger } from "hono/logger";
 import { requestId } from "hono/request-id";
+import { routePath } from "hono/route";
 import { secureHeaders } from "hono/secure-headers";
 import { timeout } from "hono/timeout";
 import { timing } from "hono/timing";
@@ -49,6 +49,7 @@ type CreateServiceAppOptions = {
   title: string;
   version: string;
   description: string;
+  serviceName?: string;
   tags: Array<ServiceTag>;
   theme?: ScalarTheme;
   requestTimeoutMs?: number;
@@ -67,6 +68,13 @@ type CreateClerkServiceAuthOptions = {
 
 export type AuthenticatedServiceVariables = {
   userId: string;
+};
+
+export type ServiceTelemetryVariables = {
+  requestId?: string;
+  traceId?: string;
+  traceparent?: string;
+  tracestate?: string;
 };
 
 type ServiceDependencyDefinition<TName extends string = string> = {
@@ -110,6 +118,7 @@ export const errorResponseSchema = z
     error: z.string(),
     timestamp: z.string().optional(),
     requestId: z.string().optional(),
+    traceId: z.string().optional(),
   })
   .openapi("ErrorResponse");
 
@@ -127,6 +136,7 @@ export const validationErrorResponseSchema = z
     error: z.string(),
     timestamp: z.string().optional(),
     requestId: z.string().optional(),
+    traceId: z.string().optional(),
     issues: z.array(validationIssueSchema),
   })
   .openapi("ValidationErrorResponse");
@@ -209,17 +219,31 @@ const defaultCorsOrigins = [
   "https://admin.localhost",
 ];
 
-const getClerkConfig = () =>
-  (process.env.CLERK_PUBLISHABLE_KEY ||
-    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) &&
-  process.env.CLERK_SECRET_KEY
-    ? {
-        publishableKey:
-          process.env.CLERK_PUBLISHABLE_KEY ||
-          process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
-        secretKey: process.env.CLERK_SECRET_KEY,
-      }
-    : null;
+const isConfiguredSecret = (value: string | undefined) =>
+  Boolean(value && !value.includes("_here"));
+
+const getClerkConfig = () => {
+  const publishableKey =
+    process.env.CLERK_PUBLISHABLE_KEY ||
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  const secretKey = process.env.CLERK_SECRET_KEY;
+
+  if (!isConfiguredSecret(publishableKey) || !isConfiguredSecret(secretKey)) {
+    return null;
+  }
+
+  const authorizedParties = process.env.CLERK_AUTHORIZED_PARTIES?.split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  const jwtKey = process.env.CLERK_JWT_KEY?.trim();
+
+  return {
+    publishableKey,
+    secretKey,
+    ...(authorizedParties?.length ? { authorizedParties } : {}),
+    ...(jwtKey ? { jwtKey } : {}),
+  };
+};
 
 const generateRequestId = () => {
   const bunRuntime = globalThis as typeof globalThis & {
@@ -243,6 +267,115 @@ const normalizeRequestId = (value?: string | null) => {
   return trimmed;
 };
 
+const traceparentPattern =
+  /^([0-9a-f]{2})-([0-9a-f]{32})-([0-9a-f]{16})-([0-9a-f]{2})$/;
+
+export type TraceContext = {
+  version: string;
+  traceId: string;
+  parentId: string;
+  traceFlags: string;
+};
+
+const isZeroHex = (value: string) => /^0+$/.test(value);
+
+const createRandomHex = (byteLength: number) => {
+  const bytes = new Uint8Array(byteLength);
+  crypto.getRandomValues(bytes);
+  return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+};
+
+const createNonZeroRandomHex = (byteLength: number) => {
+  let value = createRandomHex(byteLength);
+
+  while (isZeroHex(value)) {
+    value = createRandomHex(byteLength);
+  }
+
+  return value;
+};
+
+export const createTraceId = () => createNonZeroRandomHex(16);
+
+export const createSpanId = () => createNonZeroRandomHex(8);
+
+const normalizeTraceId = (traceId: string) =>
+  /^[0-9a-f]{32}$/.test(traceId) && !isZeroHex(traceId)
+    ? traceId
+    : createTraceId();
+
+export const parseTraceparent = (
+  value?: string | null,
+): TraceContext | null => {
+  const match = value?.trim().toLowerCase().match(traceparentPattern);
+
+  if (!match) {
+    return null;
+  }
+
+  const version = match[1];
+  const traceId = match[2];
+  const parentId = match[3];
+  const traceFlags = match[4];
+
+  if (
+    !version ||
+    version === "ff" ||
+    !traceId ||
+    !parentId ||
+    !traceFlags ||
+    isZeroHex(traceId) ||
+    isZeroHex(parentId)
+  ) {
+    return null;
+  }
+
+  return {
+    version,
+    traceId,
+    parentId,
+    traceFlags,
+  };
+};
+
+export const createTraceparent = (traceId = createTraceId()) =>
+  `00-${normalizeTraceId(traceId)}-${createSpanId()}-01`;
+
+const telemetryContext = (c: Context) =>
+  c as Context<{ Variables: ServiceTelemetryVariables }>;
+
+export const getTraceId = (c: Context) =>
+  telemetryContext(c).get("traceId") ??
+  parseTraceparent(c.req.header("traceparent"))?.traceId;
+
+export const getTraceparent = (c: Context) =>
+  telemetryContext(c).get("traceparent") ??
+  c.res.headers.get("traceparent") ??
+  c.req.header("traceparent") ??
+  undefined;
+
+export const getTelemetryHeaders = (c: Context) => {
+  const headers: Record<string, string> = {};
+  const requestId = getRequestId(c);
+  const traceparent = getTraceparent(c);
+  const tracestate =
+    telemetryContext(c).get("tracestate") ?? c.req.header("tracestate");
+
+  if (requestId) {
+    headers["x-request-id"] = requestId;
+  }
+
+  if (traceparent) {
+    headers.traceparent = traceparent;
+  }
+
+  if (tracestate) {
+    headers.tracestate = tracestate;
+  }
+
+  return headers;
+};
+
 const getRequestTimeoutMs = (fallback: number) => {
   const configured = Number(process.env.REQUEST_TIMEOUT_MS);
 
@@ -262,6 +395,29 @@ const getSessionRole = (claims?: CustomJwtSessionClaims) =>
   claims?.publicMetadata?.role ??
   claims?.public_metadata?.role;
 
+export const getClerkAuthenticationErrorMessage = (reason?: string) => {
+  if (reason === "token-invalid-authorized-parties") {
+    return "This session was issued for a different storefront origin. Sign out and sign in again.";
+  }
+
+  if (reason?.includes("expired")) {
+    return "Your session has expired. Sign in again to continue checkout.";
+  }
+
+  return "Your checkout session could not be verified. Sign out and sign in again.";
+};
+
+const getClerkAuthenticationFailureReason = (
+  auth: ReturnType<typeof getAuth>,
+) => {
+  try {
+    const reason = auth.debug().reason;
+    return typeof reason === "string" ? reason : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 export const getAuthenticatedUserId = (c: Context) => {
   if (!getClerkConfig()) {
     throw createORPCException(
@@ -273,7 +429,14 @@ export const getAuthenticatedUserId = (c: Context) => {
   const auth = getAuth(c);
 
   if (!auth?.userId) {
-    throw createORPCException(401, "Unauthorized");
+    const reason = getClerkAuthenticationFailureReason(auth);
+
+    console.warn("Clerk request authentication failed", {
+      hasAuthorizationHeader: Boolean(c.req.header("authorization")),
+      reason: reason ?? "unknown",
+    });
+
+    throw createORPCException(401, getClerkAuthenticationErrorMessage(reason));
   }
 
   return auth.userId;
@@ -310,6 +473,7 @@ export const createErrorPayload = <
   error,
   timestamp: new Date().toISOString(),
   requestId: getRequestId(c) ?? undefined,
+  traceId: getTraceId(c) ?? undefined,
   ...(additional ?? {}),
 });
 
@@ -396,6 +560,27 @@ export const createRequestIdMiddleware = () =>
     generator: generateRequestId,
     headerName: "X-Request-Id",
     limitLength: 255,
+  });
+
+export const createTraceContextMiddleware = () =>
+  createMiddleware(async (c, next) => {
+    const incomingTrace = parseTraceparent(c.req.header("traceparent"));
+    const traceId = incomingTrace?.traceId ?? createTraceId();
+    const traceparent = createTraceparent(traceId);
+    const tracestate = incomingTrace ? c.req.header("tracestate")?.trim() : "";
+    const context = telemetryContext(c);
+
+    context.set("traceId", traceId);
+    context.set("traceparent", traceparent);
+
+    if (tracestate) {
+      context.set("tracestate", tracestate);
+    }
+
+    c.header("Traceparent", traceparent);
+    c.header("X-Trace-Id", traceId);
+
+    await next();
   });
 
 export const createClerkServiceAuth = <
@@ -647,17 +832,418 @@ export const createHealthRoutes = <
       const payload = buildReadinessPayload(snapshot);
 
       return snapshot.ready ? c.json(payload, 200) : c.json(payload, 503);
+    })
+    .get(getPrometheusMetricsPath(), (c) => {
+      if (!arePrometheusMetricsEnabled()) {
+        return createErrorResponse(c, 404, "Prometheus metrics are disabled");
+      }
+
+      return c.text(createPrometheusMetricsPayload(runtime), 200, {
+        "Content-Type": "text/plain; version=0.0.4; charset=utf-8",
+      });
     });
 };
 
 export const createCorsMiddleware = () =>
   cors({
-    allowHeaders: ["Authorization", "Content-Type", "X-Request-Id"],
+    allowHeaders: [
+      "Authorization",
+      "Baggage",
+      "Content-Type",
+      "Traceparent",
+      "Tracestate",
+      "X-Request-Id",
+    ],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    exposeHeaders: ["Server-Timing", "X-Request-Id"],
+    exposeHeaders: [
+      "Server-Timing",
+      "Traceparent",
+      "X-Request-Id",
+      "X-Trace-Id",
+    ],
     maxAge: 600,
     origin: getCorsOrigins(),
     credentials: true,
+  });
+
+const compactRecord = (record: Record<string, unknown>) =>
+  Object.fromEntries(
+    Object.entries(record).filter(([, value]) => value !== undefined),
+  );
+
+const isTelemetryEnabled = () => process.env.TELEMETRY_ENABLED !== "false";
+
+const emitTelemetry = (
+  level: "info" | "warn" | "error",
+  payload: Record<string, unknown>,
+) => {
+  if (!isTelemetryEnabled()) {
+    return;
+  }
+
+  const logPayload =
+    process.env.TELEMETRY_LOG_FORMAT === "pretty"
+      ? payload
+      : JSON.stringify(payload);
+
+  console[level](logPayload);
+};
+
+const prometheusDurationBuckets = [
+  0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10,
+];
+
+type HttpMetricLabels = {
+  appService: string;
+  method: string;
+  path: string;
+  statusCode: string;
+};
+
+type HttpMetricRecord = {
+  labels: HttpMetricLabels;
+  count: number;
+  sumSeconds: number;
+  buckets: Array<number>;
+};
+
+const MAX_HTTP_METRIC_LABEL_SETS = 256;
+const NOT_FOUND_METRIC_PATH = "/__not_found__";
+const UNMATCHED_METRIC_PATH = "/__unmatched__";
+const OVERFLOW_METRIC_PATH = "/__overflow__";
+
+const normalizeMetricPath = (path: string) =>
+  path
+    .replace(
+      /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/gi,
+      ":id",
+    )
+    .replace(/\b[0-9a-f]{24}\b/gi, ":id")
+    .replace(/\/\d+(?=\/|$)/g, "/:id");
+
+const getMetricRoutePath = (c: Context, statusCode: number) => {
+  const matchedPath = routePath(c, -1).trim();
+
+  if (!matchedPath || matchedPath === "*" || matchedPath === "/*") {
+    return statusCode === 404 ? NOT_FOUND_METRIC_PATH : UNMATCHED_METRIC_PATH;
+  }
+
+  return normalizeMetricPath(matchedPath);
+};
+
+const getStatusCodeClass = (statusCode: number) =>
+  Number.isInteger(statusCode) && statusCode >= 100 && statusCode <= 599
+    ? `${Math.floor(statusCode / 100)}xx`
+    : "_OTHER";
+
+const createHttpMetricRecord = (
+  labels: HttpMetricLabels,
+): HttpMetricRecord => ({
+  labels,
+  count: 0,
+  sumSeconds: 0,
+  buckets: prometheusDurationBuckets.map(() => 0),
+});
+
+const prometheusMetricsStores = new Map<string, ServicePrometheusMetrics>();
+
+const escapePrometheusLabelValue = (value: string) =>
+  value.replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/"/g, '\\"');
+
+const formatLabels = (labels: Record<string, string>) =>
+  `{${Object.entries(labels)
+    .map(
+      ([key, value]) => `${key}="${escapePrometheusLabelValue(String(value))}"`,
+    )
+    .join(",")}}`;
+
+const metricLine = (
+  name: string,
+  labels: Record<string, string>,
+  value: number,
+) => `${name}${formatLabels(labels)} ${Number.isFinite(value) ? value : 0}`;
+
+const getPrometheusMetricsPath = () => {
+  const configuredPath = process.env.PROMETHEUS_METRICS_PATH?.trim();
+
+  return configuredPath?.startsWith("/") ? configuredPath : "/metrics";
+};
+
+const arePrometheusMetricsEnabled = () =>
+  process.env.PROMETHEUS_METRICS_ENABLED !== "false";
+
+class ServicePrometheusMetrics {
+  private readonly httpRecords = new Map<string, HttpMetricRecord>();
+  private readonly overflowRecords = new Map<string, HttpMetricRecord>();
+
+  constructor(private readonly appService: string) {}
+
+  recordHttp({
+    durationMs,
+    method,
+    path,
+    statusCode,
+  }: {
+    durationMs: number;
+    method: string;
+    path: string;
+    statusCode: number;
+  }) {
+    if (!arePrometheusMetricsEnabled()) {
+      return;
+    }
+
+    const labels: HttpMetricLabels = {
+      appService: this.appService,
+      method,
+      path: normalizeMetricPath(path),
+      statusCode: String(statusCode),
+    };
+    const key = JSON.stringify(labels);
+    let record = this.httpRecords.get(key);
+
+    if (!record && this.httpRecords.size < MAX_HTTP_METRIC_LABEL_SETS) {
+      record = createHttpMetricRecord(labels);
+      this.httpRecords.set(key, record);
+    }
+
+    if (!record) {
+      const statusCodeClass = getStatusCodeClass(statusCode);
+      record = this.overflowRecords.get(statusCodeClass);
+
+      if (!record) {
+        record = createHttpMetricRecord({
+          appService: this.appService,
+          method: "_OTHER",
+          path: OVERFLOW_METRIC_PATH,
+          statusCode: statusCodeClass,
+        });
+        this.overflowRecords.set(statusCodeClass, record);
+      }
+    }
+
+    const durationSeconds = durationMs / 1000;
+
+    record.count += 1;
+    record.sumSeconds += durationSeconds;
+
+    prometheusDurationBuckets.forEach((bucket, index) => {
+      if (durationSeconds <= bucket) {
+        record.buckets[index] = (record.buckets[index] ?? 0) + 1;
+      }
+    });
+  }
+
+  render(snapshot?: ServiceRuntimeSnapshot) {
+    const nowSeconds = Date.now() / 1000;
+    const httpRecords = [
+      ...this.httpRecords.values(),
+      ...this.overflowRecords.values(),
+    ];
+    const lines = [
+      "# HELP ecommerce_http_requests_total Total HTTP requests handled by the service.",
+      "# TYPE ecommerce_http_requests_total counter",
+    ];
+
+    for (const record of httpRecords) {
+      const labels = {
+        app_service: record.labels.appService,
+        method: record.labels.method,
+        path: record.labels.path,
+        status_code: record.labels.statusCode,
+      };
+
+      lines.push(
+        metricLine("ecommerce_http_requests_total", labels, record.count),
+      );
+    }
+
+    lines.push(
+      "# HELP ecommerce_http_request_duration_seconds HTTP request duration in seconds.",
+      "# TYPE ecommerce_http_request_duration_seconds histogram",
+    );
+
+    for (const record of httpRecords) {
+      const labels = {
+        app_service: record.labels.appService,
+        method: record.labels.method,
+        path: record.labels.path,
+        status_code: record.labels.statusCode,
+      };
+
+      prometheusDurationBuckets.forEach((bucket, index) => {
+        lines.push(
+          metricLine(
+            "ecommerce_http_request_duration_seconds_bucket",
+            { ...labels, le: String(bucket) },
+            record.buckets[index] ?? 0,
+          ),
+        );
+      });
+      lines.push(
+        metricLine(
+          "ecommerce_http_request_duration_seconds_bucket",
+          { ...labels, le: "+Inf" },
+          record.count,
+        ),
+        metricLine(
+          "ecommerce_http_request_duration_seconds_sum",
+          labels,
+          Number(record.sumSeconds.toFixed(6)),
+        ),
+        metricLine(
+          "ecommerce_http_request_duration_seconds_count",
+          labels,
+          record.count,
+        ),
+      );
+    }
+
+    if (snapshot) {
+      lines.push(
+        "# HELP ecommerce_service_ready Service readiness state from the runtime health model.",
+        "# TYPE ecommerce_service_ready gauge",
+        metricLine(
+          "ecommerce_service_ready",
+          { app_service: snapshot.service },
+          snapshot.ready ? 1 : 0,
+        ),
+        "# HELP ecommerce_service_dependency_ready Dependency readiness state from the runtime health model.",
+        "# TYPE ecommerce_service_dependency_ready gauge",
+      );
+
+      for (const dependency of snapshot.dependencies) {
+        lines.push(
+          metricLine(
+            "ecommerce_service_dependency_ready",
+            {
+              app_service: snapshot.service,
+              dependency: dependency.name,
+              required: String(dependency.required),
+              status: dependency.status,
+            },
+            dependency.status === "ready" || dependency.status === "disabled"
+              ? 1
+              : 0,
+          ),
+        );
+      }
+    }
+
+    const memory = process.memoryUsage();
+
+    lines.push(
+      "# HELP ecommerce_process_uptime_seconds Process uptime in seconds.",
+      "# TYPE ecommerce_process_uptime_seconds gauge",
+      metricLine(
+        "ecommerce_process_uptime_seconds",
+        { app_service: this.appService },
+        Number(process.uptime().toFixed(3)),
+      ),
+      "# HELP ecommerce_process_memory_bytes Process memory usage in bytes.",
+      "# TYPE ecommerce_process_memory_bytes gauge",
+      metricLine(
+        "ecommerce_process_memory_bytes",
+        { app_service: this.appService, type: "rss" },
+        memory.rss,
+      ),
+      metricLine(
+        "ecommerce_process_memory_bytes",
+        { app_service: this.appService, type: "heap_total" },
+        memory.heapTotal,
+      ),
+      metricLine(
+        "ecommerce_process_memory_bytes",
+        { app_service: this.appService, type: "heap_used" },
+        memory.heapUsed,
+      ),
+      "# HELP ecommerce_metrics_scrape_timestamp_seconds Unix timestamp for this metrics scrape.",
+      "# TYPE ecommerce_metrics_scrape_timestamp_seconds gauge",
+      metricLine(
+        "ecommerce_metrics_scrape_timestamp_seconds",
+        { app_service: this.appService },
+        Number(nowSeconds.toFixed(3)),
+      ),
+    );
+
+    return `${lines.join("\n")}\n`;
+  }
+}
+
+const getServicePrometheusMetrics = (appService: string) => {
+  const existing = prometheusMetricsStores.get(appService);
+
+  if (existing) {
+    return existing;
+  }
+
+  const metrics = new ServicePrometheusMetrics(appService);
+  prometheusMetricsStores.set(appService, metrics);
+  return metrics;
+};
+
+export const createPrometheusMetricsPayload = <TDependencyName extends string>(
+  runtime: ServiceRuntime<string, TDependencyName>,
+) => getServicePrometheusMetrics(runtime.service).render(runtime.snapshot());
+
+export const createTelemetryMiddleware = (serviceName: string) =>
+  createMiddleware(async (c, next) => {
+    const startedAt = performance.now();
+    let thrownError: unknown;
+
+    try {
+      await next();
+    } catch (error) {
+      thrownError = error;
+      throw error;
+    } finally {
+      const url = new URL(c.req.url);
+      const durationMs = Number((performance.now() - startedAt).toFixed(2));
+      const statusCode =
+        thrownError instanceof HTTPException
+          ? thrownError.status
+          : thrownError
+            ? 500
+            : c.res.status;
+      const level =
+        statusCode >= 500 ? "error" : statusCode >= 400 ? "warn" : "info";
+      const metricRoutePath = getMetricRoutePath(c, statusCode);
+
+      if (c.req.path !== getPrometheusMetricsPath()) {
+        getServicePrometheusMetrics(serviceName).recordHttp({
+          durationMs,
+          method: c.req.method,
+          path: metricRoutePath,
+          statusCode,
+        });
+      }
+
+      emitTelemetry(level, {
+        event: "http.server.request",
+        service: serviceName,
+        timestamp: new Date().toISOString(),
+        requestId: getRequestId(c) ?? undefined,
+        traceId: getTraceId(c) ?? undefined,
+        attributes: compactRecord({
+          "http.request.method": c.req.method,
+          "http.route": metricRoutePath,
+          "http.response.status_code": statusCode,
+          "server.address": url.hostname,
+          "server.port": url.port ? Number(url.port) : undefined,
+          "url.path": c.req.path,
+          "user_agent.original": c.req.header("user-agent"),
+          "error.type":
+            thrownError instanceof Error
+              ? thrownError.name
+              : thrownError
+                ? "UnknownError"
+                : undefined,
+        }),
+        measurements: {
+          "http.server.request.duration_ms": durationMs,
+        },
+      });
+    }
   });
 
 export const createORPCMiddleware = <TRouter extends AnyRouter>({
@@ -693,6 +1279,7 @@ export const createServiceApp = <E extends Env = Env>({
   title,
   version,
   description,
+  serviceName = title,
   tags,
   theme = "kepler",
   requestTimeoutMs = 30_000,
@@ -700,9 +1287,10 @@ export const createServiceApp = <E extends Env = Env>({
   const app = createServiceRouter<E>();
 
   app.use("*", createRequestIdMiddleware());
+  app.use("*", createTraceContextMiddleware());
+  app.use("*", createTelemetryMiddleware(serviceName));
   app.use("*", timing());
   app.use("*", secureHeaders());
-  app.use("*", logger());
   app.use(
     "*",
     timeout(getRequestTimeoutMs(requestTimeoutMs), () =>

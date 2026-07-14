@@ -1,5 +1,6 @@
 "use client";
 
+import { MAX_CART_ITEM_QUANTITY } from "@repo/types";
 import { Minus, Plus, ShoppingCart } from "lucide-react";
 import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -25,7 +26,7 @@ const ProductInteraction = ({
   const [quantity, setQuantity] = useState(1);
   const [isPending, startTransition] = useTransition();
 
-  const { addToCart } = useCartStore();
+  const addToCart = useCartStore((state) => state.addToCart);
 
   const handleTypeChange = (type: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -38,7 +39,7 @@ const ProductInteraction = ({
 
   const handleQuantityChange = (type: "increment" | "decrement") => {
     if (type === "increment") {
-      setQuantity((prev) => prev + 1);
+      setQuantity((prev) => Math.min(prev + 1, MAX_CART_ITEM_QUANTITY));
     } else {
       setQuantity((prev) => Math.max(prev - 1, 1));
     }
@@ -143,6 +144,7 @@ const ProductInteraction = ({
             type="button"
             className="flex size-10 items-center justify-center rounded-full text-gray-600 transition hover:bg-gray-100 hover:text-gray-950"
             aria-label="Increase quantity"
+            disabled={quantity >= MAX_CART_ITEM_QUANTITY}
             onClick={() => handleQuantityChange("increment")}
           >
             <Plus className="size-4" />

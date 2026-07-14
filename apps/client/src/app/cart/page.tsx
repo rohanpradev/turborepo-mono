@@ -1,6 +1,6 @@
 "use client";
 
-import { formatUsdFromCents } from "@repo/types";
+import { formatUsdFromCents, MAX_CART_ITEM_QUANTITY } from "@repo/types";
 import {
   ArrowLeft,
   ArrowRight,
@@ -13,13 +13,18 @@ import {
 import type { Route } from "next";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import ShippingForm from "@/components/ShippingForm";
 import StripePaymentForm from "@/components/StripePaymentForm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  getAllowedCheckoutStep,
+  getCheckoutStepHref,
+  normalizeCheckoutStep,
+} from "@/lib/checkout";
 import useCartStore from "@/stores/cartStore";
-import type { ShippingFormInputs } from "@/types";
+import useCheckoutStore from "@/stores/checkoutStore";
 
 const steps = [
   { id: 1, title: "Cart" },
@@ -27,13 +32,19 @@ const steps = [
   { id: 3, title: "Payment" },
 ];
 
+const stepHeadings = {
+  1: "Review items",
+  2: "Delivery details",
+  3: "Secure payment",
+} as const;
+
 const CartContent = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [shippingForm, setShippingForm] = useState<ShippingFormInputs>();
+  const [hasMounted, setHasMounted] = useState(false);
+  const { shippingForm, setShippingForm } = useCheckoutStore();
 
-  const activeStep = parseInt(searchParams.get("step") || "1", 10);
-
+  const requestedStep = normalizeCheckoutStep(searchParams.get("step"));
   const { cart, removeFromCart, setCartItemQuantity } = useCartStore();
   const subtotalCents = cart.reduce(
     (total, item) => total + item.price * item.quantity,
@@ -41,6 +52,33 @@ const CartContent = () => {
   );
 
   const hasItems = cart.length > 0;
+  const activeStep = hasMounted
+    ? getAllowedCheckoutStep({
+        hasItems,
+        hasShippingDetails: Boolean(shippingForm),
+        requestedStep,
+      })
+    : requestedStep;
+  const itemCount = cart.reduce((total, item) => total + item.quantity, 0);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hasMounted) {
+      return;
+    }
+
+    const canonicalHref = getCheckoutStepHref(activeStep);
+    const currentStep = searchParams.get("step");
+    const isCanonical =
+      activeStep === 1 ? currentStep === null : currentStep === `${activeStep}`;
+
+    if (!isCanonical) {
+      router.replace(canonicalHref, { scroll: false });
+    }
+  }, [activeStep, hasMounted, router, searchParams]);
 
   return (
     <div className="space-y-8 pb-10 pt-4">
@@ -93,11 +131,11 @@ const CartContent = () => {
                 Shopping Cart
               </p>
               <h2 className="text-3xl font-semibold text-gray-950 sm:text-5xl">
-                Review items
+                {stepHeadings[activeStep]}
               </h2>
             </div>
             <Badge variant="outline" className="bg-white/80 text-gray-700">
-              {cart.length} item{cart.length === 1 ? "" : "s"}
+              {itemCount} item{itemCount === 1 ? "" : "s"}
             </Badge>
           </div>
 
@@ -177,7 +215,7 @@ const CartContent = () => {
                                 type="button"
                                 onClick={() => removeFromCart(item)}
                                 className="rounded-full border border-black/10 bg-white p-2 text-gray-500 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
-                                aria-label="Remove item"
+                                aria-label={`Remove ${item.name}, size ${item.selectedSize}, color ${item.selectedColor}`}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </button>
@@ -199,21 +237,32 @@ const CartContent = () => {
                               <div className="flex items-center rounded-full border border-black/10 bg-[#f7f7f4] p-1 shadow-sm">
                                 <button
                                   type="button"
-                                  aria-label="Decrease quantity"
+                                  aria-label={`Decrease quantity of ${item.name}`}
                                   className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition hover:bg-white hover:text-gray-950"
+                                  disabled={item.quantity <= 1}
                                   onClick={() =>
                                     setCartItemQuantity(item, item.quantity - 1)
                                   }
                                 >
                                   <Minus className="h-4 w-4" />
                                 </button>
-                                <span className="flex h-10 min-w-10 items-center justify-center px-3 text-sm font-semibold text-gray-950">
+                                <span
+                                  role="status"
+                                  aria-live="polite"
+                                  className="flex h-10 min-w-10 items-center justify-center px-3 text-sm font-semibold text-gray-950"
+                                >
+                                  <span className="sr-only">
+                                    {item.name} quantity
+                                  </span>
                                   {item.quantity}
                                 </span>
                                 <button
                                   type="button"
-                                  aria-label="Increase quantity"
+                                  aria-label={`Increase quantity of ${item.name}`}
                                   className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition hover:bg-white hover:text-gray-950"
+                                  disabled={
+                                    item.quantity >= MAX_CART_ITEM_QUANTITY
+                                  }
                                   onClick={() =>
                                     setCartItemQuantity(item, item.quantity + 1)
                                   }
@@ -245,7 +294,18 @@ const CartContent = () => {
                 </div>
               )
             ) : activeStep === 2 ? (
-              <ShippingForm setShippingForm={setShippingForm} />
+              <ShippingForm
+                initialValues={shippingForm}
+                setShippingForm={setShippingForm}
+              />
+            ) : activeStep === 3 && !hasMounted ? (
+              <div
+                role="status"
+                aria-live="polite"
+                className="rounded-lg border border-dashed border-black/15 bg-white px-4 py-12 text-sm text-gray-500"
+              >
+                Loading checkout details...
+              </div>
             ) : activeStep === 3 && shippingForm ? (
               <StripePaymentForm shippingForm={shippingForm} />
             ) : (
