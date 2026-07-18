@@ -3,14 +3,14 @@ import { Button } from "@/components/ui/button";
 export default function NotFound() {
   return (
     <section className="mx-auto flex min-h-[50vh] max-w-2xl flex-col items-center justify-center gap-4 py-12 text-center">
-      <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-gray-500">
+      <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
         404
       </span>
       <div className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight">
+        <h1 className="font-serif text-4xl font-semibold tracking-[-0.035em]">
           This page is no longer here.
         </h1>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-muted-foreground">
           The product, route, or resource you requested could not be found.
         </p>
       </div>

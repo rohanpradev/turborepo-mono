@@ -6,7 +6,7 @@
     "dev": "next dev --port 3003",
     "build": "next build",
     "start": "next start",
-    "check-types": "next typegen && tsgo --noEmit"
+    "check-types": "next typegen && tsc --noEmit"
   },
   "dependencies": {
     "@clerk/nextjs": "catalog:",
@@ -33,6 +33,7 @@
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "tailwindcss": "catalog:"
+    "tailwindcss": "catalog:",
+    "typescript": "catalog:"
   }
 }

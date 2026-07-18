@@ -75,13 +75,13 @@ const DiagnosticsPage = async () => {
   return (
     <div className="space-y-8 pb-10 pt-4">
       <div className="space-y-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-stone-500">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           System availability
         </p>
-        <h1 className="font-serif text-4xl font-semibold text-stone-950 sm:text-5xl">
+        <h1 className="font-serif text-5xl font-semibold tracking-[-0.045em] text-foreground sm:text-6xl">
           Platform status
         </h1>
-        <p className="max-w-2xl text-sm leading-6 text-stone-600">
+        <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
           Live availability for the public catalog, order, and payment services
           used by this storefront. Operational event data remains restricted to
           authorized administrators.
@@ -92,14 +92,14 @@ const DiagnosticsPage = async () => {
         {snapshots.map((snapshot) => (
           <section
             key={snapshot.name}
-            className="rounded-2xl border border-stone-900/10 bg-[#fffdf9] p-5 shadow-sm"
+            className="rounded-xl border border-border bg-card p-5"
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="font-semibold text-stone-950">
+                <h2 className="font-semibold text-foreground">
                   {snapshot.name}
                 </h2>
-                <p className="mt-1 break-all text-xs text-stone-500">
+                <p className="mt-1 break-all text-xs text-muted-foreground">
                   {snapshot.publicBaseUrl}
                 </p>
               </div>
@@ -122,14 +122,14 @@ const DiagnosticsPage = async () => {
             ) : (
               <dl className="mt-5 grid gap-3 text-sm">
                 <div className="flex items-center justify-between gap-3">
-                  <dt className="text-stone-500">Readiness</dt>
-                  <dd className="font-medium text-stone-950">
+                  <dt className="text-muted-foreground">Readiness</dt>
+                  <dd className="font-medium text-foreground">
                     {snapshot.health?.ready ? "Ready" : "Degraded"}
                   </dd>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <dt className="text-stone-500">Uptime</dt>
-                  <dd className="font-medium text-stone-950">
+                  <dt className="text-muted-foreground">Uptime</dt>
+                  <dd className="font-medium text-foreground">
                     {Math.floor(snapshot.health?.uptimeSeconds ?? 0)} seconds
                   </dd>
                 </div>

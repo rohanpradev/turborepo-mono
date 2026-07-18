@@ -21,10 +21,12 @@ const ProductCard = ({
   const previewImage = getPrimaryProductImage(product, selectedColor);
 
   return (
-    <article className="group flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-stone-900/10 bg-[#fffdf9] shadow-[0_12px_30px_-24px_rgba(39,31,25,0.45)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_26px_60px_-32px_rgba(39,31,25,0.52)]">
-      <Link href={`/products/${product.id}` as Route} className="block">
-        <div className="relative aspect-[4/4.25] overflow-hidden bg-[#f0eee8]">
-          <div className="absolute inset-x-[18%] bottom-[9%] h-4 rounded-full bg-black/10 blur-md transition duration-700 group-hover:bg-black/15" />
+    <article className="group flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card transition-[border-color,box-shadow] duration-300 hover:border-foreground/20 hover:shadow-[0_18px_45px_-34px_rgba(28,25,23,0.6)]">
+      <Link
+        href={`/products/${product.id}` as Route}
+        className="block rounded-t-xl focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/45"
+      >
+        <div className="relative aspect-[4/4.6] overflow-hidden bg-[#f0ede7]">
           <Image
             src={previewImage}
             alt={product.name}
@@ -33,37 +35,36 @@ const ProductCard = ({
             fetchPriority={eager ? "high" : "auto"}
             decoding="async"
             quality={85}
-            className="object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+            className="object-contain p-3 transition-transform duration-700 group-hover:scale-[1.025] sm:p-4"
             sizes="(min-width: 1536px) 18rem, (min-width: 1280px) 25vw, (min-width: 640px) 50vw, 100vw"
           />
-          <div className="absolute left-3 right-3 top-3 flex flex-wrap gap-2">
-            <Badge
-              variant="secondary"
-              className="bg-white/90 text-stone-950 shadow-sm"
-            >
-              New
-            </Badge>
+          <div className="absolute left-3 right-3 top-3 flex flex-wrap justify-between gap-2">
             <Badge
               variant="outline"
-              className="hidden bg-white/80 text-gray-700 min-[380px]:inline-flex"
+              className="border-white/70 bg-white/85 text-[0.625rem] uppercase tracking-[0.12em] text-stone-700 backdrop-blur"
             >
-              Ships fast
+              {product.categorySlug}
             </Badge>
           </div>
         </div>
       </Link>
 
-      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-5">
+      <div className="flex flex-1 flex-col gap-4 p-4">
         <div className="space-y-1">
           <div className="grid min-h-12 grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-            <h3 className="line-clamp-2 font-serif text-lg font-semibold leading-6 text-stone-950">
-              {product.name}
+            <h3 className="line-clamp-2 text-base font-semibold leading-6 tracking-[-0.01em] text-foreground">
+              <Link
+                href={`/products/${product.id}` as Route}
+                className="inline-flex min-h-6 items-center rounded-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45"
+              >
+                {product.name}
+              </Link>
             </h3>
-            <p className="max-w-24 break-words text-right text-sm font-semibold text-stone-950">
+            <p className="max-w-24 break-words text-right text-sm font-bold text-foreground">
               {formatUsdFromCents(product.price)}
             </p>
           </div>
-          <p className="line-clamp-2 min-h-12 text-sm leading-6 text-stone-600">
+          <p className="line-clamp-2 min-h-12 text-sm leading-6 text-muted-foreground">
             {product.shortDescription}
           </p>
         </div>

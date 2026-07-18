@@ -27,7 +27,7 @@ services:
 
   kafka-broker-1:
     <<: *runtime-security
-    image: dhi.io/kafka:4.2-debian13-native
+    image: dhi.io/kafka:4.3.1-debian13-native@sha256:89691f2d47ded5c88186e0e61a68b2fe77e2a19dea29ad2669e5626aff7965ff
     container_name: kafka-broker-1
     environment:
       <<: *kafka-broker-env
@@ -52,7 +52,7 @@ services:
 
   kafka-broker-2:
     <<: *runtime-security
-    image: dhi.io/kafka:4.2-debian13-native
+    image: dhi.io/kafka:4.3.1-debian13-native@sha256:89691f2d47ded5c88186e0e61a68b2fe77e2a19dea29ad2669e5626aff7965ff
     container_name: kafka-broker-2
     environment:
       <<: *kafka-broker-env
@@ -77,7 +77,7 @@ services:
 
   kafka-broker-3:
     <<: *runtime-security
-    image: dhi.io/kafka:4.2-debian13-native
+    image: dhi.io/kafka:4.3.1-debian13-native@sha256:89691f2d47ded5c88186e0e61a68b2fe77e2a19dea29ad2669e5626aff7965ff
     container_name: kafka-broker-3
     environment:
       <<: *kafka-broker-env
@@ -102,7 +102,7 @@ services:
 
   kafka-ui:
     <<: *runtime-security
-    image: ghcr.io/kafbat/kafka-ui:v1.5.0
+    image: ghcr.io/kafbat/kafka-ui:v1.5.0@sha256:7cda86a33344160309fdb65146332e4da65db81a945614f2fe32e210803f6fd1
     container_name: kafka-ui
     read_only: true
     tmpfs:

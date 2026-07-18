@@ -60,6 +60,7 @@ stripeCli:
   image:
     repository: stripe/stripe-cli
     tag: v1.43.8
+    digest: sha256:73a0449969bcb4bfa5a53ecb6db82f1ff873189d9e433aff72fa4c8e747acf81
     pullPolicy: IfNotPresent
   forwardTo: http://127.0.0.1:8002/api/webhooks/stripe
   webhookSecretFile: /var/run/stripe/webhook-secret
@@ -197,7 +198,8 @@ services:
     revisionHistoryLimit: 3
     image:
       repository: turborepo-monorepo-product-service
-      tag: latest
+      tag: "0.1.0"
+      digest: ""
       pullPolicy: ""
     service:
       type: ClusterIP
@@ -263,7 +265,8 @@ services:
     revisionHistoryLimit: 3
     image:
       repository: turborepo-monorepo-order-service
-      tag: latest
+      tag: "0.1.0"
+      digest: ""
       pullPolicy: ""
     service:
       type: ClusterIP
@@ -329,7 +332,8 @@ services:
     revisionHistoryLimit: 3
     image:
       repository: turborepo-monorepo-payment-service
-      tag: latest
+      tag: "0.1.0"
+      digest: ""
       pullPolicy: ""
     service:
       type: ClusterIP
@@ -397,7 +401,8 @@ services:
     revisionHistoryLimit: 3
     image:
       repository: turborepo-monorepo-client
-      tag: latest
+      tag: "0.1.0"
+      digest: ""
       pullPolicy: ""
     service:
       type: ClusterIP
@@ -478,7 +483,8 @@ services:
     revisionHistoryLimit: 3
     image:
       repository: turborepo-monorepo-admin
-      tag: latest
+      tag: "0.1.0"
+      digest: ""
       pullPolicy: ""
     service:
       type: ClusterIP
@@ -587,4 +593,5 @@ helmTests:
   image:
     repository: curlimages/curl
     tag: "8.21.0"
+    digest: sha256:7c12af72ceb38b7432ab85e1a265cff6ae58e06f95539d539b654f2cfa64bb13
     pullPolicy: IfNotPresent

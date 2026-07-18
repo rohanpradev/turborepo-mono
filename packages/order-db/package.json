@@ -4,7 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "check-types": "tsgo --noEmit"
+    "check-types": "tsc --noEmit"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

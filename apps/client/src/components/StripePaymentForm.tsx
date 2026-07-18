@@ -2,7 +2,7 @@
 
 import { useAuth } from "@clerk/nextjs";
 import { CheckoutElementsProvider } from "@stripe/react-stripe-js/checkout";
-import { loadStripe } from "@stripe/stripe-js";
+import { type Appearance, loadStripe } from "@stripe/stripe-js";
 import { useEffect, useRef, useState } from "react";
 import CheckoutForm from "@/components/CheckoutForm";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,21 @@ type StripePromise = Promise<LoadedStripe>;
 const stripePromise: StripePromise | null = stripePublishableKey
   ? loadStripe(stripePublishableKey)
   : null;
+const checkoutAppearance: Appearance = {
+  theme: "stripe",
+  inputs: "spaced",
+  labels: "above",
+  variables: {
+    borderRadius: "10px",
+    colorBackground: "#fffefa",
+    colorDanger: "#c53c2c",
+    colorPrimary: "#a74625",
+    colorText: "#282522",
+    colorTextSecondary: "#746f69",
+    fontFamily: 'Inter, "Avenir Next", "Helvetica Neue", system-ui, sans-serif',
+    spacingGridRow: "16px",
+  },
+};
 const isClerkConfigured = Boolean(
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
     !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.includes("_here"),
@@ -61,7 +76,7 @@ const StripePaymentForm = ({
     return (
       <div
         role="alert"
-        className="rounded-[1.5rem] border border-dashed border-black/10 bg-white/80 p-4 text-sm text-gray-600"
+        className="rounded-xl border border-dashed border-border bg-muted/55 p-4 text-sm text-muted-foreground"
       >
         Authentication is not configured for this environment, so checkout is
         currently unavailable.
@@ -73,7 +88,7 @@ const StripePaymentForm = ({
     return (
       <div
         role="alert"
-        className="rounded-[1.5rem] border border-dashed border-black/10 bg-white/80 p-4 text-sm text-gray-600"
+        className="rounded-xl border border-dashed border-border bg-muted/55 p-4 text-sm text-muted-foreground"
       >
         Stripe is not configured for this environment, so checkout is currently
         unavailable.
@@ -175,7 +190,7 @@ const AuthenticatedStripePaymentForm = ({
       <div
         role="status"
         aria-live="polite"
-        className="rounded-[1.5rem] border border-black/5 bg-white/80 p-4 text-sm text-gray-600"
+        className="rounded-xl border border-border bg-muted/55 p-4 text-sm text-muted-foreground"
       >
         Loading checkout context...
       </div>
@@ -186,14 +201,14 @@ const AuthenticatedStripePaymentForm = ({
     return (
       <div
         role="alert"
-        className="rounded-[1.5rem] border border-dashed border-black/10 bg-white/80 p-4 text-sm text-gray-600"
+        className="rounded-xl border border-dashed border-border bg-muted/55 p-4 text-sm text-muted-foreground"
       >
         <p>
           {error ?? "Authentication is required before checkout can start."}
         </p>
         <button
           type="button"
-          className="mt-3 font-medium text-gray-950 underline underline-offset-4"
+          className="mt-3 cursor-pointer font-medium text-foreground underline underline-offset-4"
           onClick={() => {
             setError(null);
             setAttempt((value) => value + 1);
@@ -209,7 +224,7 @@ const AuthenticatedStripePaymentForm = ({
     return (
       <div
         role="status"
-        className="rounded-[1.5rem] border border-dashed border-black/10 bg-white/80 p-4 text-sm text-gray-600"
+        className="rounded-xl border border-dashed border-border bg-muted/55 p-4 text-sm text-muted-foreground"
       >
         <p>Your cart is empty. Please add items to proceed with checkout.</p>
       </div>
@@ -220,12 +235,12 @@ const AuthenticatedStripePaymentForm = ({
     return (
       <div
         role="alert"
-        className="rounded-[1.5rem] border border-dashed border-red-200 bg-red-50 p-4 text-sm text-red-800"
+        className="rounded-xl border border-dashed border-destructive/25 bg-destructive/8 p-4 text-sm text-destructive"
       >
         <p>{error}</p>
         <button
           type="button"
-          className="mt-3 font-medium text-gray-950 underline underline-offset-4"
+          className="mt-3 cursor-pointer font-medium text-foreground underline underline-offset-4"
           onClick={() => {
             setError(null);
             setClientSecret(null);
@@ -243,7 +258,7 @@ const AuthenticatedStripePaymentForm = ({
       <div
         role="status"
         aria-live="polite"
-        className="rounded-[1.5rem] border border-black/5 bg-white/80 p-4 text-sm text-gray-600"
+        className="rounded-xl border border-border bg-muted/55 p-4 text-sm text-muted-foreground"
       >
         Preparing checkout...
       </div>
@@ -251,16 +266,16 @@ const AuthenticatedStripePaymentForm = ({
   }
 
   return (
-    <div
-      id="checkout"
-      className="rounded-[1.5rem] border border-black/5 bg-white/80 p-5 shadow-sm"
-    >
+    <div id="checkout" className="rounded-xl border border-border bg-card p-5">
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
-          <Badge variant="outline" className="bg-white/80 text-gray-700">
+          <Badge
+            variant="outline"
+            className="bg-background text-muted-foreground"
+          >
             Secure payment
           </Badge>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-2 text-sm text-muted-foreground">
             Review the payment details and complete your order securely with
             Stripe.
           </p>
@@ -269,7 +284,10 @@ const AuthenticatedStripePaymentForm = ({
       <CheckoutElementsProvider
         key={clientSecret}
         stripe={stripePromise}
-        options={{ clientSecret }}
+        options={{
+          clientSecret,
+          elementsOptions: { appearance: checkoutAppearance },
+        }}
       >
         <CheckoutForm shippingForm={shippingForm} />
       </CheckoutElementsProvider>

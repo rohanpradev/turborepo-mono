@@ -1,13 +1,17 @@
+"use client";
+
 import {
   Activity,
   Boxes,
   CreditCard,
   ExternalLink,
   LayoutDashboard,
+  ShieldCheck,
   Users,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import BrandMark from "@/components/BrandMark";
 import {
   Sidebar,
   SidebarContent,
@@ -49,92 +53,123 @@ const primaryLinks = [
   },
 ] as const;
 
-const opsLinks = [
-  {
-    href: process.env.CLIENT_APP_URL ?? "http://localhost:3002",
-    icon: ExternalLink,
-    label: "Storefront",
-    external: true,
-  },
-  {
-    href: "/payments#timeline",
-    icon: Activity,
-    label: "Payment Events",
-    external: false,
-  },
-] as const;
-
 const AppSidebar = (_props: AppSidebarProps) => {
+  const pathname = usePathname();
+  const storefrontUrl =
+    process.env.NEXT_PUBLIC_CLIENT_APP_URL ?? "http://localhost:3002";
+
+  const isActive = (href: string) =>
+    href === "/" ? pathname === href : pathname.startsWith(href);
+
   return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader className="py-4">
+    <Sidebar collapsible="icon" variant="sidebar">
+      <SidebarHeader className="px-2 py-4">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild>
+            <SidebarMenuButton
+              asChild
+              size="lg"
+              tooltip="Flagship Admin"
+              className="h-13 rounded-xl hover:bg-sidebar-accent"
+            >
               <Link href="/">
-                <Image
-                  src="/logo.svg"
-                  alt="Flagship logo"
-                  width={20}
-                  height={20}
-                />
-                <span>Flagship Admin</span>
+                <BrandMark className="size-9 shrink-0 drop-shadow-lg" />
+                <span className="grid flex-1 text-left leading-tight">
+                  <span className="truncate text-sm font-bold">
+                    Flagship Admin
+                  </span>
+                  <span className="truncate text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-sidebar-foreground/50">
+                    Commerce OS
+                  </span>
+                </span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
 
-      <SidebarSeparator />
+      <SidebarSeparator className="bg-sidebar-border" />
 
-      <SidebarContent>
+      <SidebarContent className="px-1">
         <SidebarGroup>
-          <SidebarGroupLabel>Control Room</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[0.625rem] font-bold uppercase tracking-[0.16em] text-sidebar-foreground/45">
+            Control room
+          </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {primaryLinks.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton asChild>
-                    <Link href={item.href}>
-                      <item.icon />
-                      <span>{item.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+            <SidebarMenu className="gap-1.5">
+              {primaryLinks.map((item) => {
+                const active = isActive(item.href);
+
+                return (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={active}
+                      tooltip={item.label}
+                      className="h-10 rounded-xl px-3 data-[active=true]:shadow-sm"
+                    >
+                      <Link
+                        href={item.href}
+                        aria-current={active ? "page" : undefined}
+                      >
+                        <item.icon aria-hidden="true" />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Live Tools</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[0.625rem] font-bold uppercase tracking-[0.16em] text-sidebar-foreground/45">
+            Live tools
+          </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {opsLinks.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton asChild>
-                    {item.external ? (
-                      <a href={item.href} rel="noreferrer" target="_blank">
-                        <item.icon />
-                        <span>{item.label}</span>
-                      </a>
-                    ) : (
-                      <Link href={item.href}>
-                        <item.icon />
-                        <span>{item.label}</span>
-                      </Link>
-                    )}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+            <SidebarMenu className="gap-1.5">
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  tooltip="Storefront"
+                  className="h-10 rounded-xl px-3"
+                >
+                  <a href={storefrontUrl} rel="noreferrer" target="_blank">
+                    <ExternalLink aria-hidden="true" />
+                    <span>Storefront</span>
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  tooltip="Payment events"
+                  className="h-10 rounded-xl px-3"
+                >
+                  <Link href="/payments#timeline">
+                    <Activity aria-hidden="true" />
+                    <span>Payment events</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter>
-        <div className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
-          Commerce ops console
+      <SidebarFooter className="p-3">
+        <div className="rounded-xl border border-sidebar-border bg-sidebar-accent/55 p-3 text-xs text-sidebar-foreground/65 group-data-[collapsible=icon]:hidden">
+          <div className="flex items-center gap-2 font-semibold text-sidebar-foreground">
+            <ShieldCheck
+              className="size-4 text-emerald-300"
+              aria-hidden="true"
+            />
+            Protected workspace
+          </div>
+          <p className="mt-1.5 leading-5">
+            Admin access and mutations are session-gated.
+          </p>
         </div>
       </SidebarFooter>
     </Sidebar>

@@ -45,75 +45,75 @@
 
 :root {
   --font-sans-stack:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", sans-serif;
+    "Avenir Next", Avenir, Inter, ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono-stack:
     "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --radius: 0.875rem;
+  --background: oklch(0.972 0.011 258);
+  --foreground: oklch(0.205 0.038 264);
+  --card: oklch(0.995 0.004 258);
+  --card-foreground: oklch(0.205 0.038 264);
+  --popover: oklch(0.995 0.004 258);
+  --popover-foreground: oklch(0.205 0.038 264);
+  --primary: oklch(0.53 0.19 264);
+  --primary-foreground: oklch(0.99 0.004 258);
+  --secondary: oklch(0.935 0.024 258);
+  --secondary-foreground: oklch(0.26 0.045 264);
+  --muted: oklch(0.94 0.018 258);
+  --muted-foreground: oklch(0.47 0.038 264);
+  --accent: oklch(0.92 0.04 258);
+  --accent-foreground: oklch(0.26 0.07 264);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --border: oklch(0.86 0.024 258 / 78%);
+  --input: oklch(0.81 0.028 258);
+  --ring: oklch(0.57 0.19 264);
+  --chart-1: oklch(0.58 0.2 264);
+  --chart-2: oklch(0.68 0.15 166);
+  --chart-3: oklch(0.72 0.17 64);
+  --chart-4: oklch(0.62 0.19 309);
+  --chart-5: oklch(0.63 0.2 25);
+  --sidebar: oklch(0.19 0.048 263);
+  --sidebar-foreground: oklch(0.93 0.018 258);
+  --sidebar-primary: oklch(0.7 0.16 264);
+  --sidebar-primary-foreground: oklch(0.99 0.004 258);
+  --sidebar-accent: oklch(0.27 0.06 263);
+  --sidebar-accent-foreground: oklch(0.98 0.008 258);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.72 0.15 264);
   --custom-color: oklch(0.6 0.2 150);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: oklch(0.155 0.032 264);
+  --foreground: oklch(0.965 0.012 258);
+  --card: oklch(0.205 0.04 264);
+  --card-foreground: oklch(0.965 0.012 258);
+  --popover: oklch(0.205 0.04 264);
+  --popover-foreground: oklch(0.965 0.012 258);
+  --primary: oklch(0.7 0.16 264);
+  --primary-foreground: oklch(0.16 0.035 264);
+  --secondary: oklch(0.255 0.045 264);
+  --secondary-foreground: oklch(0.965 0.012 258);
+  --muted: oklch(0.255 0.04 264);
+  --muted-foreground: oklch(0.73 0.035 258);
+  --accent: oklch(0.29 0.065 264);
+  --accent-foreground: oklch(0.98 0.008 258);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --ring: oklch(0.7 0.16 264);
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar: oklch(0.13 0.034 264);
+  --sidebar-foreground: oklch(0.95 0.016 258);
+  --sidebar-primary: oklch(0.7 0.16 264);
+  --sidebar-primary-foreground: oklch(0.99 0.004 258);
+  --sidebar-accent: oklch(0.23 0.055 264);
+  --sidebar-accent-foreground: oklch(0.98 0.008 258);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
   --custom-color: oklch(0.6 0.2 150);
@@ -124,7 +124,28 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply min-h-screen bg-background text-foreground;
+    background-image:
+      radial-gradient(
+        circle at 12% 0%,
+        oklch(0.82 0.08 265 / 18%),
+        transparent 28rem
+      ),
+      radial-gradient(
+        circle at 96% 20%,
+        oklch(0.82 0.09 168 / 12%),
+        transparent 24rem
+      );
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+  }
+
+  ::selection {
+    background: var(--primary);
+    color: var(--primary-foreground);
   }
 }
 
@@ -231,5 +252,18 @@
         var(--tw-exit-scale, 1),
         var(--tw-exit-scale, 1)
       );
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: User motion preferences must override component animation declarations. */
+    animation-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: User motion preferences must override component animation declarations. */
+    animation-iteration-count: 1 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: User motion preferences must override component transition declarations. */
+    transition-duration: 0.01ms !important;
   }
 }

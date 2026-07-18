@@ -54,6 +54,7 @@ For engineering standards and verification policy, see [docs/QUALITY.md](docs/QU
 For service and Kafka telemetry behavior, see [docs/TELEMETRY.md](docs/TELEMETRY.md).
 For Prometheus, Grafana, Traefik, and Kubernetes metrics, see [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md).
 For Stripe deployment, webhook, Clerk-auth, and incident procedures, see [docs/STRIPE_OPERATIONS.md](docs/STRIPE_OPERATIONS.md).
+For the current expert gap assessment and prioritized roadmap, see [docs/EXPERT_MICROSERVICES_IMPROVEMENT_PLAN.md](docs/EXPERT_MICROSERVICES_IMPROVEMENT_PLAN.md).
 
 ## Apps And Packages
 
@@ -83,9 +84,10 @@ For Stripe deployment, webhook, Clerk-auth, and incident procedures, see [docs/S
 | Payments | Stripe Checkout and webhooks |
 | Events | Kafka with typed topics and topic management |
 | Data | PostgreSQL + Prisma, MongoDB + Mongoose |
-| Quality | Biome, Syncpack, Knip, Bun test/coverage, Bun audit, TypeScript native preview |
-| Runtime | Bun, Docker Compose, Traefik, Docker Hardened Images |
-| CI/CD | GitHub Actions, Docker Buildx, GHCR images, SBOM, provenance |
+| Quality | Biome, Syncpack, Knip, Bun test/coverage, Bun audit, stable TypeScript 7 with TypeScript 6 tooling compatibility |
+| Runtime | Bun 1.3.14, digest-pinned Compose images, Traefik 3.7.7, Docker Hardened Images |
+| Platform | Helm 4.2.3, Kubernetes 1.34-1.36, Gateway API 1.6.1 |
+| CI/CD | GitHub Actions, Helm lint plus kubeconform schema matrix, Docker Buildx, GHCR images, SBOM, provenance |
 
 ## Event Flow
 

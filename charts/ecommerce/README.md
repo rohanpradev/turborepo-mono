@@ -28,10 +28,13 @@ Useful lower-level commands:
 
 ```bash
 make helm-lint
+make helm-lint-supported
+make helm-validate-supported
 make helm-template
 make helm-dry-run
 make helm-package
 make k8s-doctor
+make k8s-gateway-api
 make k8s-diff
 make k8s-deploy
 make k8s-load-images
@@ -53,6 +56,8 @@ make k8s-uninstall
 ```
 
 The local workflow installs Traefik as a standard Kubernetes Ingress controller and deploys app routes with `ingressClassName: traefik`.
+
+The deployment toolchain is pinned to Helm 4.2.3, kubeconform 0.8.0, Traefik chart 41.0.2 with the security-fixed Traefik 3.7.7 image digest, kube-prometheus-stack 87.12.2, and Gateway API 1.6.1. Chart 0.2.0 supports the actively maintained Kubernetes 1.34, 1.35, and 1.36 release lines. CI lints and strictly schema-validates every chart profile against the latest published patch in each line. CRD-backed resources without Kubernetes-core schemas are skipped by kubeconform and remain covered by Helm rendering and live-cluster validation.
 
 For Prometheus, Grafana, app metrics, Traefik metrics, and alert rules, run:
 
@@ -104,13 +109,27 @@ The default local image names match the Docker Compose builds:
 - `turborepo-monorepo-order-service`
 - `turborepo-monorepo-payment-service`
 
-For registries, set `global.imageRegistry` and per-service tags.
+For registries, set `global.imageRegistry` and per-service tags. Every service image also accepts `digest`; when present, Helm renders `repository@sha256:...` and ignores the tag at runtime. External Stripe CLI and Helm test images are digest-pinned by default.
+
+Example production override:
+
+```yaml
+global:
+  imageRegistry: ghcr.io/example/ecommerce
+
+services:
+  product:
+    image:
+      repository: product-service
+      tag: "2026.07.18"
+      digest: sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+```
 
 ## Production Notes
 
 - Keep stateful dependencies outside this application chart: Postgres, MongoDB, Kafka, Clerk, Stripe, and secret managers are environment concerns.
-- Use immutable image tags or digests for shared environments.
+- Supply immutable application image digests for shared environments. The chart no longer defaults to `latest`.
 - Keep `secrets.create=false` outside throwaway environments and wire `secrets.name` to your secret manager output.
 - Keep `ingress.tls.secretName` owned by cert-manager or the platform ingress layer outside local development.
-- Prefer standard Ingress for the local Traefik workflow, and use Gateway API HTTPRoutes only in clusters where the Gateway provider and CRDs are already installed.
+- Prefer standard Ingress for the local Traefik workflow. For Gateway API, run `make k8s-gateway-api`, enable Traefik's Gateway provider, and deploy the chart with `gateway.enabled=true` only after the pinned standard CRDs are installed.
 - Enable `networkPolicy.enabled=true` only after your cluster CNI enforces NetworkPolicy and you have modeled required egress.

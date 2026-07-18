@@ -137,7 +137,7 @@ spec:
             {{- end }}
         {{- if and (eq $key "payment") $.Values.stripeCli.enabled }}
         - name: stripe-cli
-          image: {{ printf "%s:%s" $.Values.stripeCli.image.repository $.Values.stripeCli.image.tag | quote }}
+          image: {{ include "ecommerce.externalImage" $.Values.stripeCli.image | quote }}
           imagePullPolicy: {{ $.Values.stripeCli.image.pullPolicy }}
           command:
             - /bin/sh

@@ -96,20 +96,26 @@ const ProductList = async ({
     });
 
   return (
-    <section className="w-full space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-stone-900/10 pb-6">
-        <div className="space-y-1">
-          <Badge variant="outline" className="bg-white text-gray-700">
+    <section
+      aria-labelledby={`catalog-heading-${params}`}
+      className="w-full space-y-6"
+    >
+      <div className="flex flex-wrap items-end justify-between gap-5 border-b border-border pb-6">
+        <div className="space-y-3">
+          <Badge variant="outline" className="bg-card text-muted-foreground">
             {params === "homepage" ? "Featured selection" : "Live catalog"}
           </Badge>
-          <h2 className="font-serif text-3xl font-semibold tracking-tight text-stone-950 sm:text-4xl">
+          <h2
+            id={`catalog-heading-${params}`}
+            className="max-w-2xl font-serif text-4xl font-semibold tracking-[-0.04em] text-foreground sm:text-5xl"
+          >
             {params === "homepage"
-              ? "Featured products"
+              ? "A few current favorites."
               : "Explore the catalog"}
           </h2>
-          <p className="max-w-2xl text-sm leading-6 text-stone-600">
+          <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
             {params === "homepage"
-              ? "Fresh picks across apparel, denim, and footwear."
+              ? "Easy pieces with enough character to earn a place in the daily rotation."
               : `${pagination.total} product${pagination.total === 1 ? "" : "s"} across every current category.`}
           </p>
         </div>
@@ -118,9 +124,10 @@ const ProductList = async ({
             href={viewAllHref}
             variant="outline"
             size="lg"
-            className="bg-white"
+            className="bg-card"
           >
             View all products
+            <ArrowRight className="size-4" aria-hidden="true" />
           </Button>
         ) : null}
       </div>
@@ -135,11 +142,14 @@ const ProductList = async ({
       {params === "products" && <Filter />}
 
       {loadError ? (
-        <div className="rounded-lg border border-dashed border-black/15 bg-white px-4 py-10 text-center text-sm text-gray-500 shadow-sm">
+        <div
+          role="status"
+          className="rounded-2xl border border-dashed border-border bg-card px-5 py-12 text-center text-sm text-muted-foreground shadow-sm"
+        >
           {loadError}
         </div>
       ) : products.length > 0 ? (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {products.map((product, index) => (
             <ProductCard
               key={product.id}
@@ -149,7 +159,10 @@ const ProductList = async ({
           ))}
         </div>
       ) : (
-        <div className="rounded-lg border border-dashed border-black/15 bg-white px-4 py-10 text-center text-sm text-gray-500 shadow-sm">
+        <div
+          role="status"
+          className="rounded-2xl border border-dashed border-border bg-card px-5 py-12 text-center text-sm text-muted-foreground shadow-sm"
+        >
           No products matched the current filter.
         </div>
       )}
@@ -157,24 +170,26 @@ const ProductList = async ({
       {params === "products" && !loadError && pagination.totalPages > 1 ? (
         <nav
           aria-label="Product pagination"
-          className="flex flex-wrap items-center justify-between gap-3 border-t border-black/5 pt-5"
+          className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6"
         >
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-muted-foreground">
             Page{" "}
-            <span className="font-medium text-gray-950">{pagination.page}</span>{" "}
+            <span className="font-semibold text-foreground">
+              {pagination.page}
+            </span>{" "}
             of {pagination.totalPages} | {pagination.total} products
           </p>
           <div className="flex items-center gap-2">
             {pagination.hasPreviousPage ? (
               <Button href={getPageHref(pagination.page - 1)} variant="outline">
-                <ArrowLeft className="h-4 w-4" />
+                <ArrowLeft className="size-4" aria-hidden="true" />
                 Previous
               </Button>
             ) : null}
             {pagination.hasNextPage ? (
               <Button href={getPageHref(pagination.page + 1)}>
                 Next
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight className="size-4" aria-hidden="true" />
               </Button>
             ) : null}
           </div>

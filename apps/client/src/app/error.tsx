@@ -12,14 +12,14 @@ export default function ErrorBoundary({
 }) {
   return (
     <section className="mx-auto flex min-h-[50vh] max-w-2xl flex-col items-center justify-center gap-4 py-12 text-center">
-      <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-red-700">
+      <span className="rounded-full bg-destructive/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-destructive">
         Storefront error
       </span>
       <div className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight">
+        <h1 className="font-serif text-4xl font-semibold tracking-[-0.035em]">
           Something interrupted this page.
         </h1>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-muted-foreground">
           {error.message || "The storefront could not render this route."}
         </p>
       </div>

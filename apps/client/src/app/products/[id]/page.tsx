@@ -171,15 +171,29 @@ const ProductPage = async ({
   };
 
   return (
-    <div className="min-w-0 pb-12 pt-4">
+    <div className="min-w-0 pb-12 pt-2">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: toJsonLd(productJsonLd) }}
       />
-      <div className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)] lg:gap-12 xl:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)]">
+      <nav
+        aria-label="Breadcrumb"
+        className="mb-5 text-xs text-muted-foreground"
+      >
+        <Link
+          href="/products"
+          className="rounded-sm hover:text-foreground hover:underline hover:underline-offset-4"
+        >
+          Collection
+        </Link>
+        <span className="px-2" aria-hidden="true">
+          /
+        </span>
+        <span className="text-foreground">{product.name}</span>
+      </nav>
+      <div className="grid min-w-0 gap-7 lg:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)] lg:items-start lg:gap-10 xl:grid-cols-[minmax(0,1.08fr)_minmax(420px,0.92fr)]">
         <section className="min-w-0 space-y-4">
-          <div className="relative aspect-[4/5] w-full overflow-hidden rounded-[2rem] bg-[linear-gradient(145deg,#f7f3ec_0%,#e9e2d5_48%,#ddd1c0_100%)] shadow-[0_28px_70px_-38px_rgba(39,31,25,0.5)]">
-            <div className="absolute inset-x-12 bottom-12 h-6 rounded-full bg-black/10 blur-lg" />
+          <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl border border-border bg-[#efebe4]">
             <Image
               src={selectedImage}
               alt={product.name}
@@ -199,10 +213,10 @@ const ProductPage = async ({
                   key={option.color}
                   href={`/products/${product.id}?color=${encodeURIComponent(option.color)}&size=${encodeURIComponent(selectedSize)}`}
                   prefetch={false}
-                  className={`relative aspect-square overflow-hidden rounded-xl border bg-[linear-gradient(145deg,#fffdf9_0%,#f4eee5_100%)] transition hover:border-stone-400 ${
+                  className={`relative aspect-square overflow-hidden rounded-lg border bg-card transition hover:border-foreground/30 ${
                     selectedColor === option.color
-                      ? "border-stone-950"
-                      : "border-stone-900/10"
+                      ? "border-foreground"
+                      : "border-border"
                   }`}
                   aria-label={`View ${option.color} ${product.name}`}
                 >
@@ -224,11 +238,14 @@ const ProductPage = async ({
           ) : null}
         </section>
 
-        <section className="min-w-0 rounded-[2rem] border border-stone-900/10 bg-[#fffdf9] p-6 shadow-[0_20px_50px_-36px_rgba(39,31,25,0.45)] sm:p-8">
+        <section className="min-w-0 rounded-2xl border border-border bg-card p-6 sm:p-8 lg:sticky lg:top-31">
           <div className="space-y-6">
             <div className="space-y-4">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className="bg-white text-stone-700">
+                <Badge
+                  variant="outline"
+                  className="bg-background text-muted-foreground"
+                >
                   {product.categorySlug}
                 </Badge>
                 <Badge variant="secondary">
@@ -236,23 +253,23 @@ const ProductPage = async ({
                 </Badge>
               </div>
               <div className="space-y-3">
-                <h1 className="font-serif text-4xl font-semibold leading-[1.02] text-stone-950 sm:text-5xl xl:text-6xl">
+                <h1 className="font-serif text-4xl font-semibold leading-[0.95] tracking-[-0.045em] text-foreground sm:text-5xl xl:text-6xl">
                   {product.name}
                 </h1>
-                <p className="max-w-2xl text-base leading-7 text-stone-600">
+                <p className="max-w-2xl text-base leading-7 text-muted-foreground">
                   {product.description}
                 </p>
               </div>
-              <div className="flex min-w-0 flex-wrap items-end justify-between gap-4 border-y border-stone-900/10 py-5">
+              <div className="flex min-w-0 flex-wrap items-end justify-between gap-4 border-y border-border py-5">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-stone-400">
+                  <p className="text-[0.625rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                     Price
                   </p>
-                  <p className="break-words font-serif text-4xl font-semibold text-stone-950">
+                  <p className="break-words font-serif text-4xl font-semibold text-foreground">
                     {formatUsdFromCents(product.price)}
                   </p>
                 </div>
-                <div className="text-left text-xs leading-5 text-stone-500 sm:text-right">
+                <div className="text-left text-xs leading-5 text-muted-foreground sm:text-right">
                   <p>Secure checkout</p>
                   <p>Stripe-backed payment</p>
                 </div>
@@ -266,7 +283,7 @@ const ProductPage = async ({
             />
           </div>
 
-          <div className="mt-8 grid gap-3 border-t border-black/10 pt-5 text-sm text-gray-600 sm:grid-cols-3">
+          <div className="mt-8 grid gap-2 border-t border-border pt-5 text-xs text-muted-foreground sm:grid-cols-3">
             {[
               "Free standard shipping",
               "Encrypted Stripe payment",
@@ -274,38 +291,38 @@ const ProductPage = async ({
             ].map((item) => (
               <div
                 key={item}
-                className="rounded-lg border border-black/10 bg-[#f8faf7] px-3 py-2"
+                className="rounded-lg border border-border bg-muted/55 px-3 py-2"
               >
                 {item}
               </div>
             ))}
           </div>
 
-          <div className="mt-6 space-y-4 border-t border-black/10 pt-5">
+          <div className="mt-6 space-y-4 border-t border-border pt-5">
             <div className="flex flex-wrap items-center gap-2">
               <Image
                 src="/klarna.png"
                 alt="Klarna"
                 width={56}
                 height={28}
-                className="rounded-md border border-black/5 bg-white"
+                className="rounded-md border border-border bg-white"
               />
               <Image
                 src="/cards.png"
                 alt="Cards"
                 width={56}
                 height={28}
-                className="rounded-md border border-black/5 bg-white"
+                className="rounded-md border border-border bg-white"
               />
               <Image
                 src="/stripe.png"
                 alt="Stripe"
                 width={56}
                 height={28}
-                className="rounded-md border border-black/5 bg-white"
+                className="rounded-md border border-border bg-white"
               />
             </div>
-            <p className="max-w-2xl text-xs leading-6 text-gray-500">
+            <p className="max-w-2xl text-xs leading-6 text-muted-foreground">
               By continuing to checkout, you agree to the terms and authorize
               the selected payment method to be charged for the order total.
             </p>

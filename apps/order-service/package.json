@@ -3,7 +3,7 @@
   "type": "module",
   "scripts": {
     "dev": "bun run --hot src/index.ts",
-    "check-types": "tsgo --noEmit"
+    "check-types": "tsc --noEmit"
   },
   "dependencies": {
     "@repo/hono-utils": "workspace:*",
