@@ -15,9 +15,15 @@ concurrency:
 
 env:
   BUN_VERSION: 1.3.14
+  BUN_DEV_IMAGE: dhi.io/bun:1.3.14-debian13-dev@sha256:294098cbf9ef24c7c66cb5849ea0c998fef17245d9aa3d955c078a73ccbada89
+  BUN_RUNTIME_IMAGE: dhi.io/bun:1.3.14-debian13@sha256:fb5dda72d73bd1e581d014e6546352766f8565bb78ce66a290e4f11fdc188c11
+  BUILDX_VERSION: v0.35.0
+  HELM_VERSION: 4.2.3
+  KUBECONFORM_IMAGE: ghcr.io/yannh/kubeconform:v0.8.0@sha256:faffaf43f95aa6425306e1ab8d6fcad72acb9049158f38e574c085ea1ec0f64e
+  K8S_SUPPORTED_VERSIONS: 1.34.9 1.35.6 1.36.2
   NODE_VERSION: 24
   REGISTRY: ghcr.io
-  TURBO_VERSION: 2.10.4
+  TURBO_VERSION: 2.10.5
   NEXT_TELEMETRY_DISABLED: 1
   TURBO_TELEMETRY_DISABLED: 1
 
@@ -37,22 +43,27 @@ jobs:
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: ${{ env.BUN_VERSION }}
 
       - name: Setup Node.js environment
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
+      - name: Setup Helm
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v${{ env.HELM_VERSION }}
+
       - name: Cache Bun packages
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
@@ -60,7 +71,7 @@ jobs:
             ${{ runner.os }}-bun-
 
       - name: Cache Turborepo
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-${{ github.sha }}
@@ -68,7 +79,7 @@ jobs:
             ${{ runner.os }}-turbo-
 
       - name: Cache Next.js build cache
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             apps/admin/.next/cache
@@ -79,7 +90,7 @@ jobs:
             ${{ runner.os }}-nextjs-
 
       - name: Cache Knip
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: node_modules/.cache/knip
           key: ${{ runner.os }}-knip-${{ hashFiles('bun.lock', 'knip.json') }}
@@ -93,6 +104,22 @@ jobs:
         run: |
           docker compose --env-file .env.example config > /tmp/compose.rendered.yml
           docker compose -f packages/kafka/compose.yml config > /tmp/kafka.compose.rendered.yml
+
+      - name: Validate Helm chart against supported Kubernetes releases
+        run: |
+          make helm-validate-supported
+          for kubernetes_version in ${K8S_SUPPORTED_VERSIONS}; do
+            helm template ecommerce charts/ecommerce \
+              --namespace ecommerce \
+              --kube-version "${kubernetes_version}" \
+              --set gateway.enabled=true \
+              --set ingress.enabled=false \
+              > "/tmp/ecommerce-kubernetes-${kubernetes_version}.yaml"
+          done
+          if rg -n 'image:.*:latest([@"[:space:]]|$)' /tmp/ecommerce-kubernetes-*.yaml; then
+            echo "Rendered Helm manifests must not contain latest image tags." >&2
+            exit 1
+          fi
 
       - name: Lint
         run: bun run lint:ci
@@ -125,7 +152,7 @@ jobs:
 
       - name: Upload Turbo diagnostics
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: turbo-diagnostics
           path: |
@@ -147,7 +174,7 @@ jobs:
 
       - name: SonarQube Scan
         if: env.SONAR_TOKEN != '' && env.SONAR_PROJECT_KEY != ''
-        uses: SonarSource/sonarqube-scan-action@v7
+        uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
         env:
           SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ env.SONAR_HOST_URL }}
@@ -179,17 +206,17 @@ jobs:
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
         with:
-          version: latest
+          version: ${{ env.BUILDX_VERSION }}
 
       - name: Validate Docker Hardened Images credentials
         env:
@@ -210,7 +237,7 @@ jobs:
         run: echo "value=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
 
       - name: Log in to Docker Hardened Images
-        uses: docker/login-action@v4
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
           registry: dhi.io
           username: ${{ secrets.DOCKER_USERNAME || secrets.DOCKERHUB_USERNAME }}
@@ -218,7 +245,7 @@ jobs:
 
       - name: Log in to Container Registry
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@v4
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -226,7 +253,7 @@ jobs:
 
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ${{ env.REGISTRY }}/${{ steps.image_prefix.outputs.value }}/${{ matrix.service.name }}
           tags: |
@@ -237,15 +264,15 @@ jobs:
             type=sha,prefix=sha-
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
           file: ${{ matrix.service.dockerfile }}
           pull: true
           push: ${{ github.event_name != 'pull_request' }}
           build-args: |
-            BUN_DEV_IMAGE=dhi.io/bun:${{ env.BUN_VERSION }}-debian13-dev
-            BUN_RUNTIME_IMAGE=dhi.io/bun:${{ env.BUN_VERSION }}-debian13
+            BUN_DEV_IMAGE=${{ env.BUN_DEV_IMAGE }}
+            BUN_RUNTIME_IMAGE=${{ env.BUN_RUNTIME_IMAGE }}
             TURBO_VERSION=${{ env.TURBO_VERSION }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

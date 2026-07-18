@@ -51,19 +51,23 @@ const SearchBar = () => {
   };
 
   return (
-    <search className="hidden min-w-0 sm:block md:min-w-80">
+    <search className="hidden min-w-0 lg:block lg:w-[min(27vw,22rem)]">
       <form
         action="/products"
-        className="flex h-11 items-center gap-2 rounded-full border border-stone-900/10 bg-stone-100/70 px-3 shadow-inner shadow-stone-900/[0.02] backdrop-blur transition focus-within:border-stone-900/20 focus-within:bg-white focus-within:ring-4 focus-within:ring-stone-900/[0.04]"
+        aria-busy={isPending}
+        className="flex h-10 items-center gap-2 rounded-lg border border-border bg-muted/60 px-3 transition-[background-color,border-color,box-shadow] focus-within:border-ring focus-within:bg-card focus-within:ring-[3px] focus-within:ring-ring/20"
         onSubmit={handleSubmit}
       >
-        <Search className="h-4 w-4 text-stone-500" />
+        <Search className="size-4 text-muted-foreground" aria-hidden="true" />
+        <label htmlFor="search" className="sr-only">
+          Search the catalog
+        </label>
         <Input
           id="search"
           name="search"
           type="search"
-          placeholder="Search products..."
-          className="h-auto border-0 bg-transparent px-0 py-0 shadow-none focus-visible:ring-0"
+          placeholder="Search the collection"
+          className="h-6 border-0 bg-transparent px-0 py-0 shadow-none focus-visible:outline-none focus-visible:ring-0"
           disabled={isPending}
           value={query}
           onChange={(event) => setQuery(event.target.value)}

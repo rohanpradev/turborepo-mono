@@ -54,16 +54,20 @@ export default function RootLayout({
       <SidebarProvider>
         <a
           href="#admin-content"
-          className="fixed left-3 top-3 z-[100] -translate-y-24 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-lg transition focus:translate-y-0"
+          className="fixed left-3 top-3 z-[100] -translate-y-24 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-xl transition focus:translate-y-0"
         >
-          Skip to content
+          Skip to main content
         </a>
         <AppSidebar />
-        <main id="admin-content" className="min-w-0 flex-1" tabIndex={-1}>
+        <main
+          id="admin-content"
+          className="min-h-screen min-w-0 flex-1 outline-none"
+          tabIndex={-1}
+        >
           <Suspense fallback={<Navbar viewer={adminViewerFallback} />}>
             <AdminNavbar />
           </Suspense>
-          <div className="mx-auto w-full max-w-[1500px] px-3 sm:px-4">
+          <div className="mx-auto w-full max-w-[1500px] px-3 pb-8 sm:px-5">
             {children}
           </div>
         </main>
@@ -73,7 +77,7 @@ export default function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="flex antialiased">
+      <body className="flex min-h-screen antialiased">
         {isClerkConfigured ? <ClerkProvider>{shell}</ClerkProvider> : shell}
       </body>
     </html>

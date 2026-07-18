@@ -129,7 +129,7 @@ const CheckoutForm = ({
       <div
         role="status"
         aria-live="polite"
-        className="rounded-[1.25rem] border border-black/5 bg-white/80 p-4 text-sm text-gray-600"
+        className="rounded-xl border border-border bg-muted/55 p-4 text-sm text-muted-foreground"
       >
         Loading checkout...
       </div>
@@ -140,7 +140,7 @@ const CheckoutForm = ({
     return (
       <div
         role="alert"
-        className="rounded-[1.25rem] border border-dashed border-red-200 bg-red-50 p-4 text-sm text-red-700"
+        className="rounded-xl border border-dashed border-destructive/25 bg-destructive/8 p-4 text-sm text-destructive"
       >
         {checkoutState.error.message}
       </div>
@@ -155,14 +155,14 @@ const CheckoutForm = ({
     >
       <div className="space-y-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.22em] text-gray-600">
+          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
             Delivery
           </p>
-          <h2 className="mt-1 text-xl font-semibold tracking-tight text-gray-950">
+          <h2 className="mt-1 text-xl font-semibold tracking-tight text-foreground">
             Shipping information
           </h2>
         </div>
-        <div className="grid gap-3 rounded-[1.25rem] border border-black/5 bg-white p-4 text-sm shadow-sm sm:grid-cols-2">
+        <div className="grid gap-3 rounded-xl border border-border bg-muted/45 p-4 text-sm sm:grid-cols-2">
           {[
             ["Email", shippingForm.email],
             ["Name", shippingForm.name],
@@ -171,10 +171,10 @@ const CheckoutForm = ({
             ["Country", shippingForm.country ?? "US"],
           ].map(([label, value]) => (
             <div key={label} className="min-w-0 space-y-1">
-              <p className="text-xs uppercase tracking-[0.16em] text-gray-600">
+              <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
                 {label}
               </p>
-              <p className="break-words font-medium text-gray-950">{value}</p>
+              <p className="break-words font-medium text-foreground">{value}</p>
             </div>
           ))}
         </div>
@@ -182,16 +182,20 @@ const CheckoutForm = ({
 
       <div className="space-y-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.22em] text-gray-600">
+          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
             Payment
           </p>
-          <h2 className="mt-1 text-xl font-semibold tracking-tight text-gray-950">
+          <h2 className="mt-1 text-xl font-semibold tracking-tight text-foreground">
             Payment details
           </h2>
         </div>
         <PaymentElement />
         {isSyncingDetails ? (
-          <p role="status" aria-live="polite" className="text-sm text-gray-600">
+          <p
+            role="status"
+            aria-live="polite"
+            className="text-sm text-muted-foreground"
+          >
             Syncing shipping details with Stripe...
           </p>
         ) : null}
@@ -209,9 +213,9 @@ const CheckoutForm = ({
       {message && (
         <div
           role="alert"
-          className="mt-4 rounded-[1.25rem] border border-red-200 bg-red-50 p-4"
+          className="mt-4 rounded-xl border border-destructive/25 bg-destructive/8 p-4"
         >
-          <p className="text-sm text-red-800">{message}</p>
+          <p className="text-sm text-destructive">{message}</p>
         </div>
       )}
     </form>

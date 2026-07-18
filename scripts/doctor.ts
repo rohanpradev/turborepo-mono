@@ -272,7 +272,11 @@ const main = async () => {
     ),
     optionalCommandCheck(
       "Docker Hardened Images auth",
-      ["docker", "pull", "dhi.io/bun:1-debian13"],
+      [
+        "docker",
+        "pull",
+        "dhi.io/bun:1.3.14-debian13@sha256:fb5dda72d73bd1e581d014e6546352766f8565bb78ce66a290e4f11fdc188c11",
+      ],
       "DHI Bun runtime image can be pulled.",
       (output) =>
         `DHI image pull is not ready. Run docker login dhi.io. ${summarizeOutput(output)}`,

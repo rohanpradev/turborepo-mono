@@ -5,7 +5,7 @@ import { Minus, Plus, ShoppingCart } from "lucide-react";
 import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { getColorSwatchStyle } from "@/lib/catalog";
 import useCartStore from "@/stores/cartStore";
@@ -52,7 +52,9 @@ const ProductInteraction = ({
       selectedColor,
       selectedSize,
     });
-    toast.success("Product added to cart");
+    toast.success(`${product.name} added to your bag`, {
+      description: `${selectedColor} · ${selectedSize.toUpperCase()}`,
+    });
   };
 
   const handleBuyNow = () => {
@@ -69,8 +71,8 @@ const ProductInteraction = ({
     <div className="mt-6 space-y-6">
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-950">Size</span>
-          <span className="text-xs uppercase tracking-[0.18em] text-gray-400">
+          <span className="text-sm font-semibold text-foreground">Size</span>
+          <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
             {selectedSize.toUpperCase()}
           </span>
         </div>
@@ -78,10 +80,10 @@ const ProductInteraction = ({
           {product.sizes.map((size) => (
             <button
               type="button"
-              className={`flex h-11 min-w-11 items-center justify-center rounded-full border px-3 text-sm font-medium transition ${
+              className={`flex h-10 min-w-10 cursor-pointer items-center justify-center rounded-lg border px-3 text-sm font-medium transition ${
                 selectedSize === size
-                  ? "border-gray-950 bg-gray-950 text-white"
-                  : "border-black/10 bg-white text-gray-700 hover:border-gray-400"
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-border bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground"
               }`}
               key={size}
               disabled={isPending}
@@ -96,8 +98,8 @@ const ProductInteraction = ({
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-950">Color</span>
-          <span className="text-xs uppercase tracking-[0.18em] text-gray-400">
+          <span className="text-sm font-semibold text-foreground">Color</span>
+          <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
             {selectedColor}
           </span>
         </div>
@@ -105,10 +107,10 @@ const ProductInteraction = ({
           {product.colors.map((color) => (
             <button
               type="button"
-              className={`rounded-full border p-1 transition ${
+              className={`cursor-pointer rounded-full border p-1 transition focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30 ${
                 selectedColor === color
-                  ? "border-gray-950"
-                  : "border-black/10 hover:border-gray-400"
+                  ? "border-foreground"
+                  : "border-border hover:border-foreground/30"
               }`}
               key={color}
               disabled={isPending}
@@ -126,23 +128,23 @@ const ProductInteraction = ({
       </div>
 
       <div className="space-y-3">
-        <span className="text-sm font-medium text-gray-950">Quantity</span>
-        <div className="inline-flex items-center rounded-full border border-black/10 bg-white p-1 shadow-sm">
+        <span className="text-sm font-semibold text-foreground">Quantity</span>
+        <div className="inline-flex items-center rounded-lg border border-border bg-card p-1 shadow-xs">
           <button
             type="button"
-            className="flex size-10 items-center justify-center rounded-full text-gray-600 transition hover:bg-gray-100 hover:text-gray-950 disabled:opacity-40"
+            className="flex size-9 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-40"
             disabled={quantity <= 1}
             aria-label="Decrease quantity"
             onClick={() => handleQuantityChange("decrement")}
           >
             <Minus className="size-4" />
           </button>
-          <span className="flex h-10 min-w-12 items-center justify-center px-3 text-sm font-semibold text-gray-950">
+          <span className="flex h-9 min-w-12 items-center justify-center px-3 text-sm font-semibold text-foreground">
             {quantity}
           </span>
           <button
             type="button"
-            className="flex size-10 items-center justify-center rounded-full text-gray-600 transition hover:bg-gray-100 hover:text-gray-950"
+            className="flex size-9 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground"
             aria-label="Increase quantity"
             disabled={quantity >= MAX_CART_ITEM_QUANTITY}
             onClick={() => handleQuantityChange("increment")}

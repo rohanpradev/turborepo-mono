@@ -40,19 +40,22 @@ const ShippingForm = ({
       className="flex w-full flex-col gap-5"
       onSubmit={handleSubmit(handleShippingForm)}
     >
-      <div className="rounded-lg border border-teal-100 bg-teal-50/70 px-4 py-3 text-sm text-teal-950">
+      <div className="rounded-lg border border-border bg-muted/60 px-4 py-3 text-sm text-foreground">
         <div className="flex items-center gap-2 font-medium">
           <LockKeyhole className="size-4" aria-hidden="true" />
           Delivery details
         </div>
-        <p className="mt-1 text-xs leading-5 text-teal-800">
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">
           Your details stay in this tab while you complete checkout and are
           cleared after payment.
         </p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
-          <label htmlFor="name" className="text-xs font-medium text-gray-700">
+          <label
+            htmlFor="name"
+            className="text-xs font-semibold text-foreground"
+          >
             Name
           </label>
           <Input
@@ -66,13 +69,20 @@ const ShippingForm = ({
             {...register("name")}
           />
           {errors.name && (
-            <p id="name-error" role="alert" className="text-xs text-red-700">
+            <p
+              id="name-error"
+              role="alert"
+              className="text-xs text-destructive"
+            >
               {errors.name.message}
             </p>
           )}
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor="email" className="text-xs font-medium text-gray-700">
+          <label
+            htmlFor="email"
+            className="text-xs font-semibold text-foreground"
+          >
             Email
           </label>
           <Input
@@ -86,14 +96,21 @@ const ShippingForm = ({
             {...register("email")}
           />
           {errors.email && (
-            <p id="email-error" role="alert" className="text-xs text-red-700">
+            <p
+              id="email-error"
+              role="alert"
+              className="text-xs text-destructive"
+            >
               {errors.email.message}
             </p>
           )}
         </div>
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor="phone" className="text-xs font-medium text-gray-700">
+        <label
+          htmlFor="phone"
+          className="text-xs font-semibold text-foreground"
+        >
           Phone
         </label>
         <Input
@@ -108,13 +125,16 @@ const ShippingForm = ({
           {...register("phone")}
         />
         {errors.phone && (
-          <p id="phone-error" role="alert" className="text-xs text-red-700">
+          <p id="phone-error" role="alert" className="text-xs text-destructive">
             {errors.phone.message}
           </p>
         )}
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor="address" className="text-xs font-medium text-gray-700">
+        <label
+          htmlFor="address"
+          className="text-xs font-semibold text-foreground"
+        >
           Address
         </label>
         <Input
@@ -128,13 +148,17 @@ const ShippingForm = ({
           {...register("address")}
         />
         {errors.address && (
-          <p id="address-error" role="alert" className="text-xs text-red-700">
+          <p
+            id="address-error"
+            role="alert"
+            className="text-xs text-destructive"
+          >
             {errors.address.message}
           </p>
         )}
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor="city" className="text-xs font-medium text-gray-700">
+        <label htmlFor="city" className="text-xs font-semibold text-foreground">
           City
         </label>
         <Input
@@ -148,7 +172,7 @@ const ShippingForm = ({
           {...register("city")}
         />
         {errors.city && (
-          <p id="city-error" role="alert" className="text-xs text-red-700">
+          <p id="city-error" role="alert" className="text-xs text-destructive">
             {errors.city.message}
           </p>
         )}
@@ -158,7 +182,7 @@ const ShippingForm = ({
         <ArrowRight className="h-4 w-4" />
       </Button>
       {initialValues ? (
-        <p className="flex items-center justify-center gap-2 text-xs text-teal-700">
+        <p className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
           <CheckCircle2 className="size-4" aria-hidden="true" />
           Saved delivery details loaded.
         </p>

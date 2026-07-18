@@ -11,7 +11,7 @@ function Input({
     <input
       type={type}
       className={cn(
-        "flex h-11 w-full rounded-full border border-stone-500 bg-white/90 px-4 text-sm text-stone-950 shadow-sm outline-none transition placeholder:text-stone-500 focus-visible:border-orange-700 focus-visible:ring-2 focus-visible:ring-orange-700/30 disabled:cursor-not-allowed disabled:opacity-50",
+        "flex h-10 w-full rounded-lg border border-input bg-card px-3.5 text-sm text-foreground shadow-xs outline-none transition-[border-color,box-shadow,background-color] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-50",
         className,
       )}
       {...props}

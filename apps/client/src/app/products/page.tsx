@@ -37,16 +37,18 @@ const ProductsPage = async ({
 
   return (
     <div className="space-y-8 pb-10 pt-2">
-      <header className="relative overflow-hidden rounded-[2rem] bg-[#e7ded0] p-6 sm:p-10">
-        <div className="absolute -right-16 -top-20 size-64 rounded-full border border-stone-900/10" />
-        <p className="relative text-xs font-semibold uppercase tracking-[0.2em] text-stone-600">
-          Live catalog
-        </p>
-        <h1 className="relative mt-3 font-serif text-4xl font-semibold tracking-tight text-stone-950 sm:text-5xl">
-          Explore all products
-        </h1>
-        <p className="relative mt-3 max-w-2xl text-sm leading-6 text-stone-700 sm:text-base">
-          Search, sort, and filter the latest apparel, denim, and footwear.
+      <header className="grid gap-8 rounded-2xl border border-border bg-card p-6 sm:p-9 lg:grid-cols-[1fr_auto] lg:items-end lg:p-11">
+        <div>
+          <p className="text-[0.6875rem] font-bold uppercase tracking-[0.18em] text-primary">
+            Collection / 2026
+          </p>
+          <h1 className="mt-4 max-w-3xl font-serif text-5xl font-semibold leading-[0.9] tracking-[-0.05em] text-foreground sm:text-6xl lg:text-7xl">
+            The complete edit.
+          </h1>
+        </div>
+        <p className="max-w-md text-sm leading-6 text-muted-foreground sm:text-base">
+          Search, sort, and filter current apparel, denim, and footwear. Each
+          piece is selected for regular use and easy pairing.
         </p>
       </header>
       <Suspense

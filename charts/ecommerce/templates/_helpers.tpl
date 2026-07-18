@@ -70,8 +70,25 @@ app.kubernetes.io/component: {{ .service.name | quote }}
 {{- $registry := default "" $root.Values.global.imageRegistry -}}
 {{- $repository := required "service image.repository is required" $image.repository -}}
 {{- $tag := default $root.Chart.AppVersion $image.tag -}}
+{{- $digest := default "" $image.digest -}}
+{{- $reference := $repository -}}
 {{- if $registry -}}
-{{- printf "%s/%s:%s" ($registry | trimSuffix "/") $repository $tag -}}
+{{- $reference = printf "%s/%s" ($registry | trimSuffix "/") $repository -}}
+{{- end -}}
+{{- if $digest -}}
+{{- printf "%s@%s" $reference $digest -}}
+{{- else -}}
+{{- printf "%s:%s" $reference $tag -}}
+{{- end -}}
+{{- end -}}
+
+{{/* Render a tag- or digest-pinned external image. */}}
+{{- define "ecommerce.externalImage" -}}
+{{- $repository := required "external image.repository is required" .repository -}}
+{{- $tag := required "external image.tag is required" .tag -}}
+{{- $digest := default "" .digest -}}
+{{- if $digest -}}
+{{- printf "%s@%s" $repository $digest -}}
 {{- else -}}
 {{- printf "%s:%s" $repository $tag -}}
 {{- end -}}

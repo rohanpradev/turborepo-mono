@@ -1,9 +1,10 @@
 import { Show, SignInButton } from "@clerk/nextjs";
-import { ArrowUpRight, Search, ShoppingBag } from "lucide-react";
+import { ArrowRight, Search } from "lucide-react";
 import type { Route } from "next";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Suspense } from "react";
+import BrandMark from "@/components/BrandMark";
 import SearchBar from "@/components/SearchBar";
 import ShoppingCartIcon from "@/components/ShoppingCartIcon";
 import { Button } from "@/components/ui/button";
@@ -15,68 +16,107 @@ const isClerkConfigured = Boolean(
     !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.includes("_here"),
 );
 
+const catalogLinks = [
+  { href: "/products?sort=newest", label: "New" },
+  { href: "/products?category=t-shirts", label: "T-shirts" },
+  { href: "/products?category=outerwear", label: "Outerwear" },
+  { href: "/products?category=denim", label: "Denim" },
+  { href: "/products?category=shoes", label: "Shoes" },
+] as const satisfies ReadonlyArray<{ href: Route; label: string }>;
+
 const Navbar = () => {
   return (
-    <nav className="sticky top-3 z-40 mb-8 flex w-full flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-900/10 bg-[#fffdf9]/90 px-3 py-3 shadow-[0_14px_40px_-24px_rgba(39,31,25,0.45)] backdrop-blur-xl sm:px-5">
-      <Link href="/" className="flex min-w-0 items-center gap-3">
-        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-stone-950 text-white shadow-lg shadow-stone-900/15">
-          <ShoppingBag className="size-5" aria-hidden="true" />
+    <header className="sticky top-2 z-40 mb-8 overflow-hidden rounded-xl border border-border/90 bg-card shadow-[0_12px_35px_-26px_rgba(28,25,23,0.55)] sm:top-3">
+      <Link
+        href="/products?sort=newest"
+        className="group flex min-h-8 items-center justify-center gap-2 bg-foreground px-4 py-1.5 text-center text-[0.6875rem] font-semibold tracking-[0.04em] text-background/80 transition-colors hover:text-background"
+      >
+        <span>New season edit</span>
+        <span className="hidden text-background/35 sm:inline">/</span>
+        <span className="hidden text-background/60 sm:inline">
+          Complimentary delivery over $75
         </span>
-        <div className="min-w-0">
-          <p className="truncate font-serif text-lg font-semibold leading-5 tracking-tight text-stone-950">
-            Common Goods
-          </p>
-          <p className="truncate text-[10px] font-semibold uppercase tracking-[0.18em] text-stone-500">
-            Everyday objects
-          </p>
-        </div>
+        <ArrowRight
+          className="size-3.5 transition-transform group-hover:translate-x-0.5"
+          aria-hidden="true"
+        />
       </Link>
-      <div className="flex flex-1 flex-wrap items-center justify-end gap-2 sm:gap-3 md:gap-4">
-        <Suspense
-          fallback={
-            <div className="hidden min-w-0 items-center gap-2 rounded-full border border-black/10 bg-white/80 px-3 py-2 shadow-sm sm:flex md:min-w-72">
-              <div className="h-4 w-4 rounded-full bg-gray-200" />
-              <div className="h-4 flex-1 rounded bg-gray-100" />
-            </div>
-          }
-        >
-          <SearchBar />
-        </Suspense>
+
+      <nav
+        aria-label="Primary navigation"
+        className="flex min-h-16 items-center gap-4 px-3 py-2.5 sm:px-4 lg:px-5"
+      >
         <Link
-          href={"/products" as Route}
-          className="hidden h-10 items-center gap-1 rounded-full px-4 text-sm font-medium text-stone-700 transition hover:bg-stone-100 sm:inline-flex"
+          href="/"
+          aria-label="Common Goods home"
+          className="group flex shrink-0 items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30"
         >
-          Products
-          <ArrowUpRight className="size-3.5" />
+          <BrandMark className="size-9 shrink-0 transition-transform group-hover:-rotate-2" />
+          <span className="hidden sm:block">
+            <span className="block font-serif text-lg font-semibold leading-none tracking-[-0.025em] text-foreground">
+              Common Goods
+            </span>
+            <span className="mt-1 block text-[0.5625rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Everyday objects
+            </span>
+          </span>
         </Link>
-        <Link
-          href={"/products" as Route}
-          aria-label="Search products"
-          className="inline-flex rounded-full border border-black/10 bg-white/80 p-2 text-gray-600 shadow-sm transition hover:border-black/20 hover:bg-gray-50 sm:hidden"
-        >
-          <Search className="h-4 w-4 text-gray-600" />
-        </Link>
-        <ShoppingCartIcon />
-        {isClerkConfigured ? (
-          <>
-            <Show when="signed-out">
-              <SignInButton mode="modal">
-                <Button type="button" variant="outline">
-                  Sign in
-                </Button>
-              </SignInButton>
-            </Show>
-            <Show when="signed-in">
-              <ProfileButton />
-            </Show>
-          </>
-        ) : (
-          <Button href={"/sign-in" as Route} variant="outline">
-            Sign in
-          </Button>
-        )}
-      </div>
-    </nav>
+
+        <div className="hidden items-center gap-0.5 xl:flex">
+          {catalogLinks.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="rounded-md px-2.5 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30"
+            >
+              {item.label}
+            </Link>
+          ))}
+        </div>
+
+        <div className="ml-auto flex min-w-0 items-center justify-end gap-1.5 sm:gap-2">
+          <Suspense
+            fallback={
+              <div className="hidden h-10 w-[min(30vw,22rem)] animate-pulse rounded-lg bg-muted lg:block" />
+            }
+          >
+            <SearchBar />
+          </Suspense>
+
+          <Link
+            href={"/products" as Route}
+            aria-label="Search and browse products"
+            className="inline-flex size-10 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30 lg:hidden"
+          >
+            <Search className="size-4" aria-hidden="true" />
+          </Link>
+          <ShoppingCartIcon />
+          {isClerkConfigured ? (
+            <>
+              <Show when="signed-out">
+                <SignInButton mode="modal">
+                  <Button type="button" variant="outline" size="sm">
+                    Sign in
+                  </Button>
+                </SignInButton>
+              </Show>
+              <Show when="signed-in">
+                <ProfileButton />
+              </Show>
+            </>
+          ) : (
+            <Button
+              href={"/sign-in" as Route}
+              variant="outline"
+              size="sm"
+              className="hidden min-[430px]:inline-flex"
+            >
+              Sign in
+            </Button>
+          )}
+        </div>
+      </nav>
+    </header>
   );
 };
 

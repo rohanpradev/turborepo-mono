@@ -1,5 +1,4 @@
 import type { ProductSort } from "@repo/types";
-import { ShoppingBasket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { buildCatalogHref } from "@/lib/catalog";
 
@@ -30,7 +29,10 @@ const Categories = ({
   ];
 
   return (
-    <div className="-mx-1 mb-5 flex gap-2 overflow-x-auto px-1 pb-1 text-sm sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
+    <nav
+      aria-label="Product categories"
+      className="-mx-1 mb-4 flex gap-2 overflow-x-auto px-1 pb-2 text-sm sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0"
+    >
       {options.map((category) => (
         <Button
           href={buildCatalogHref({
@@ -40,17 +42,24 @@ const Categories = ({
             sort,
           })}
           variant={category.slug === selectedCategory ? "default" : "outline"}
-          size="lg"
-          className="shrink-0 px-4"
+          size="sm"
+          className="shrink-0 rounded-full px-3.5"
           key={category.slug}
           aria-current={category.slug === selectedCategory ? "page" : undefined}
           scroll={false}
         >
-          <ShoppingBasket className="h-4 w-4" />
-          <span className="line-clamp-2">{category.name}</span>
+          <span
+            className={`size-1.5 rounded-full ${
+              category.slug === selectedCategory
+                ? "bg-background"
+                : "bg-primary"
+            }`}
+            aria-hidden="true"
+          />
+          <span>{category.name}</span>
         </Button>
       ))}
-    </div>
+    </nav>
   );
 };
 

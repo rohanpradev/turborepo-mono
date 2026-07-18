@@ -8,7 +8,7 @@ const isClerkConfigured = Boolean(
 export default function Page() {
   if (!isClerkConfigured) {
     return (
-      <div className="mt-12 rounded-lg border border-dashed border-gray-300 px-4 py-10 text-center text-sm text-gray-500">
+      <div className="mt-12 rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
         Authentication is not configured for this environment.
       </div>
     );

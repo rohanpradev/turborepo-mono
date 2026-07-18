@@ -1,15 +1,15 @@
 # Turbo Run Report
 
-Generated: 2026-07-09T13:08:31.080Z
-Summary: .turbo/runs/3GGeooplGa6M2A0uw0yvNgc3E6e.json
+Generated: 2026-07-18T05:45:58.344Z
+Summary: .turbo/runs/3GfD67LeZfvKn5cFEObgbT8pnEo.json
 
 ## Run
 
 - Command: `turbo run check-types build`
-- Turbo: 2.10.4
+- Turbo: 2.10.5
 - Env mode: strict
-- Started: 2026-07-09T13:08:30.899Z
-- Duration: 72ms
+- Started: 2026-07-18T05:45:51.091Z
+- Duration: 460ms
 - Packages: 13
 
 ## Cache
@@ -24,18 +24,18 @@ Summary: .turbo/runs/3GGeooplGa6M2A0uw0yvNgc3E6e.json
 
 | Task | Cache | Source | Duration | Time saved |
 | --- | --- | --- | --- | --- |
-| client#build | HIT | LOCAL | 58ms | 3.03s |
-| admin#build | HIT | LOCAL | 56ms | 3.12s |
-| @repo/order-db#check-types | HIT | LOCAL | 1ms | 1.20s |
-| @repo/types#check-types | HIT | LOCAL | 1ms | 237ms |
-| order-service#check-types | HIT | LOCAL | 1ms | 1.71s |
-| @repo/api-client#check-types | HIT | LOCAL | 0ms | 273ms |
-| @repo/contracts#check-types | HIT | LOCAL | 0ms | 308ms |
-| @repo/hono-utils#check-types | HIT | LOCAL | 0ms | 583ms |
-| @repo/kafka#check-types | HIT | LOCAL | 0ms | 272ms |
-| @repo/product-db#check-types | HIT | LOCAL | 0ms | 338ms |
-| @repo/product-db#db:generate | HIT | LOCAL | 0ms | 1.20s |
-| admin#check-types | HIT | LOCAL | 0ms | 1.02s |
-| client#check-types | HIT | LOCAL | 0ms | 1.05s |
-| payment-service#check-types | HIT | LOCAL | 0ms | 1.42s |
-| product-service#check-types | HIT | LOCAL | 0ms | 908ms |
+| client#build | HIT | LOCAL | 445ms | 6.03s |
+| admin#build | HIT | LOCAL | 283ms | 6.05s |
+| @repo/api-client#check-types | HIT | LOCAL | 1ms | 199ms |
+| @repo/product-db#db:generate | HIT | LOCAL | 1ms | 1.27s |
+| @repo/contracts#check-types | HIT | LOCAL | 0ms | 185ms |
+| @repo/hono-utils#check-types | HIT | LOCAL | 0ms | 404ms |
+| @repo/kafka#check-types | HIT | LOCAL | 0ms | 147ms |
+| @repo/order-db#check-types | HIT | LOCAL | 0ms | 713ms |
+| @repo/product-db#check-types | HIT | LOCAL | 0ms | 139ms |
+| @repo/types#check-types | HIT | LOCAL | 0ms | 146ms |
+| admin#check-types | HIT | LOCAL | 0ms | 2.71s |
+| client#check-types | HIT | LOCAL | 0ms | 2.65s |
+| order-service#check-types | HIT | LOCAL | 0ms | 1.41s |
+| payment-service#check-types | HIT | LOCAL | 0ms | 909ms |
+| product-service#check-types | HIT | LOCAL | 0ms | 656ms |

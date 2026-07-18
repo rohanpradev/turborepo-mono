@@ -85,8 +85,8 @@ function AuthenticatedReturnContent() {
   }, [clearCart, clearShippingForm, searchParams, verificationAttempt]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 px-4 py-10">
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 rounded-3xl border bg-white p-6 shadow-sm sm:p-10">
+    <div className="min-h-[60vh] px-0 py-10">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 rounded-2xl border border-border bg-card p-6 sm:p-10">
         <div className="flex items-center gap-3">
           <div
             className={`flex size-12 items-center justify-center rounded-full ${
@@ -110,7 +110,7 @@ function AuthenticatedReturnContent() {
             >
               {isPaid ? "Payment complete" : "Payment status"}
             </Badge>
-            <h1 className="text-2xl font-semibold tracking-tight">
+            <h1 className="font-serif text-3xl font-semibold tracking-[-0.035em]">
               {isPaid
                 ? "Your order was paid successfully."
                 : `Checkout ${status}.`}
@@ -129,14 +129,14 @@ function AuthenticatedReturnContent() {
         </p>
 
         {(sessionId || paymentIntentId) && (
-          <div className="rounded-2xl border bg-gray-50 p-4">
+          <div className="rounded-xl border border-border bg-muted/55 p-4">
             <div className="grid gap-4 text-sm sm:grid-cols-2">
               {sessionId && (
                 <div className="space-y-1">
                   <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
                     Session
                   </p>
-                  <p className="break-all font-mono text-xs text-gray-900">
+                  <p className="break-all font-mono text-xs text-foreground">
                     {sessionId}
                   </p>
                 </div>
@@ -146,7 +146,7 @@ function AuthenticatedReturnContent() {
                   <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
                     Payment Intent
                   </p>
-                  <p className="break-all font-mono text-xs text-gray-900">
+                  <p className="break-all font-mono text-xs text-foreground">
                     {paymentIntentId}
                   </p>
                 </div>
@@ -155,7 +155,7 @@ function AuthenticatedReturnContent() {
                 <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
                   Status
                 </p>
-                <p className="text-sm font-medium text-gray-900">{status}</p>
+                <p className="text-sm font-medium text-foreground">{status}</p>
               </div>
             </div>
           </div>
@@ -206,12 +206,12 @@ function ReturnContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 px-4 py-10">
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 rounded-3xl border bg-white p-6 shadow-sm sm:p-10">
+    <div className="min-h-[60vh] px-0 py-10">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 rounded-2xl border border-border bg-card p-6 sm:p-10">
         <Badge variant="outline" className="w-fit">
           Payment status unavailable
         </Badge>
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="font-serif text-3xl font-semibold tracking-[-0.035em]">
           Authentication is not configured.
         </h1>
         <p className="text-sm text-muted-foreground">
@@ -234,9 +234,9 @@ export default function ReturnPage() {
         <div
           role="status"
           aria-label="Loading payment status"
-          className="flex min-h-screen items-center justify-center bg-gray-50"
+          className="flex min-h-[60vh] items-center justify-center bg-background"
         >
-          <div className="size-12 animate-spin rounded-full border-b-2 border-stone-800" />
+          <div className="size-10 animate-spin rounded-full border-2 border-border border-t-foreground" />
         </div>
       }
     >

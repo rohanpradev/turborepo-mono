@@ -36,25 +36,25 @@ type ButtonAsLinkProps = Omit<
 type ButtonProps = ButtonAsButtonProps | ButtonAsLinkProps;
 
 const baseClasses =
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]";
+  "inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-semibold transition-[background-color,border-color,color,box-shadow,transform] disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background active:translate-y-px";
 
 const variantClasses: Record<NonNullable<ButtonProps["variant"]>, string> = {
-  default:
-    "bg-[#b94e28] text-white shadow-sm shadow-[#b94e28]/20 hover:bg-[#9f3d1e]",
+  default: "bg-foreground text-background shadow-sm hover:bg-foreground/88",
   glass:
-    "border border-white/25 bg-white/10 text-white shadow-sm hover:bg-white/15",
-  light: "bg-white text-stone-950 shadow-sm hover:bg-orange-50",
+    "border border-white/25 bg-white/10 text-white shadow-sm backdrop-blur hover:bg-white/16",
+  light:
+    "bg-white text-stone-950 shadow-[0_10px_24px_-16px_rgba(0,0,0,0.7)] hover:bg-orange-50",
   outline:
-    "border border-stone-900/10 bg-white text-stone-700 shadow-sm hover:border-stone-900/20 hover:bg-stone-50",
-  secondary: "bg-stone-100 text-stone-950 hover:bg-stone-200",
-  ghost: "hover:bg-stone-100 hover:text-stone-950",
-  link: "text-stone-950 underline-offset-4 hover:underline",
+    "border border-border bg-card text-card-foreground shadow-xs hover:border-foreground/25 hover:bg-muted",
+  secondary: "bg-secondary text-secondary-foreground shadow-sm hover:bg-accent",
+  ghost: "text-foreground hover:bg-muted hover:text-foreground",
+  link: "text-foreground underline-offset-4 hover:underline",
 };
 
 const sizeClasses: Record<NonNullable<ButtonProps["size"]>, string> = {
-  default: "h-10 px-5 py-3",
-  sm: "h-9 rounded-full px-4",
-  lg: "h-11 rounded-full px-6",
+  default: "h-10 px-4 py-2",
+  sm: "h-9 px-3.5 text-xs",
+  lg: "h-11 px-5 text-sm",
   icon: "size-10",
 };
 

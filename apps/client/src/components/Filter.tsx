@@ -33,17 +33,20 @@ const Filter = () => {
   };
 
   return (
-    <div className="my-6 flex flex-col gap-3 rounded-2xl border border-stone-900/10 bg-[#fffdf9] p-3 text-sm text-stone-500 shadow-[0_10px_24px_-20px_rgba(39,31,25,0.4)] sm:flex-row sm:items-center sm:justify-end">
+    <div className="my-5 flex flex-col gap-3 border-y border-border py-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-xs text-muted-foreground">
+        Refine the collection without leaving this page.
+      </p>
       <label
         htmlFor="sort"
-        className="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500"
+        className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground sm:ml-auto"
       >
         Sort by
       </label>
       <Select
         name="sort"
         id="sort"
-        className="sm:w-56"
+        className="sm:w-52"
         disabled={isPending}
         value={selectedSort}
         onChange={(e) => handleFilter(e.target.value)}

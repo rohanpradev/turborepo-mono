@@ -2,7 +2,7 @@
 
 import { ShoppingCart } from "lucide-react";
 import { useState } from "react";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { getColorSwatchStyle } from "@/lib/catalog";
@@ -31,15 +31,17 @@ const ProductCardActions = ({
       selectedColor,
       selectedSize,
     });
-    toast.success("Added to cart");
+    toast.success(`${product.name} added to your bag`, {
+      description: `${selectedColor} · ${selectedSize.toUpperCase()}`,
+    });
   };
 
   return (
-    <div className="mt-auto space-y-3">
-      <div className="grid gap-3 text-xs">
+    <div className="mt-auto space-y-3 border-t border-border pt-4">
+      <div className="grid gap-2 text-xs">
         <label
           htmlFor={`size-${product.id}`}
-          className="font-medium uppercase tracking-[0.14em] text-gray-500"
+          className="font-bold uppercase tracking-[0.14em] text-muted-foreground"
         >
           Size
         </label>
@@ -57,11 +59,11 @@ const ProductCardActions = ({
         </Select>
       </div>
 
-      <div className="space-y-2">
-        <span className="text-xs font-medium uppercase tracking-[0.14em] text-gray-500">
+      <fieldset className="space-y-2">
+        <legend className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
           Color
-        </span>
-        <div className="flex min-h-9 flex-wrap gap-2">
+        </legend>
+        <div className="flex min-h-8 flex-wrap gap-1.5">
           {product.colors.slice(0, 6).map((color) => (
             <button
               type="button"
@@ -69,20 +71,21 @@ const ProductCardActions = ({
               aria-label={`Select ${color} color`}
               aria-pressed={selectedColor === color}
               onClick={() => onSelectedColorChange(color)}
-              className={`grid size-9 place-items-center rounded-full border transition ${
+              title={color}
+              className={`grid size-9 cursor-pointer place-items-center rounded-full border transition-[border-color,background-color,box-shadow] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30 focus-visible:ring-offset-2 ${
                 selectedColor === color
-                  ? "border-gray-950 bg-gray-950"
-                  : "border-black/10 bg-white hover:border-gray-400"
+                  ? "border-foreground bg-foreground shadow-sm"
+                  : "border-border bg-card hover:border-stone-400"
               }`}
             >
               <span
-                className="size-5 rounded-full border border-black/15"
+                className="size-4.5 rounded-full border border-black/15"
                 style={getColorSwatchStyle(color)}
               />
             </button>
           ))}
         </div>
-      </div>
+      </fieldset>
 
       <Button
         type="button"

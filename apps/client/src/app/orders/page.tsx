@@ -5,6 +5,7 @@ import { getOrderServiceUrl, listUserOrders } from "@repo/api-client";
 import type { OrderRecord } from "@repo/types";
 import { formatUsdFromCents } from "@repo/types";
 import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 
 const isClerkConfigured = Boolean(
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
@@ -57,7 +58,7 @@ const OrdersContent = () => {
   if (!isLoaded || isLoading) {
     return (
       <div className="mt-12 flex min-h-[40vh] items-center justify-center">
-        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-gray-800" />
+        <div className="size-10 animate-spin rounded-full border-2 border-border border-t-foreground" />
       </div>
     );
   }
@@ -65,17 +66,14 @@ const OrdersContent = () => {
   if (!userId) {
     return (
       <section className="mx-auto max-w-3xl space-y-4 py-8">
-        <h1 className="text-2xl font-semibold">Your Orders</h1>
-        <p className="text-sm text-gray-500">
+        <h1 className="font-serif text-4xl font-semibold tracking-[-0.035em]">
+          Your orders.
+        </h1>
+        <p className="text-sm text-muted-foreground">
           Sign in to see your order history.
         </p>
         <SignInButton mode="modal">
-          <button
-            type="button"
-            className="rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white"
-          >
-            Sign in
-          </button>
+          <Button type="button">Sign in</Button>
         </SignInButton>
       </section>
     );
@@ -84,14 +82,16 @@ const OrdersContent = () => {
   return (
     <section className="mx-auto max-w-4xl space-y-6 py-8">
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold">Your Orders</h1>
-        <p className="text-sm text-gray-500">
+        <h1 className="font-serif text-5xl font-semibold tracking-[-0.045em]">
+          Your orders.
+        </h1>
+        <p className="text-sm text-muted-foreground">
           Payment-backed orders synced from the order service.
         </p>
       </div>
 
       {error ? (
-        <div className="rounded-lg border border-dashed border-red-300 bg-red-50 px-4 py-6 text-sm text-red-700">
+        <div className="rounded-xl border border-dashed border-destructive/25 bg-destructive/8 px-4 py-6 text-sm text-destructive">
           {error}
         </div>
       ) : orders.length > 0 ? (
@@ -103,23 +103,23 @@ const OrdersContent = () => {
             return (
               <article
                 key={displayOrderId}
-                className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm"
+                className="rounded-xl border border-border bg-card p-5"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-muted-foreground">
                       Order {displayOrderId}
                     </p>
                     <p className="text-lg font-medium">
                       {formatUsdFromCents(order.amount)}
                     </p>
                   </div>
-                  <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium capitalize text-emerald-700">
+                  <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium capitalize text-emerald-800">
                     {order.status}
                   </span>
                 </div>
 
-                <ul className="mt-4 space-y-2 text-sm text-gray-600">
+                <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
                   {order.products.map((product) => {
                     const baseKey = `${product.name}-${product.price}-${product.quantity}`;
                     const occurrence =
@@ -130,7 +130,7 @@ const OrdersContent = () => {
                     return (
                       <li
                         key={`${order._id}-${baseKey}-${occurrence}`}
-                        className="flex items-center justify-between gap-3 rounded-md bg-gray-50 px-3 py-2"
+                        className="flex items-center justify-between gap-3 rounded-md bg-muted/60 px-3 py-2"
                       >
                         <span>{product.name}</span>
                         <span>
@@ -142,7 +142,7 @@ const OrdersContent = () => {
                   })}
                 </ul>
 
-                <p className="mt-4 text-xs text-gray-500">
+                <p className="mt-4 text-xs text-muted-foreground">
                   Updated {order.updatedAt ?? order.createdAt ?? "recently"}
                 </p>
               </article>
@@ -150,7 +150,7 @@ const OrdersContent = () => {
           })}
         </div>
       ) : (
-        <div className="rounded-lg border border-dashed border-gray-300 px-4 py-10 text-center text-sm text-gray-500">
+        <div className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
           No orders yet.
         </div>
       )}
@@ -162,8 +162,10 @@ export default function OrdersPage() {
   if (!isClerkConfigured) {
     return (
       <section className="mx-auto max-w-3xl space-y-4 py-8">
-        <h1 className="text-2xl font-semibold">Your Orders</h1>
-        <p className="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+        <h1 className="font-serif text-4xl font-semibold tracking-[-0.035em]">
+          Your orders.
+        </h1>
+        <p className="rounded-xl border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
           Authentication is not configured for this environment, so customer
           order history is unavailable.
         </p>

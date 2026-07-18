@@ -16,7 +16,7 @@ spec:
     {{- toYaml .Values.global.podSecurityContext | nindent 4 }}
   containers:
     - name: curl
-      image: "{{ .Values.helmTests.image.repository }}:{{ .Values.helmTests.image.tag }}"
+      image: {{ include "ecommerce.externalImage" .Values.helmTests.image | quote }}
       imagePullPolicy: {{ .Values.helmTests.image.pullPolicy }}
       securityContext:
         {{- toYaml .Values.global.containerSecurityContext | nindent 8 }}
