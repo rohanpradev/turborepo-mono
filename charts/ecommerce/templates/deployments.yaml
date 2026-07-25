@@ -1,5 +1,6 @@
 {{- range $key, $service := .Values.services }}
 {{- if $service.enabled }}
+{{- $topologySpreadConstraints := coalesce $service.topologySpreadConstraints $.Values.global.topologySpreadConstraints }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -71,14 +72,25 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with $.Values.global.topologySpreadConstraints }}
+      {{- if $topologySpreadConstraints }}
       topologySpreadConstraints:
-        {{- toYaml . | nindent 8 }}
+        {{- toYaml $topologySpreadConstraints | nindent 8 }}
+      {{- else if $.Values.global.topologySpread.enabled }}
+      topologySpreadConstraints:
+        - maxSkew: {{ $.Values.global.topologySpread.maxSkew }}
+          topologyKey: {{ $.Values.global.topologySpread.topologyKey | quote }}
+          whenUnsatisfiable: {{ $.Values.global.topologySpread.whenUnsatisfiable }}
+          labelSelector:
+            matchLabels:
+              {{- include "ecommerce.selectorLabels" (dict "root" $ "service" $service) | nindent 14 }}
+          matchLabelKeys:
+            - pod-template-hash
       {{- end }}
       containers:
         - name: {{ $service.name }}
           image: {{ include "ecommerce.image" (dict "root" $ "service" $service) | quote }}
           imagePullPolicy: {{ default $.Values.global.imagePullPolicy $service.image.pullPolicy }}
+          terminationMessagePolicy: FallbackToLogsOnError
           securityContext:
             {{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
           ports:
@@ -139,6 +151,7 @@ spec:
         - name: stripe-cli
           image: {{ include "ecommerce.externalImage" $.Values.stripeCli.image | quote }}
           imagePullPolicy: {{ $.Values.stripeCli.image.pullPolicy }}
+          terminationMessagePolicy: FallbackToLogsOnError
           command:
             - /bin/sh
             - /opt/stripe/stripe-cli-listen.sh

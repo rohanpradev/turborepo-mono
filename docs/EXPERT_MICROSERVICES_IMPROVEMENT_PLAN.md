@@ -1,6 +1,6 @@
 # Expert Microservices Improvement Plan
 
-Assessment date: 2026-07-18
+Assessment date: 2026-07-25
 
 ## Verdict
 
@@ -21,7 +21,7 @@ Scores are an engineering assessment, not a benchmark certification.
 | Data architecture | 5.5/10 | Database ownership and useful Postgres/Mongo separation | Order data is only a read model; no transactional order source of truth, backup/restore proof, or RPO/RTO |
 | API and identity security | 7/10 | Clerk verification, ownership checks, admin authorization, secure headers | Public API surface is wider than necessary; no workload identity, distributed rate limit, or service-level authorization policy |
 | Observability and SRE | 6/10 | Request IDs, trace context, structured metrics/logs, ServiceMonitors, alerts, dashboard | No real spans/collector/backend, exemplars, business SLIs, burn-rate alerts, or error-budget policy |
-| Kubernetes workload quality | 7.5/10 | Probes, resources, PDBs, security contexts, Gateway API v1 option, Helm schema, digest-aware images, supported-version render matrix | NetworkPolicy is off and permissive by default; topology spread and autoscaling are off; API and workers are coupled |
+| Kubernetes workload quality | 7.5/10 | Probes, resources, PDBs, security contexts, soft topology spreading, Gateway API v1 option, Helm schema, digest-aware images, supported-version render matrix | NetworkPolicy and autoscaling are off by default; API and workers are coupled |
 | Delivery and supply chain | 7/10 | CI gates, digest-pinned external images, immutable app-image support, multi-arch images, SBOM and provenance generation | No GitOps environment promotion, digest verification/admission, canary analysis, signed provenance verification, or pinned action SHAs |
 | Test confidence | 5.5/10 | Fast unit/integration-style tests and build checks | No real-broker/database integration suite, browser checkout proof, load test, migration test, or failure/chaos test |
 
@@ -85,24 +85,26 @@ Recommended bounded contexts:
 
 Status: implemented in this pass.
 
-- Every directly upgradeable catalog dependency is current according to `bun outdated --recursive`; its only reported entry is the intentional TypeScript 6 compatibility package described below.
+- Every directly upgradeable catalog dependency is current according to `bun outdated --recursive`; its only reported entry is the intentional TypeScript 6 API compatibility package described below.
 - The old `@typescript/native-preview` nightly was removed.
 - Stable TypeScript 7 is installed as `@typescript/native` and supplies the `tsc` binary.
-- Stable TypeScript 6 remains installed as `typescript` because Next.js 16 needs the programmatic compiler API that TypeScript 7.0 intentionally does not expose.
-- Turborepo is aligned at 2.10.5 in the workspace, CI, and Docker defaults.
-- Stripe CLI is aligned at 1.43.8 in Compose and Helm.
-- Prisma 7.8, PostgreSQL 18.4, Mongoose 9.7, MongoDB 8.3.4, and Bun 1.3.14 were checked against their current documentation and dependency metadata.
+- Stable TypeScript 6 remains installed directly as `typescript` because Next.js 16 needs the programmatic compiler API that TypeScript 7.0 intentionally does not expose. The official `@typescript/typescript6` bridge is not used because Bun 1.3.14 incorrectly resolves its nested `@typescript/old` alias back to the bridge itself, leaving the API empty.
+- Turborepo is aligned at 2.10.6 in the workspace, CI, and Docker defaults.
+- Stripe CLI is aligned at 1.44.0 in Compose and Helm.
+- Prisma 7.9, PostgreSQL 18.4, Mongoose 9.8, MongoDB 8.3.4, and Bun 1.3.14 were checked against their current documentation and dependency metadata.
+- Security overrides pin patched `fast-uri` 4.1.1, `valibot` 1.4.2, `find-my-way` 9.7.0, and `sharp` 0.35.3 releases until their direct dependents widen or update their ranges.
 - Redis Open Source 8.8 documentation was reviewed, but this repository has no Redis package or runtime today. Do not add an unused datastore; introduce a managed Redis deployment only for a measured cache, rate-limit, or ephemeral coordination requirement, never as commerce state of record.
 - Kafka was upgraded from 4.2 to 4.3.1, the current Apache release.
 - Every external Compose image now uses an exact version and verified digest. The MongoDB DHI is currently amd64-only, so Compose declares that platform explicitly; Docker Socket Proxy also moved to its maintainer-recommended GHCR registry.
 - The Bun Docker build/runtime bases are pinned to 1.3.14 tags and verified image-index digests in Dockerfiles and CI.
-- Every Dockerfile pins the Dockerfile frontend at 1.24.0 with its verified multi-architecture digest.
-- Docker Buildx is pinned to 0.34.1 in CI instead of resolving a mutable `latest` tool version.
-- Traefik uses official 3.7.7 because it fixes three advisories and Docker Hardened Images currently publishes only 3.7.6.
-- Helm is pinned to 4.2.3 in CI through Azure Setup Helm 5.0.1. The application chart is now 0.2.0 and supports maintained Kubernetes 1.34 through 1.36.
+- Every Dockerfile pins the Dockerfile frontend at 1.25.0 with its verified multi-architecture digest.
+- Docker Buildx is pinned to 0.35.0 in CI, and its BuildKit backend is pinned to the 0.31.2 security release and verified multi-architecture image digest instead of resolving mutable defaults.
+- CI actions are pinned to immutable current-release commit SHAs, including `actions/checkout` 7.0.1 and `docker/login-action` 4.5.1.
+- Traefik uses the official 3.7.8 security and bug-fix release with a verified multi-architecture image digest.
+- Helm is pinned to 4.2.3 in CI through Azure Setup Helm 5.0.1. The application chart is now 0.3.0 and supports maintained Kubernetes 1.34 through 1.36.
 - CI and `make helm-lint-supported` validate all chart profiles against Kubernetes 1.34.9, 1.35.6, and 1.36.2, the latest patches published by the canonical English release pages during this audit.
 - Kubeconform 0.8.0 is digest-pinned and strictly validates all built-in rendered resources for every chart profile and supported Kubernetes patch; CRD-backed resources without core schemas are reported as skipped.
-- Gateway API standard CRDs are pinned at 1.6.1, Traefik's chart at 41.0.2, and kube-prometheus-stack at 87.12.2.
+- Gateway API standard CRDs are pinned at 1.6.1, Traefik's chart at 41.0.2, and kube-prometheus-stack at 87.19.1.
 - Helm application images accept SHA-256 digests, the Stripe CLI and curl test images are digest-pinned, and no chart default uses `latest`.
 
 Keep these gates:
@@ -341,7 +343,7 @@ Use PgBouncer where workload concurrency or failover behavior justifies it. Add 
 
 ### Mongoose and MongoDB
 
-Mongoose 9.7 is current and the connection helper already disables command buffering and sets pool/selection timeouts. Keep production `autoIndex` off, manage indexes through migrations, configure TLS and replica-set connections, and test primary failover. Keep MongoDB only if the order read projection has a measurable query or scaling benefit.
+Mongoose 9.8 is current and the connection helper already disables command buffering and sets pool/selection timeouts. Keep production `autoIndex` off, manage indexes through migrations, configure TLS and replica-set connections, and test primary failover. Keep MongoDB only if the order read projection has a measurable query or scaling benefit.
 
 ### Bun
 
@@ -389,12 +391,20 @@ The project can credibly call itself reference-grade when it can demonstrate all
 ## Primary References
 
 - TypeScript 7 stable release and side-by-side TypeScript 6 compatibility: <https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/>
+- `fast-uri` host-confusion advisories: <https://github.com/advisories/GHSA-v2hh-gcrm-f6hx> and <https://github.com/advisories/GHSA-4c8g-83qw-93j6>
+- Valibot record-path advisory: <https://github.com/advisories/GHSA-5qjj-4xww-7phc>
+- `find-my-way` HTTP/2 denial-of-service advisory: <https://github.com/advisories/GHSA-c96f-x56v-gq3h>
+- Sharp/libvips advisory and Sharp 0.35 migration notes: <https://github.com/advisories/GHSA-f88m-g3jw-g9cj> and <https://sharp.pixelplumbing.com/changelog/v0.35.0/>
+- Next.js 16 upgrade guide: <https://nextjs.org/docs/app/guides/upgrading/version-16>
+- Next.js generated route props: <https://nextjs.org/docs/app/api-reference/functions/generate-metadata>
+- Next.js Turbopack filesystem cache: <https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache>
+- Next.js image configuration: <https://nextjs.org/docs/app/api-reference/components/image>
 - Bun 1.3.14 release: <https://github.com/oven-sh/bun/releases/tag/bun-v1.3.14>
 - Bun workspaces and catalogs: <https://bun.sh/docs/pm/workspaces>
 - Prisma ORM 7 upgrade guide: <https://docs.prisma.io/docs/guides/upgrade-prisma-orm/v7>
 - Prisma 7 connection pooling: <https://docs.prisma.io/docs/orm/prisma-client/setup-and-configuration/databases-connections/connection-pool>
 - PostgreSQL 18.4 release notes: <https://www.postgresql.org/docs/release/18.4/>
-- Mongoose 9.7.4 documentation: <https://mongoosejs.com/docs/>
+- Mongoose 9.8.0 documentation: <https://mongoosejs.com/docs/>
 - Mongoose 9 migration guidance: <https://mongoosejs.com/docs/migrating_to_9.html>
 - MongoDB 8.3 release notes: <https://www.mongodb.com/docs/manual/release-notes/8.3/>
 - Redis Open Source 8.8 release notes: <https://redis.io/docs/latest/operate/oss_and_stack/stack-with-enterprise/release-notes/redisce/redisos-8.8-release-notes/>
@@ -403,18 +413,24 @@ The project can credibly call itself reference-grade when it can demonstrate all
 - Kubernetes production environment: <https://kubernetes.io/docs/setup/production-environment/>
 - Kubernetes active release lines: <https://kubernetes.io/releases/>
 - Kubernetes image tags and digest guidance: <https://kubernetes.io/docs/concepts/containers/images/>
+- Kubernetes topology spread constraints: <https://kubernetes.io/docs/concepts/scheduling-eviction/topology-spread-constraints/>
+- Kubernetes security contexts: <https://kubernetes.io/docs/tasks/configure-pod-container/security-context/>
 - Helm 4.2.3 release: <https://github.com/helm/helm/releases/tag/v4.2.3>
 - Helm chart and `kubeVersion` guidance: <https://helm.sh/docs/topics/charts/>
+- Helm chart best practices: <https://helm.sh/docs/chart_best_practices/>
 - kubeconform 0.8.0 release: <https://github.com/yannh/kubeconform/releases/tag/v0.8.0>
-- Docker Buildx 0.34.1 release: <https://github.com/docker/buildx/releases/tag/v0.34.1>
+- Docker Buildx 0.35.0 release: <https://github.com/docker/buildx/releases/tag/v0.35.0>
+- BuildKit 0.31.2 security release: <https://github.com/moby/buildkit/releases/tag/v0.31.2>
+- GitHub Actions checkout 7.0.1 release: <https://github.com/actions/checkout/releases/tag/v7.0.1>
+- Docker login action 4.5.1 release: <https://github.com/docker/login-action/releases/tag/v4.5.1>
 - Dockerfile frontend releases: <https://github.com/moby/buildkit/releases>
 - Kubernetes NetworkPolicy: <https://kubernetes.io/docs/concepts/services-networking/network-policies/>
 - Kubernetes Pod Security Standards: <https://kubernetes.io/docs/concepts/security/pod-security-standards/>
 - Gateway API getting started: <https://gateway-api.sigs.k8s.io/guides/getting-started/introduction/>
 - Gateway API 1.6.1 release: <https://github.com/kubernetes-sigs/gateway-api/releases/tag/v1.6.1>
-- Traefik 3.7.7 security and bug-fix release: <https://github.com/traefik/traefik/releases/tag/v3.7.7>
+- Traefik 3.7.8 security and bug-fix release: <https://github.com/traefik/traefik/releases/tag/v3.7.8>
 - Traefik chart 41.0.2: <https://artifacthub.io/packages/helm/traefik/traefik>
-- kube-prometheus-stack 87.12.2: <https://artifacthub.io/packages/helm/prometheus-community/kube-prometheus-stack/>
+- kube-prometheus-stack 87.19.1: <https://artifacthub.io/packages/helm/prometheus-community/kube-prometheus-stack/>
 - Apache Kafka current downloads: <https://kafka.apache.org/community/downloads/>
 - KEDA Kafka scaler: <https://keda.sh/docs/2.20/scalers/apache-kafka/>
 - OpenTelemetry Collector on Kubernetes: <https://opentelemetry.io/docs/collector/install/kubernetes/>

@@ -104,6 +104,7 @@ services:
     env:
       ADMIN_APP_URL: https://admin.localhost
       CLIENT_APP_URL: https://shop.localhost
+      NEXT_PUBLIC_CLIENT_APP_URL: https://shop.localhost
       NEXT_PUBLIC_ADMIN_APP_URL: https://admin.localhost
       PRODUCT_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-product-service:3000
       ORDER_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-order-service:8001

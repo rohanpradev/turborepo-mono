@@ -35,16 +35,7 @@ const servicePromises = [
   },
 ] as const;
 
-const Homepage = async ({
-  searchParams,
-}: {
-  searchParams: Promise<{
-    category?: string | Array<string>;
-    search?: string | Array<string>;
-    sort?: string | Array<string>;
-    page?: string | Array<string>;
-  }>;
-}) => {
+const Homepage = async ({ searchParams }: PageProps<"/">) => {
   const resolvedSearchParams = await searchParams;
   const category = getSingleParam(resolvedSearchParams.category);
   const search = getSingleParam(resolvedSearchParams.search);

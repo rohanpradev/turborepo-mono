@@ -12,13 +12,7 @@ import { requireAdminAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-type UserDetailsPageProps = {
-  params: Promise<{
-    id: string;
-  }>;
-};
-
-const UserDetailsPage = async ({ params }: UserDetailsPageProps) => {
+const UserDetailsPage = async ({ params }: PageProps<"/users/[id]">) => {
   await requireAdminAccess();
   const { id } = await params;
   const events = await loadPaymentEvents();

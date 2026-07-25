@@ -35,6 +35,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { parseProductImageInput } from "@/lib/product-image-input";
 
 type CatalogManagerProps = {
   initialCategories: Array<CategoryRecord>;
@@ -95,22 +96,6 @@ const parseCsv = (value: string) =>
     .map((item) => item.trim())
     .filter(Boolean);
 
-const parseImages = (value: string) => {
-  const images: Record<string, string> = {};
-
-  for (const line of value.split("\n")) {
-    const [color, ...urlParts] = line.split("=");
-    const normalizedColor = color?.trim();
-    const url = urlParts.join("=").trim();
-
-    if (normalizedColor && url) {
-      images[normalizedColor] = url;
-    }
-  }
-
-  return images;
-};
-
 const createSlug = (value: string) =>
   value
     .trim()
@@ -121,7 +106,7 @@ const createSlug = (value: string) =>
 const buildProductPayload = (form: ProductFormState): ProductPayload => {
   const colors = parseCsv(form.colors);
   const sizes = parseCsv(form.sizes);
-  const images = parseImages(form.images);
+  const images = parseProductImageInput(form.images, colors);
   const price = Math.round(Number(form.price) * 100);
 
   if (!Number.isFinite(price) || price < 0) {
@@ -647,9 +632,8 @@ const CatalogManager = ({
               {editingProductId ? "Edit Product" : "Add Product"}
             </SheetTitle>
             <SheetDescription>
-              Use root-relative storefront assets such as
-              `/products/example.png` or durable HTTP(S) image URLs from S3,
-              Vercel Blob, a CDN, or another public host.
+              Paste one image URL for every color, or use color mappings for
+              variants. Root-relative storefront assets are also supported.
             </SheetDescription>
           </SheetHeader>
 
@@ -804,6 +788,9 @@ const CatalogManager = ({
                 required
                 rows={5}
                 className={`${textareaClass} font-mono text-xs`}
+                placeholder={
+                  "https://cdn.example.com/product.webp\n\nor\nblack=/products/product-black.png"
+                }
                 value={productForm.images}
                 onChange={(event) =>
                   setProductForm((current) => ({
@@ -813,8 +800,10 @@ const CatalogManager = ({
                 }
               />
               <p className={fieldHintClass}>
-                One mapping per line:
-                `black=https://cdn.example.com/products/hoodie-black.png`.
+                Accepts one HTTP(S) URL or root-relative path for all colors;
+                one URL per color in order; `color=URL`; `color: URL`; or a JSON
+                object. Common web formats include PNG, JPG/JPEG, WebP, AVIF,
+                and GIF.
               </p>
             </div>
 

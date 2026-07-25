@@ -14,6 +14,9 @@ metadata:
     "helm.sh/hook-delete-policy": {{ $job.deletePolicy | quote }}
 spec:
   backoffLimit: {{ default 3 $job.backoffLimit }}
+  {{- with $job.activeDeadlineSeconds }}
+  activeDeadlineSeconds: {{ . }}
+  {{- end }}
   {{- with $job.ttlSecondsAfterFinished }}
   ttlSecondsAfterFinished: {{ . }}
   {{- end }}
@@ -24,6 +27,7 @@ spec:
         app.kubernetes.io/job-name: {{ $name | quote }}
     spec:
       restartPolicy: OnFailure
+      serviceAccountName: {{ include "ecommerce.serviceAccountName" $ }}
       automountServiceAccountToken: {{ $.Values.serviceAccount.automountServiceAccountToken }}
       enableServiceLinks: {{ $.Values.global.enableServiceLinks }}
       terminationGracePeriodSeconds: {{ $.Values.global.terminationGracePeriodSeconds }}
@@ -37,10 +41,15 @@ spec:
         - name: {{ $name }}
           image: {{ include "ecommerce.image" (dict "root" $ "service" $service) | quote }}
           imagePullPolicy: {{ default $.Values.global.imagePullPolicy $service.image.pullPolicy }}
+          terminationMessagePolicy: FallbackToLogsOnError
           command:
             {{- toYaml $job.command | nindent 12 }}
           securityContext:
             {{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- with $job.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- if not (contains "pre-install" $job.hook) }}
           envFrom:
             - configMapRef:

@@ -70,11 +70,11 @@ const AppSidebar = (_props: AppSidebarProps) => {
               asChild
               size="lg"
               tooltip="Flagship Admin"
-              className="h-13 rounded-xl hover:bg-sidebar-accent"
+              className="h-13 rounded-xl hover:bg-sidebar-accent group-data-[collapsible=icon]:justify-center"
             >
               <Link href="/">
-                <BrandMark className="size-9 shrink-0 drop-shadow-lg" />
-                <span className="grid flex-1 text-left leading-tight">
+                <BrandMark className="size-9 shrink-0 drop-shadow-lg group-data-[collapsible=icon]:size-8" />
+                <span className="grid flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
                   <span className="truncate text-sm font-bold">
                     Flagship Admin
                   </span>
@@ -135,7 +135,7 @@ const AppSidebar = (_props: AppSidebarProps) => {
                   tooltip="Storefront"
                   className="h-10 rounded-xl px-3"
                 >
-                  <a href={storefrontUrl} rel="noreferrer" target="_blank">
+                  <a href={storefrontUrl}>
                     <ExternalLink aria-hidden="true" />
                     <span>Storefront</span>
                   </a>

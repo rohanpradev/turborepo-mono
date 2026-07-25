@@ -57,7 +57,7 @@ services:
 
   traefik:
     <<: *runtime-security
-    image: traefik:v3.7.7@sha256:1cb3845d7a05e1473c9086351426597e911db49db382b6e4769f9b0744962ac8
+    image: traefik:v3.7.8@sha256:4299bbed850421258fc5448c2e0e6ad350981d4d335a68de11b92448aedbefe5
     container_name: ecommerce-traefik
     read_only: true
     tmpfs:
@@ -458,6 +458,7 @@ services:
       CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
       CLERK_JWT_KEY: ${CLERK_JWT_KEY:-}
       CLERK_AUTHORIZED_PARTIES: ${CLERK_AUTHORIZED_PARTIES:-https://shop.localhost:8443,https://admin.localhost:8443,http://localhost:3002,http://localhost:3003}
+      ADMIN_USER_IDS: ${ADMIN_USER_IDS:-}
       KAFKA_BROKERS: ${DOCKER_KAFKA_BROKERS:-kafka-broker-1:9092,kafka-broker-2:9092,kafka-broker-3:9092}
       CORS_ALLOWED_ORIGINS: ${DOCKER_CORS_ALLOWED_ORIGINS:-https://shop.localhost:8443,https://admin.localhost:8443,http://localhost:3002,http://localhost:3003}
       TELEMETRY_ENABLED: ${TELEMETRY_ENABLED:-true}
@@ -509,7 +510,7 @@ services:
     init: true
     restart: unless-stopped
     stop_grace_period: 30s
-    image: stripe/stripe-cli:v1.43.8@sha256:73a0449969bcb4bfa5a53ecb6db82f1ff873189d9e433aff72fa4c8e747acf81
+    image: stripe/stripe-cli:v1.44.0@sha256:f46433445867b7f47526b7588d49c79a336d74a22ee548c18513e3b9c8d40f31
     container_name: ecommerce-stripe-cli
     environment:
       STRIPE_API_KEY: ${STRIPE_API_KEY:-}
@@ -608,17 +609,23 @@ services:
       args:
         <<: *frontend-build-args
         NEXT_PUBLIC_ADMIN_APP_URL: ${DOCKER_PUBLIC_ADMIN_APP_URL:-https://admin.localhost:8443}
+        NEXT_PUBLIC_CLIENT_APP_URL: ${DOCKER_PUBLIC_CLIENT_APP_URL:-https://shop.localhost:8443}
+        NEXT_IMAGE_STOREFRONT_ORIGIN: ${DOCKER_IMAGE_STOREFRONT_ORIGIN:-http://client:3002}
+        NEXT_IMAGE_ALLOW_LOCAL_IP: "true"
     container_name: ecommerce-admin
     environment:
       NODE_ENV: production
       PORT: 3003
       ADMIN_APP_URL: ${DOCKER_ADMIN_APP_URL:-https://admin.localhost:8443}
       CLIENT_APP_URL: ${DOCKER_CLIENT_APP_URL:-https://shop.localhost:8443}
+      STOREFRONT_ASSET_ORIGIN: ${DOCKER_IMAGE_STOREFRONT_ORIGIN:-http://client:3002}
       NEXT_PUBLIC_ADMIN_APP_URL: ${DOCKER_PUBLIC_ADMIN_APP_URL:-https://admin.localhost:8443}
+      NEXT_PUBLIC_CLIENT_APP_URL: ${DOCKER_PUBLIC_CLIENT_APP_URL:-https://shop.localhost:8443}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
       CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
       CLERK_JWT_KEY: ${CLERK_JWT_KEY:-}
       CLERK_AUTHORIZED_PARTIES: ${CLERK_AUTHORIZED_PARTIES:-https://shop.localhost:8443,https://admin.localhost:8443,http://localhost:3002,http://localhost:3003}
+      ADMIN_USER_IDS: ${ADMIN_USER_IDS:-}
       PRODUCT_SERVICE_INTERNAL_URL: http://product-service:3000
       ORDER_SERVICE_INTERNAL_URL: http://order-service:8001
       PAYMENT_SERVICE_INTERNAL_URL: http://payment-service:8002

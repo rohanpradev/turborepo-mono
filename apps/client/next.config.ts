@@ -98,6 +98,7 @@ const nextConfig: NextConfig = {
       process.env.NEXT_IMAGE_ALLOW_LOCAL_IP === "true" ||
       process.env.NODE_ENV !== "production",
     formats: ["image/avif", "image/webp"],
+    maximumResponseBody: 5_000_000,
     maximumRedirects: 3,
     qualities: [75, 85],
     remotePatterns: remoteImagePatterns,

@@ -34,9 +34,9 @@ K8S_SUPPORTED_VERSIONS ?= 1.34.9 1.35.6 1.36.2
 KUBECONFORM_IMAGE ?= ghcr.io/yannh/kubeconform:v0.8.0@sha256:faffaf43f95aa6425306e1ab8d6fcad72acb9049158f38e574c085ea1ec0f64e
 GATEWAY_API_VERSION ?= 1.6.1
 TRAEFIK_CHART_VERSION ?= 41.0.2
-TRAEFIK_IMAGE_VERSION ?= v3.7.7
-TRAEFIK_IMAGE_DIGEST ?= sha256:1cb3845d7a05e1473c9086351426597e911db49db382b6e4769f9b0744962ac8
-OBS_CHART_VERSION ?= 87.12.2
+TRAEFIK_IMAGE_VERSION ?= v3.7.8
+TRAEFIK_IMAGE_DIGEST ?= sha256:4299bbed850421258fc5448c2e0e6ad350981d4d335a68de11b92448aedbefe5
+OBS_CHART_VERSION ?= 87.19.1
 HELM_CHART ?= charts/ecommerce
 HELM_RELEASE ?= ecommerce
 HELM_NAMESPACE ?= ecommerce
@@ -61,6 +61,7 @@ K8S_MONGO_URL ?= mongodb://host.docker.internal:27017/order_db
 K8S_PUBLIC_CLIENT_APP_URL ?= https://shop.localhost
 K8S_PUBLIC_ADMIN_APP_URL ?= https://admin.localhost
 K8S_PUBLIC_API_URL ?= https://api.localhost
+K8S_IMAGE_STOREFRONT_ORIGIN ?= http://$(HELM_RELEASE)-client.$(HELM_NAMESPACE).svc.cluster.local:3002
 K8S_INGRESS_CLASS_NAME ?= traefik
 K8S_ROLLOUT_TIMEOUT ?= 5m
 K8S_LOG_TAIL ?= 200
@@ -620,6 +621,11 @@ k8s-traefik: ## Install or upgrade the pinned Traefik ingress chart
 	@command -v $(HELM) >/dev/null || { echo "$(RED)helm is required$(NC)"; exit 1; }
 	@command -v $(KUBECTL) >/dev/null || { echo "$(RED)kubectl is required$(NC)"; exit 1; }
 	@$(KUBECTL) cluster-info >/dev/null
+	@echo "$(BLUE)Applying Traefik $(TRAEFIK_CHART_VERSION) CRDs before the controller upgrade...$(NC)"
+	$(HELM) show crds traefik \
+		--repo https://traefik.github.io/charts \
+		--version $(TRAEFIK_CHART_VERSION) | \
+		$(KUBECTL) apply --server-side --force-conflicts -f -
 	$(HELM) upgrade --install traefik traefik \
 		--repo https://traefik.github.io/charts \
 		--version $(TRAEFIK_CHART_VERSION) \
@@ -653,11 +659,17 @@ k8s-observability: ## Install or upgrade Prometheus Operator, Prometheus, Alertm
 	@command -v $(HELM) >/dev/null || { echo "$(RED)helm is required$(NC)"; exit 1; }
 	@command -v $(KUBECTL) >/dev/null || { echo "$(RED)kubectl is required$(NC)"; exit 1; }
 	@$(KUBECTL) cluster-info >/dev/null
+	@echo "$(BLUE)Applying kube-prometheus-stack $(OBS_CHART_VERSION) CRDs before the controller upgrade...$(NC)"
+	$(HELM) show crds kube-prometheus-stack \
+		--repo https://prometheus-community.github.io/helm-charts \
+		--version $(OBS_CHART_VERSION) | \
+		$(KUBECTL) apply --server-side --force-conflicts -f -
 	$(HELM) upgrade --install $(OBS_RELEASE) kube-prometheus-stack \
 		--repo https://prometheus-community.github.io/helm-charts \
 		--version $(OBS_CHART_VERSION) \
 		--namespace $(OBS_NAMESPACE) \
 		--create-namespace \
+		--skip-crds \
 		$(OBS_HELM_SET_ARGS) \
 		--wait \
 		--timeout 10m
@@ -673,7 +685,7 @@ k8s-grafana: ## Port-forward Grafana locally at http://localhost:$(GRAFANA_PORT)
 	$(KUBECTL) -n $(OBS_NAMESPACE) port-forward svc/$(OBS_RELEASE)-grafana $(GRAFANA_PORT):80
 
 k8s-prometheus: ## Port-forward Prometheus locally at http://localhost:$(PROMETHEUS_PORT)
-	$(KUBECTL) -n $(OBS_NAMESPACE) port-forward svc/$(OBS_RELEASE)-kube-prometheus-prometheus $(PROMETHEUS_PORT):9090
+	$(KUBECTL) -n $(OBS_NAMESPACE) port-forward svc/$(OBS_RELEASE)-prometheus $(PROMETHEUS_PORT):9090
 
 k8s-preflight: ## Verify local Kubernetes, Helm, kubectl, and Traefik ingress prerequisites
 	@echo "$(BLUE)Checking Kubernetes prerequisites...$(NC)"
@@ -717,6 +729,7 @@ k8s-build-images: ensure-env docker-auth ## Build local web, public catalog, and
 	@echo "$(BLUE)Building local web, public catalog, and checkout images for Kubernetes...$(NC)"
 	DOCKER_PUBLIC_CLIENT_APP_URL=$(K8S_PUBLIC_CLIENT_APP_URL) \
 	DOCKER_PUBLIC_ADMIN_APP_URL=$(K8S_PUBLIC_ADMIN_APP_URL) \
+	DOCKER_IMAGE_STOREFRONT_ORIGIN=$(K8S_IMAGE_STOREFRONT_ORIGIN) \
 	DOCKER_PUBLIC_PRODUCT_SERVICE_URL=$(K8S_PUBLIC_API_URL) \
 	DOCKER_PUBLIC_ORDER_SERVICE_URL=$(K8S_PUBLIC_API_URL) \
 	DOCKER_PUBLIC_PAYMENT_SERVICE_URL=$(K8S_PUBLIC_API_URL) \
@@ -727,6 +740,7 @@ k8s-build-full-images: ensure-env docker-auth ## Build all local application ima
 	@echo "$(BLUE)Building all application images for Kubernetes...$(NC)"
 	DOCKER_PUBLIC_CLIENT_APP_URL=$(K8S_PUBLIC_CLIENT_APP_URL) \
 	DOCKER_PUBLIC_ADMIN_APP_URL=$(K8S_PUBLIC_ADMIN_APP_URL) \
+	DOCKER_IMAGE_STOREFRONT_ORIGIN=$(K8S_IMAGE_STOREFRONT_ORIGIN) \
 	DOCKER_PUBLIC_PRODUCT_SERVICE_URL=$(K8S_PUBLIC_API_URL) \
 	DOCKER_PUBLIC_ORDER_SERVICE_URL=$(K8S_PUBLIC_API_URL) \
 	DOCKER_PUBLIC_PAYMENT_SERVICE_URL=$(K8S_PUBLIC_API_URL) \
@@ -824,6 +838,10 @@ k8s-smoke: ## Smoke-test local Kubernetes web routes over HTTPS
 	@echo "$(BLUE)Smoke-testing Kubernetes ingress...$(NC)"
 	@curl -4 -skSf --max-time $(K8S_SMOKE_TIMEOUT) https://shop.localhost/api/health >/dev/null
 	@curl -4 -skSf --max-time $(K8S_SMOKE_TIMEOUT) https://admin.localhost/api/health >/dev/null
+	@curl -4 -skSf --max-time $(K8S_SMOKE_TIMEOUT) --get https://admin.localhost/_next/image \
+		--data-urlencode "url=$(K8S_IMAGE_STOREFRONT_ORIGIN)/logo.png" \
+		--data-urlencode "w=64" \
+		--data-urlencode "q=75" >/dev/null
 	@curl -4 -skSf --max-time $(K8S_SMOKE_TIMEOUT) https://shop.localhost/ >/dev/null
 	@status="$$(curl -4 -skS -o /dev/null -w '%{http_code}' --max-time $(K8S_SMOKE_TIMEOUT) -X POST https://api.localhost/api/webhooks/stripe)"; \
 		test "$$status" = "400" || { echo "$(RED)Expected unsigned Stripe webhook to reach payment-service and return 400; received $$status.$(NC)"; exit 1; }
