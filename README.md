@@ -85,7 +85,7 @@ For the current expert gap assessment and prioritized roadmap, see [docs/EXPERT_
 | Events | Kafka with typed topics and topic management |
 | Data | PostgreSQL + Prisma, MongoDB + Mongoose |
 | Quality | Biome, Syncpack, Knip, Bun test/coverage, Bun audit, stable TypeScript 7 with TypeScript 6 tooling compatibility |
-| Runtime | Bun 1.3.14, digest-pinned Compose images, Traefik 3.7.7, Docker Hardened Images |
+| Runtime | Bun 1.3.14, digest-pinned Compose images, Traefik 3.7.8, Docker Hardened Images |
 | Platform | Helm 4.2.3, Kubernetes 1.34-1.36, Gateway API 1.6.1 |
 | CI/CD | GitHub Actions, Helm lint plus kubeconform schema matrix, Docker Buildx, GHCR images, SBOM, provenance |
 

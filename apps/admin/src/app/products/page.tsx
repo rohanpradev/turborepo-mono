@@ -55,8 +55,6 @@ const ProductsPage = async () => {
               "/products",
               process.env.CLIENT_APP_URL ?? "http://localhost:3002",
             ).toString()}
-            rel="noreferrer"
-            target="_blank"
             className="shrink-0 text-sm underline"
           >
             Open storefront catalog
@@ -147,18 +145,25 @@ const ProductsPage = async () => {
                 key={product.id}
                 className="min-w-0 overflow-hidden rounded-2xl border border-dashed"
               >
-                <div className="relative aspect-[4/3] bg-[linear-gradient(145deg,var(--background)_0%,var(--muted)_100%)]">
-                  <div className="absolute inset-x-10 bottom-7 h-4 rounded-full bg-black/10 blur-md dark:bg-white/10" />
+                <div className="relative aspect-[16/10] overflow-hidden bg-muted">
                   <Image
                     src={getStorefrontAssetUrl(
                       Object.values(product.images)[0] ?? "/logo.svg",
                     )}
                     alt={product.name}
-                    width={640}
-                    height={480}
+                    width={800}
+                    height={500}
+                    unoptimized={
+                      Object.values(product.images)[0]?.startsWith(
+                        "http://",
+                      ) === true ||
+                      Object.values(product.images)[0]?.startsWith(
+                        "https://",
+                      ) === true
+                    }
                     quality={75}
                     sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw"
-                    className="h-full w-full object-contain p-4 drop-shadow-[0_16px_20px_rgba(15,23,42,0.16)]"
+                    className="h-full w-full object-cover transition-transform duration-300 hover:scale-[1.025]"
                   />
                 </div>
                 <div className="space-y-4 p-4">
@@ -193,8 +198,6 @@ const ProductsPage = async () => {
                     <a
                       href={getStorefrontProductUrl(product.id)}
                       className="shrink-0 text-sm underline"
-                      rel="noreferrer"
-                      target="_blank"
                     >
                       View
                     </a>

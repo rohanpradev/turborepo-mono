@@ -11,7 +11,11 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import ProductInteraction from "@/components/ProductInteraction";
 import { Badge } from "@/components/ui/badge";
-import { getColorSwatchStyle, getPrimaryProductImage } from "@/lib/catalog";
+import {
+  getColorSwatchStyle,
+  getPrimaryProductImage,
+  isExternalProductImage,
+} from "@/lib/catalog";
 
 const getSingleParam = (value?: string | Array<string>) =>
   Array.isArray(value) ? value[0] : value;
@@ -68,9 +72,7 @@ const loadProduct = cache(async (id: number) => {
 
 export const generateMetadata = async ({
   params,
-}: {
-  params: Promise<{ id: string }>;
-}): Promise<Metadata> => {
+}: PageProps<"/products/[id]">): Promise<Metadata> => {
   const { id } = await params;
   const productId = getProductId(id);
   const product = productId ? await loadProduct(productId) : null;
@@ -102,13 +104,7 @@ export const generateMetadata = async ({
 const ProductPage = async ({
   params,
   searchParams,
-}: {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<{
-    color?: string | Array<string>;
-    size?: string | Array<string>;
-  }>;
-}) => {
+}: PageProps<"/products/[id]">) => {
   const [{ id }, resolvedSearchParams] = await Promise.all([
     params,
     searchParams,
@@ -198,6 +194,7 @@ const ProductPage = async ({
               src={selectedImage}
               alt={product.name}
               fill
+              unoptimized={isExternalProductImage(selectedImage)}
               preload
               decoding="async"
               quality={85}
@@ -224,6 +221,7 @@ const ProductPage = async ({
                     src={option.src}
                     alt={`${product.name} in ${option.color}`}
                     fill
+                    unoptimized={isExternalProductImage(option.src)}
                     quality={75}
                     sizes="8rem"
                     className="object-contain p-2 drop-shadow-[0_10px_14px_rgba(15,23,42,0.14)]"

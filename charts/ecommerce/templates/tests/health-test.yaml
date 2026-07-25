@@ -18,8 +18,13 @@ spec:
     - name: curl
       image: {{ include "ecommerce.externalImage" .Values.helmTests.image | quote }}
       imagePullPolicy: {{ .Values.helmTests.image.pullPolicy }}
+      terminationMessagePolicy: FallbackToLogsOnError
       securityContext:
         {{- toYaml .Values.global.containerSecurityContext | nindent 8 }}
+      {{- with .Values.helmTests.resources }}
+      resources:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       command:
         - /bin/sh
         - -ec

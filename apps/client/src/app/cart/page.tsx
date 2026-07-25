@@ -18,6 +18,7 @@ import ShippingForm from "@/components/ShippingForm";
 import StripePaymentForm from "@/components/StripePaymentForm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { isExternalProductImage } from "@/lib/catalog";
 import {
   getAllowedCheckoutStep,
   getCheckoutStepHref,
@@ -171,6 +172,7 @@ const CartContent = () => {
                               alt={item.name}
                               width={320}
                               height={320}
+                              unoptimized={isExternalProductImage(imageUrl)}
                               quality={75}
                               className="h-40 w-full object-contain p-4 transition duration-700 group-hover:scale-[1.025] sm:h-full"
                               sizes="(min-width: 640px) 160px, 100vw"

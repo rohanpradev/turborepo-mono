@@ -74,6 +74,7 @@ services:
     env:
       ADMIN_APP_URL: https://admin.localhost
       CLIENT_APP_URL: https://shop.localhost
+      NEXT_PUBLIC_CLIENT_APP_URL: https://shop.localhost
       NEXT_PUBLIC_ADMIN_APP_URL: https://admin.localhost
       NEXT_PUBLIC_PRODUCT_SERVICE_URL: https://api.localhost
       NEXT_PUBLIC_ORDER_SERVICE_URL: https://api.localhost

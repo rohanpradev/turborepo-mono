@@ -42,6 +42,7 @@ const toRemoteImagePattern = (value: string): RemoteImagePattern | null => {
 const remoteImagePatterns = Array.from(
   new Map(
     [
+      process.env.NEXT_IMAGE_STOREFRONT_ORIGIN,
       process.env.NEXT_PUBLIC_CLIENT_APP_URL,
       process.env.CLIENT_APP_URL,
       "http://localhost:3002",
@@ -111,6 +112,7 @@ const nextConfig: NextConfig = {
       process.env.NEXT_IMAGE_ALLOW_LOCAL_IP === "true" ||
       process.env.NODE_ENV !== "production",
     formats: ["image/avif", "image/webp"],
+    maximumResponseBody: 5_000_000,
     maximumRedirects: 3,
     qualities: [75],
     remotePatterns: remoteImagePatterns,

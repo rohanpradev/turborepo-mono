@@ -57,7 +57,7 @@ make k8s-uninstall
 
 The local workflow installs Traefik as a standard Kubernetes Ingress controller and deploys app routes with `ingressClassName: traefik`.
 
-The deployment toolchain is pinned to Helm 4.2.3, kubeconform 0.8.0, Traefik chart 41.0.2 with the security-fixed Traefik 3.7.7 image digest, kube-prometheus-stack 87.12.2, and Gateway API 1.6.1. Chart 0.2.0 supports the actively maintained Kubernetes 1.34, 1.35, and 1.36 release lines. CI lints and strictly schema-validates every chart profile against the latest published patch in each line. CRD-backed resources without Kubernetes-core schemas are skipped by kubeconform and remain covered by Helm rendering and live-cluster validation.
+The deployment toolchain is pinned to Helm 4.2.3, kubeconform 0.8.0, Traefik chart 41.0.2 with the security-fixed Traefik 3.7.8 image digest, kube-prometheus-stack 87.19.1, and Gateway API 1.6.1. Chart 0.3.0 supports the actively maintained Kubernetes 1.34, 1.35, and 1.36 release lines. CI lints and strictly schema-validates every chart profile against the latest published patch in each line. CRD-backed resources without Kubernetes-core schemas are skipped by kubeconform and remain covered by Helm rendering and live-cluster validation. The Traefik and kube-prometheus-stack workflows apply their chart CRDs before upgrading the controllers because Helm does not upgrade CRDs automatically.
 
 For Prometheus, Grafana, app metrics, Traefik metrics, and alert rules, run:
 
@@ -111,6 +111,8 @@ The default local image names match the Docker Compose builds:
 
 For registries, set `global.imageRegistry` and per-service tags. Every service image also accepts `digest`; when present, Helm renders `repository@sha256:...` and ignores the tag at runtime. External Stripe CLI and Helm test images are digest-pinned by default.
 
+The admin image optimizer reads storefront product assets over the cluster-internal client Service instead of looping through the public ingress. When building outside `make k8s`, pass `NEXT_IMAGE_STOREFRONT_ORIGIN` to the admin image at build time and set the matching `STOREFRONT_ASSET_ORIGIN` at runtime. Private Service IP optimization is enabled only in that admin build and remains restricted by Next.js `remotePatterns`.
+
 Example production override:
 
 ```yaml
@@ -132,4 +134,5 @@ services:
 - Keep `secrets.create=false` outside throwaway environments and wire `secrets.name` to your secret manager output.
 - Keep `ingress.tls.secretName` owned by cert-manager or the platform ingress layer outside local development.
 - Prefer standard Ingress for the local Traefik workflow. For Gateway API, run `make k8s-gateway-api`, enable Traefik's Gateway provider, and deploy the chart with `gateway.enabled=true` only after the pinned standard CRDs are installed.
-- Enable `networkPolicy.enabled=true` only after your cluster CNI enforces NetworkPolicy and you have modeled required egress.
+- The chart spreads replicas across nodes with a soft `ScheduleAnyway` constraint. Override `services.<name>.topologySpreadConstraints` for workload-specific zone or node placement.
+- Enable `networkPolicy.enabled=true` only after your cluster CNI enforces NetworkPolicy and you have modeled required ingress and egress. Its safe fallback admits same-namespace pods only; add the ingress controller namespace to `networkPolicy.ingressFrom` when the controller runs elsewhere.

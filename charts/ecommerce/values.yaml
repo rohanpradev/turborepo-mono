@@ -13,12 +13,18 @@ global:
   tolerations: []
   affinity: {}
   priorityClassName: ""
+  topologySpread:
+    enabled: true
+    maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
   topologySpreadConstraints: []
   podSecurityContext:
     runAsNonRoot: true
     runAsUser: 65532
     runAsGroup: 65532
     fsGroup: 65532
+    fsGroupChangePolicy: OnRootMismatch
     seccompProfile:
       type: RuntimeDefault
   containerSecurityContext:
@@ -59,8 +65,8 @@ stripeCli:
   enabled: false
   image:
     repository: stripe/stripe-cli
-    tag: v1.43.8
-    digest: sha256:73a0449969bcb4bfa5a53ecb6db82f1ff873189d9e433aff72fa4c8e747acf81
+    tag: v1.44.0
+    digest: sha256:f46433445867b7f47526b7588d49c79a336d74a22ee548c18513e3b9c8d40f31
     pullPolicy: IfNotPresent
   forwardTo: http://127.0.0.1:8002/api/webhooks/stripe
   webhookSecretFile: /var/run/stripe/webhook-secret
@@ -175,7 +181,7 @@ observability:
       port: metrics
       selector:
         app.kubernetes.io/name: traefik
-        app.kubernetes.io/instance: traefik
+        app.kubernetes.io/instance: traefik-traefik
   prometheusRule:
     enabled: false
     labels:
@@ -204,6 +210,7 @@ services:
     service:
       type: ClusterIP
       port: 3000
+      appProtocol: http
     containerPort: 3000
     env:
       PORT: "3000"
@@ -271,6 +278,7 @@ services:
     service:
       type: ClusterIP
       port: 8001
+      appProtocol: http
     containerPort: 8001
     env:
       PORT: "8001"
@@ -338,6 +346,7 @@ services:
     service:
       type: ClusterIP
       port: 8002
+      appProtocol: http
     containerPort: 8002
     env:
       PORT: "8002"
@@ -352,6 +361,7 @@ services:
       CLERK_JWT_KEY:
         key: CLERK_JWT_KEY
         optional: true
+      ADMIN_USER_IDS: ADMIN_USER_IDS
     readinessProbe:
       httpGet:
         path: /health/ready
@@ -407,6 +417,7 @@ services:
     service:
       type: ClusterIP
       port: 3002
+      appProtocol: http
     containerPort: 3002
     env:
       PORT: "3002"
@@ -489,6 +500,7 @@ services:
     service:
       type: ClusterIP
       port: 3003
+      appProtocol: http
     containerPort: 3003
     env:
       PORT: "3003"
@@ -496,7 +508,9 @@ services:
       NEXT_TELEMETRY_DISABLED: "1"
       ADMIN_APP_URL: https://admin.example.com
       CLIENT_APP_URL: https://shop.example.com
+      STOREFRONT_ASSET_ORIGIN: http://{{ include "ecommerce.fullname" . }}-client.{{ .Release.Namespace }}.svc.cluster.local:3002
       NEXT_PUBLIC_ADMIN_APP_URL: https://admin.example.com
+      NEXT_PUBLIC_CLIENT_APP_URL: https://shop.example.com
       PRODUCT_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-product-service:3000
       ORDER_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-order-service:8001
       PAYMENT_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-payment-service:8002
@@ -509,6 +523,7 @@ services:
       CLERK_JWT_KEY:
         key: CLERK_JWT_KEY
         optional: true
+      ADMIN_USER_IDS: ADMIN_USER_IDS
     readinessProbe:
       httpGet:
         path: /api/health
@@ -538,6 +553,13 @@ services:
         memory: 256Mi
       limits:
         memory: 512Mi
+    extraVolumeMounts:
+      - name: next-cache
+        mountPath: /app/apps/admin/.next/cache
+    extraVolumes:
+      - name: next-cache
+        emptyDir:
+          sizeLimit: 256Mi
     podDisruptionBudget:
       enabled: true
       minAvailable: 1
@@ -562,7 +584,14 @@ jobs:
     hookWeight: "-10"
     deletePolicy: before-hook-creation,hook-succeeded
     backoffLimit: 3
+    activeDeadlineSeconds: 900
     ttlSecondsAfterFinished: 3600
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 256Mi
     secretEnv:
       DATABASE_URL: DATABASE_URL
   seed-product-db:
@@ -576,7 +605,14 @@ jobs:
     hookWeight: "10"
     deletePolicy: before-hook-creation,hook-succeeded
     backoffLimit: 1
+    activeDeadlineSeconds: 900
     ttlSecondsAfterFinished: 3600
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 256Mi
     secretEnv:
       DATABASE_URL: DATABASE_URL
       STRIPE_SECRET_KEY: STRIPE_SECRET_KEY
@@ -595,3 +631,9 @@ helmTests:
     tag: "8.21.0"
     digest: sha256:7c12af72ceb38b7432ab85e1a265cff6ae58e06f95539d539b654f2cfa64bb13
     pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 10m
+      memory: 16Mi
+    limits:
+      memory: 64Mi

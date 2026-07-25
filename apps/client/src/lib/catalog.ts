@@ -41,6 +41,9 @@ export const getPrimaryProductImage = (
   Object.values(product.images)[0] ??
   "/featured.png";
 
+export const isExternalProductImage = (value: string) =>
+  value.startsWith("http://") || value.startsWith("https://");
+
 export const normalizeSort = (sort?: string): ProductSort | undefined =>
   sort && validSorts.includes(sort as ProductSort)
     ? (sort as ProductSort)

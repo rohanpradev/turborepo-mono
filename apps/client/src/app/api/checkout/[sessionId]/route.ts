@@ -6,11 +6,10 @@ import {
 } from "@repo/api-client";
 import { checkoutSessionStatusQuerySchema } from "@repo/types";
 
-type RouteContext = {
-  params: Promise<{ sessionId: string }>;
-};
-
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(
+  _request: Request,
+  context: RouteContext<"/api/checkout/[sessionId]">,
+) {
   const { getToken, userId } = await auth();
 
   if (!userId) {

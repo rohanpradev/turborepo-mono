@@ -47,12 +47,15 @@ const isNumber = (value: unknown): value is number =>
 const getStorefrontUrl = () =>
   process.env.CLIENT_APP_URL ?? "http://localhost:3002";
 
+const getStorefrontAssetOrigin = () =>
+  process.env.STOREFRONT_ASSET_ORIGIN ?? getStorefrontUrl();
+
 export const getStorefrontAssetUrl = (path: string) => {
   if (path.startsWith("http://") || path.startsWith("https://")) {
     return path;
   }
 
-  return new URL(path, getStorefrontUrl()).toString();
+  return new URL(path, getStorefrontAssetOrigin()).toString();
 };
 
 export const getStorefrontProductUrl = (productId: number) =>

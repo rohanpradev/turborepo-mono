@@ -16,6 +16,9 @@ Install Prometheus, Grafana, Alertmanager, and the operator:
 make k8s-observability
 ```
 
+The target applies the CRDs bundled with the pinned kube-prometheus-stack chart
+before running the Helm upgrade, because Helm does not upgrade existing CRDs.
+
 Build and deploy the app with ServiceMonitors, alert rules, dashboards, and Traefik metrics enabled:
 
 ```bash

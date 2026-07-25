@@ -19,16 +19,7 @@ const getPageParam = (value?: string | Array<string>) => {
   return Number.isInteger(page) && page > 0 ? page : 1;
 };
 
-const ProductsPage = async ({
-  searchParams,
-}: {
-  searchParams: Promise<{
-    category?: string | Array<string>;
-    search?: string | Array<string>;
-    sort?: string | Array<string>;
-    page?: string | Array<string>;
-  }>;
-}) => {
+const ProductsPage = async ({ searchParams }: PageProps<"/products">) => {
   const resolvedSearchParams = await searchParams;
   const category = getSingleParam(resolvedSearchParams.category);
   const search = getSingleParam(resolvedSearchParams.search);

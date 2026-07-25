@@ -17,6 +17,26 @@
           "type": "integer",
           "minimum": 0
         },
+        "topologySpread": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "enabled",
+            "maxSkew",
+            "topologyKey",
+            "whenUnsatisfiable"
+          ],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "maxSkew": { "type": "integer", "minimum": 1 },
+            "topologyKey": { "type": "string", "minLength": 1 },
+            "whenUnsatisfiable": {
+              "type": "string",
+              "enum": ["DoNotSchedule", "ScheduleAnyway"]
+            }
+          }
+        },
+        "topologySpreadConstraints": { "type": "array" },
         "podSecurityContext": { "type": "object" },
         "containerSecurityContext": { "type": "object" },
         "env": {
@@ -294,9 +314,11 @@
                 "type": "string",
                 "enum": ["ClusterIP", "NodePort", "LoadBalancer"]
               },
-              "port": { "type": "integer", "minimum": 1, "maximum": 65535 }
+              "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+              "appProtocol": { "type": "string", "minLength": 1 }
             }
           },
+          "topologySpreadConstraints": { "type": "array" },
           "resources": { "type": "object" },
           "autoscaling": {
             "type": "object",
@@ -353,7 +375,9 @@
             "items": { "type": "string" }
           },
           "backoffLimit": { "type": "integer", "minimum": 0 },
-          "ttlSecondsAfterFinished": { "type": "integer", "minimum": 0 }
+          "activeDeadlineSeconds": { "type": "integer", "minimum": 1 },
+          "ttlSecondsAfterFinished": { "type": "integer", "minimum": 0 },
+          "resources": { "type": "object" }
         }
       }
     },
@@ -388,7 +412,8 @@
               "enum": ["Always", "IfNotPresent", "Never"]
             }
           }
-        }
+        },
+        "resources": { "type": "object" }
       }
     }
   }

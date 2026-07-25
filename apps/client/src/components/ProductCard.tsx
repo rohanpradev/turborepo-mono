@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useState } from "react";
 import ProductCardActions from "@/components/ProductCardActions";
 import { Badge } from "@/components/ui/badge";
-import { getPrimaryProductImage } from "@/lib/catalog";
+import { getPrimaryProductImage, isExternalProductImage } from "@/lib/catalog";
 import type { ProductType } from "@/types";
 
 const ProductCard = ({
@@ -31,6 +31,7 @@ const ProductCard = ({
             src={previewImage}
             alt={product.name}
             fill
+            unoptimized={isExternalProductImage(previewImage)}
             loading={eager ? "eager" : "lazy"}
             fetchPriority={eager ? "high" : "auto"}
             decoding="async"
