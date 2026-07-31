@@ -26,6 +26,8 @@ spec:
         {{- include "ecommerce.selectorLabels" (dict "root" $ "service" $service) | nindent 8 }}
         app.kubernetes.io/job-name: {{ $name | quote }}
     spec:
+      os:
+        name: linux
       restartPolicy: OnFailure
       serviceAccountName: {{ include "ecommerce.serviceAccountName" $ }}
       automountServiceAccountToken: {{ $.Values.serviceAccount.automountServiceAccountToken }}

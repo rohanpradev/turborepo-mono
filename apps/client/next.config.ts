@@ -57,6 +57,7 @@ const remoteImagePatterns = Array.from(
 const workspaceRoot = path.join(__dirname, "../../");
 
 const nextConfig: NextConfig = {
+  cacheComponents: true,
   output: "standalone",
   typedRoutes: true,
   outputFileTracingRoot: workspaceRoot,
@@ -71,6 +72,7 @@ const nextConfig: NextConfig = {
   experimental: {
     turbopackFileSystemCacheForBuild: true,
     turbopackPluginRuntimeStrategy: "workerThreads",
+    useTypeScriptCli: true,
   },
   async headers() {
     return [
@@ -88,6 +90,10 @@ const nextConfig: NextConfig = {
           {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=()",
+          },
+          {
+            key: "X-Frame-Options",
+            value: "SAMEORIGIN",
           },
         ],
       },

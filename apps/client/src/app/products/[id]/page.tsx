@@ -16,9 +16,7 @@ import {
   getPrimaryProductImage,
   isExternalProductImage,
 } from "@/lib/catalog";
-
-const getSingleParam = (value?: string | Array<string>) =>
-  Array.isArray(value) ? value[0] : value;
+import { getSingleSearchParam } from "@/lib/search-params";
 
 const getProductId = (value: string) => {
   const id = Number(value);
@@ -121,8 +119,8 @@ const ProductPage = async ({
     notFound();
   }
 
-  const requestedSize = getSingleParam(resolvedSearchParams.size);
-  const requestedColor = getSingleParam(resolvedSearchParams.color);
+  const requestedSize = getSingleSearchParam(resolvedSearchParams.size);
+  const requestedColor = getSingleSearchParam(resolvedSearchParams.color);
   const selectedSize =
     product.sizes.find((size) => size === requestedSize) ??
     product.sizes[0] ??

@@ -1,7 +1,7 @@
 # E-Commerce Microservices Makefile
 # Manage all services, databases, Docker Compose, and Kubernetes/Helm workflows.
 
-.PHONY: help ensure-env install dev stop clean clean-all setup setup-base generate-client kafka-ui db-setup db-migrate db-generate db-studio db-seed local-env-file local-db-migrate local-db-seed local-urls local-dev local-fresh-dev lint type-check format audit test boundaries turbo-summary turbo-graph turbo-report turbo-inspect verify build build-client build-admin logs-product logs-order logs-payment status docker-auth docker-certs docker-validate docker-images docker-lock-images docker-build docker-up docker-up-build docker-smoke docker-test docker-down docker-down-volumes docker-logs docker-logs-traefik docker-logs-product docker-logs-order docker-logs-payment docker-logs-client docker-logs-admin docker-logs-stripe docker-ps docker-restart docker-restart-service docker-rebuild-service docker-shell-traefik docker-shell-product docker-shell-order docker-shell-payment docker-infra-only docker-infra-local docker-stripe-up docker-stripe-down docker-clean docker-clean-images docker-prune docker-kill-all docker-setup docker-fresh-start helm-lint helm-lint-supported helm-validate-supported helm-template helm-dry-run helm-package k8s-doctor k8s-gateway-api k8s-traefik k8s-traefik-status k8s-observability k8s-observability-status k8s-grafana k8s-prometheus k8s-preflight k8s-local-deps k8s-namespace k8s-fresh-namespace k8s-tls-secret k8s-runtime-secret k8s-build-images k8s-build-full-images k8s-tag-images k8s-load-images k8s-validate k8s-validate-full k8s-diff k8s-deploy k8s-deploy-observed k8s-deploy-full k8s-up k8s-up-observed k8s-up-full k8s-full k8s-wait k8s-smoke k8s-smoke-full k8s-test k8s-status k8s-events k8s-logs k8s-logs-traefik k8s-logs-client k8s-logs-admin k8s-logs-product k8s-logs-order k8s-logs-payment k8s-describe k8s-restart k8s-uninstall k8s-clear k8s-open k8s ks8 kubernetes clear quick-start quick-stop restart docker-quick-start
+.PHONY: help ensure-env install dev stop clean clean-all setup setup-base generate-client kafka-ui db-setup db-migrate db-generate db-studio db-seed local-env-file local-db-migrate local-db-seed local-urls local-dev local-fresh-dev lint type-check format audit test boundaries turbo-summary turbo-graph turbo-report turbo-inspect verify build build-client build-admin logs-product logs-order logs-payment status docker-auth docker-certs docker-validate docker-images docker-lock-images docker-build docker-up docker-up-build docker-smoke docker-test docker-down docker-down-volumes docker-logs docker-logs-traefik docker-logs-product docker-logs-order docker-logs-payment docker-logs-client docker-logs-admin docker-logs-stripe docker-ps docker-restart docker-restart-service docker-rebuild-service docker-shell-traefik docker-shell-product docker-shell-order docker-shell-payment docker-infra-only docker-infra-local docker-stripe-up docker-stripe-down docker-clean docker-clean-images docker-prune docker-kill-all docker-setup docker-fresh-start helm-lint helm-lint-supported helm-validate-supported helm-template helm-dry-run helm-package k8s-doctor k8s-gateway-api k8s-traefik k8s-traefik-status k8s-observability k8s-observability-status k8s-grafana k8s-prometheus k8s-preflight k8s-local-deps k8s-namespace k8s-fresh-namespace k8s-tls-secret k8s-runtime-secret k8s-build-images k8s-build-full-images k8s-tag-images k8s-load-images k8s-validate k8s-validate-full k8s-diff k8s-deploy k8s-deploy-observed k8s-deploy-full k8s-up k8s-up-observed k8s-up-full k8s-full k8s-wait k8s-smoke k8s-smoke-full k8s-test k8s-status k8s-events k8s-logs k8s-logs-traefik k8s-logs-client k8s-logs-admin k8s-logs-product k8s-logs-order k8s-logs-payment k8s-describe k8s-restart k8s-uninstall k8s-clear k8s ks8 kubernetes clear quick-start quick-stop restart docker-quick-start
 .PHONY: k8s-payment-doctor k8s-logs-stripe
 
 .DEFAULT_GOAL := help
@@ -26,16 +26,19 @@ DOCKER_COMPOSE ?= docker compose
 DOCKER_WAIT_TIMEOUT ?= 180
 TRAEFIK_HTTP_PORT ?= 8080
 TRAEFIK_HTTPS_PORT ?= 8443
+K8S_LOCAL_HTTPS_PORT ?= 9443
 HELM ?= helm
 KUBECTL ?= kubectl
 HELM_VERSION ?= 4.2.3
 K8S_TARGET_VERSION ?= 1.36.2
 K8S_SUPPORTED_VERSIONS ?= 1.34.9 1.35.6 1.36.2
+K8S_POD_SECURITY_LEVEL ?= restricted
+K8S_POD_SECURITY_VERSION ?= v1.34
 KUBECONFORM_IMAGE ?= ghcr.io/yannh/kubeconform:v0.8.0@sha256:faffaf43f95aa6425306e1ab8d6fcad72acb9049158f38e574c085ea1ec0f64e
-GATEWAY_API_VERSION ?= 1.6.1
+GATEWAY_API_VERSION ?= 1.5.1
 TRAEFIK_CHART_VERSION ?= 41.0.2
-TRAEFIK_IMAGE_VERSION ?= v3.7.8
-TRAEFIK_IMAGE_DIGEST ?= sha256:4299bbed850421258fc5448c2e0e6ad350981d4d335a68de11b92448aedbefe5
+TRAEFIK_IMAGE_VERSION ?= v3.7.9
+TRAEFIK_IMAGE_DIGEST ?= sha256:652929a140a32d7cafafb13c6cdfab5376cfeff800f51397b87b524501ed02a8
 OBS_CHART_VERSION ?= 87.19.1
 HELM_CHART ?= charts/ecommerce
 HELM_RELEASE ?= ecommerce
@@ -209,11 +212,6 @@ local-db-seed: local-env-file ## Seed the local Docker-backed catalog and publis
 	@echo "$(GREEN)Local catalog seeded$(NC)"
 
 ##@ Code Quality
-
-lint: ## Run Biome checks across the monorepo
-	@echo "$(BLUE)Running Biome checks...$(NC)"
-	bun run lint
-	@echo "$(GREEN)Biome checks complete$(NC)"
 
 type-check: ## Run TypeScript type checking
 	@echo "$(BLUE)Running type checks...$(NC)"
@@ -529,7 +527,7 @@ docker-prune: ## Prune unused Docker resources
 
 docker-kill-all: ## Kill every running Docker container on the machine
 	@echo "$(RED)Killing all running Docker containers...$(NC)"
-	@docker ps -q | xargs -r docker kill
+	@ids="$$(docker ps -q)"; if [ -n "$$ids" ]; then docker kill $$ids; fi
 	@echo "$(GREEN)All running Docker containers stopped$(NC)"
 
 docker-setup: setup-base docker-certs ## Run setup and start the full Docker stack
@@ -681,10 +679,10 @@ k8s-observability-status: ## Show Prometheus, Grafana, ServiceMonitor, and rule 
 	-$(KUBECTL) -n $(HELM_NAMESPACE) get configmap -l grafana_dashboard=1
 	-$(KUBECTL) get servicemonitor --all-namespaces 2>/dev/null | grep -E '$(HELM_RELEASE)|traefik' || true
 
-k8s-grafana: ## Port-forward Grafana locally at http://localhost:$(GRAFANA_PORT)
+k8s-grafana: ## Port-forward Grafana locally at the configured Grafana port
 	$(KUBECTL) -n $(OBS_NAMESPACE) port-forward svc/$(OBS_RELEASE)-grafana $(GRAFANA_PORT):80
 
-k8s-prometheus: ## Port-forward Prometheus locally at http://localhost:$(PROMETHEUS_PORT)
+k8s-prometheus: ## Port-forward Prometheus locally at the configured Prometheus port
 	$(KUBECTL) -n $(OBS_NAMESPACE) port-forward svc/$(OBS_RELEASE)-prometheus $(PROMETHEUS_PORT):9090
 
 k8s-preflight: ## Verify local Kubernetes, Helm, kubectl, and Traefik ingress prerequisites
@@ -707,11 +705,25 @@ k8s-local-deps: ensure-env docker-auth ## Start local external dependencies used
 
 k8s-namespace: k8s-preflight ## Create the Kubernetes namespace if needed
 	$(KUBECTL) create namespace $(HELM_NAMESPACE) --dry-run=client -o yaml | $(KUBECTL) apply -f -
+	$(KUBECTL) label namespace $(HELM_NAMESPACE) --overwrite \
+		pod-security.kubernetes.io/enforce=$(K8S_POD_SECURITY_LEVEL) \
+		pod-security.kubernetes.io/enforce-version=$(K8S_POD_SECURITY_VERSION) \
+		pod-security.kubernetes.io/audit=$(K8S_POD_SECURITY_LEVEL) \
+		pod-security.kubernetes.io/audit-version=$(K8S_POD_SECURITY_VERSION) \
+		pod-security.kubernetes.io/warn=$(K8S_POD_SECURITY_LEVEL) \
+		pod-security.kubernetes.io/warn-version=$(K8S_POD_SECURITY_VERSION)
 
 k8s-fresh-namespace: k8s-preflight ## Delete and recreate the application namespace for a clean deployment
 	@echo "$(BLUE)Resetting Kubernetes namespace $(HELM_NAMESPACE)...$(NC)"
 	-$(KUBECTL) delete namespace $(HELM_NAMESPACE) --ignore-not-found=true --wait=true
-	$(KUBECTL) create namespace $(HELM_NAMESPACE)
+	$(KUBECTL) create namespace $(HELM_NAMESPACE) --dry-run=client -o yaml | $(KUBECTL) apply -f -
+	$(KUBECTL) label namespace $(HELM_NAMESPACE) --overwrite \
+		pod-security.kubernetes.io/enforce=$(K8S_POD_SECURITY_LEVEL) \
+		pod-security.kubernetes.io/enforce-version=$(K8S_POD_SECURITY_VERSION) \
+		pod-security.kubernetes.io/audit=$(K8S_POD_SECURITY_LEVEL) \
+		pod-security.kubernetes.io/audit-version=$(K8S_POD_SECURITY_VERSION) \
+		pod-security.kubernetes.io/warn=$(K8S_POD_SECURITY_LEVEL) \
+		pod-security.kubernetes.io/warn-version=$(K8S_POD_SECURITY_VERSION)
 	@echo "$(GREEN)Kubernetes namespace $(HELM_NAMESPACE) is fresh$(NC)"
 
 k8s-tls-secret: docker-certs k8s-namespace ## Sync the local mkcert certificate into Kubernetes
@@ -819,8 +831,18 @@ k8s-up-observed: k8s-observability k8s-traefik k8s-local-deps k8s-build-images k
 k8s-up-full: k8s-traefik k8s-local-deps k8s-build-full-images k8s-tag-images k8s-load-images k8s-deploy-full k8s-wait k8s-smoke-full ## Prepare data, build images, deploy the full app, and smoke-test it
 	@echo "$(GREEN)Full Kubernetes stack is ready$(NC)"
 
-k8s: k8s-up ## One-command local Kubernetes setup with Docker-backed Postgres, MongoDB, and Kafka
-	@echo "$(GREEN)Kubernetes setup complete$(NC)"
+k8s: k8s-up-observed ## One-command local Kubernetes setup with Prometheus, Grafana, and Docker-backed Postgres, MongoDB, and Kafka
+	@echo "$(BLUE)Starting local forwards for the Kubernetes stack...$(NC)"
+	@trap 'kill $$traefik_pid $$grafana_pid $$prometheus_pid 2>/dev/null || true' EXIT INT TERM; \
+		$(KUBECTL) -n $(TRAEFIK_NAMESPACE) port-forward svc/traefik $(K8S_LOCAL_HTTPS_PORT):443 >/tmp/$(HELM_RELEASE)-traefik-port-forward.log 2>&1 & traefik_pid=$$!; \
+		$(KUBECTL) -n $(OBS_NAMESPACE) port-forward svc/$(OBS_RELEASE)-grafana $(GRAFANA_PORT):80 >/tmp/$(OBS_RELEASE)-grafana-port-forward.log 2>&1 & grafana_pid=$$!; \
+		$(KUBECTL) -n $(OBS_NAMESPACE) port-forward svc/$(OBS_RELEASE)-prometheus $(PROMETHEUS_PORT):9090 >/tmp/$(OBS_RELEASE)-prometheus-port-forward.log 2>&1 & prometheus_pid=$$!; \
+		printf "$(GREEN)Local forwards active. Press Ctrl-C to stop them.$(NC)\\n"; \
+		printf "  Storefront:  https://shop.localhost:$(K8S_LOCAL_HTTPS_PORT)\\n"; \
+		printf "  Admin:       https://admin.localhost:$(K8S_LOCAL_HTTPS_PORT)\\n"; \
+		printf "  Grafana:     http://localhost:$(GRAFANA_PORT)\\n"; \
+		printf "  Prometheus:  http://localhost:$(PROMETHEUS_PORT)\\n"; \
+		wait
 
 ks8: k8s ## One-command Kubernetes setup alias for the common typo
 	@echo "$(GREEN)Kubernetes setup complete$(NC)"
@@ -836,14 +858,17 @@ k8s-wait: ## Wait for all ecommerce deployments to finish rolling out
 
 k8s-smoke: ## Smoke-test local Kubernetes web routes over HTTPS
 	@echo "$(BLUE)Smoke-testing Kubernetes ingress...$(NC)"
-	@curl -4 -skSf --max-time $(K8S_SMOKE_TIMEOUT) https://shop.localhost/api/health >/dev/null
-	@curl -4 -skSf --max-time $(K8S_SMOKE_TIMEOUT) https://admin.localhost/api/health >/dev/null
-	@curl -4 -skSf --max-time $(K8S_SMOKE_TIMEOUT) --get https://admin.localhost/_next/image \
-		--data-urlencode "url=$(K8S_IMAGE_STOREFRONT_ORIGIN)/logo.png" \
-		--data-urlencode "w=64" \
-		--data-urlencode "q=75" >/dev/null
-	@curl -4 -skSf --max-time $(K8S_SMOKE_TIMEOUT) https://shop.localhost/ >/dev/null
-	@status="$$(curl -4 -skS -o /dev/null -w '%{http_code}' --max-time $(K8S_SMOKE_TIMEOUT) -X POST https://api.localhost/api/webhooks/stripe)"; \
+	@ingress_ip="$$($(KUBECTL) -n $(TRAEFIK_NAMESPACE) get svc traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)"; \
+		resolve_args=""; \
+		if [ -n "$$ingress_ip" ]; then resolve_args="--resolve shop.localhost:443:$$ingress_ip --resolve admin.localhost:443:$$ingress_ip --resolve api.localhost:443:$$ingress_ip"; fi; \
+		curl -4 -skSf --max-time $(K8S_SMOKE_TIMEOUT) $$resolve_args https://shop.localhost/api/health >/dev/null && \
+		curl -4 -skSf --max-time $(K8S_SMOKE_TIMEOUT) $$resolve_args https://admin.localhost/api/health >/dev/null && \
+		curl -4 -skSf --max-time $(K8S_SMOKE_TIMEOUT) $$resolve_args --get https://admin.localhost/_next/image \
+			--data-urlencode "url=$(K8S_IMAGE_STOREFRONT_ORIGIN)/logo.png" \
+			--data-urlencode "w=64" \
+			--data-urlencode "q=75" >/dev/null && \
+		curl -4 -skSf --max-time $(K8S_SMOKE_TIMEOUT) $$resolve_args https://shop.localhost/ >/dev/null && \
+		status="$$(curl -4 -skS -o /dev/null -w '%{http_code}' --max-time $(K8S_SMOKE_TIMEOUT) $$resolve_args -X POST https://api.localhost/api/webhooks/stripe)"; \
 		test "$$status" = "400" || { echo "$(RED)Expected unsigned Stripe webhook to reach payment-service and return 400; received $$status.$(NC)"; exit 1; }
 	@echo "$(GREEN)Kubernetes smoke tests passed$(NC)"
 
@@ -907,10 +932,6 @@ k8s-clear: ## Stop and remove local Kubernetes resources plus Docker backing ser
 	@echo "$(GREEN)Local Kubernetes and Docker resources cleared$(NC)"
 
 clear: k8s-clear ## Alias for k8s-clear
-
-k8s-open: ## Open the local Kubernetes routes in a browser
-	@start https://shop.localhost 2>/dev/null || open https://shop.localhost 2>/dev/null || xdg-open https://shop.localhost 2>/dev/null
-	@start https://admin.localhost 2>/dev/null || open https://admin.localhost 2>/dev/null || xdg-open https://admin.localhost 2>/dev/null
 
 ##@ Quick Commands
 

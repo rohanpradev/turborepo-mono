@@ -5,6 +5,11 @@ import {
 } from "@repo/kafka";
 import type Stripe from "stripe";
 import { recordIntegrationEvent } from "@/observability/integrationEvents";
+import {
+  claimProcessableEvent,
+  markEventProcessed,
+  releaseProcessableEvent,
+} from "@/observability/processedEvents";
 import { producer } from "@/utils/kafka";
 import { getStripeClient } from "@/utils/stripe";
 
@@ -39,14 +44,36 @@ const getCheckoutOwner = (session: Stripe.Checkout.Session) => {
 export const enqueuePaidCheckoutSession = async (
   message: StripeCheckoutCompletedMessage,
 ) => {
-  await producer.send(Topics.STRIPE_CHECKOUT_COMPLETED, message, {
-    headers: {
-      "stripe-event-id": message.eventId,
-      "stripe-event-type": message.eventType,
-      source: message.source,
-    },
-    key: message.sessionId,
-  });
+  const eventKey = `stripe-event:${message.eventId}`;
+
+  if (!claimProcessableEvent(eventKey)) {
+    recordIntegrationEvent({
+      source: "kafka",
+      type: "stripe.checkout.completed.duplicate",
+      message: "Skipped duplicate paid Checkout Session event.",
+      details: {
+        eventId: message.eventId,
+        sessionId: message.sessionId,
+      },
+    });
+    return false;
+  }
+
+  try {
+    await producer.send(Topics.STRIPE_CHECKOUT_COMPLETED, message, {
+      headers: {
+        "stripe-event-id": message.eventId,
+        "stripe-event-type": message.eventType,
+        source: message.source,
+      },
+      key: message.sessionId,
+    });
+
+    markEventProcessed(eventKey);
+  } catch (error) {
+    releaseProcessableEvent(eventKey);
+    throw error;
+  }
 
   recordIntegrationEvent({
     source: "kafka",
@@ -59,103 +86,134 @@ export const enqueuePaidCheckoutSession = async (
       source: message.source,
     },
   });
+
+  return true;
 };
 
 export const StripePaymentEventService = {
   async processCompletedCheckout(message: StripeCheckoutCompletedMessage) {
+    const sessionKey = `payment-successful:${message.sessionId}`;
+
+    if (!claimProcessableEvent(sessionKey)) {
+      recordIntegrationEvent({
+        source: "kafka",
+        type: "payment.successful.duplicate",
+        message: "Skipped duplicate payment publication for Checkout Session.",
+        details: {
+          eventId: message.eventId,
+          sessionId: message.sessionId,
+        },
+      });
+      return false;
+    }
+
     const stripe = getStripeClient();
 
     if (!stripe) {
+      releaseProcessableEvent(sessionKey);
       throw new Error("Stripe is not configured for payment enrichment.");
     }
+    try {
+      const session = await stripe.checkout.sessions.retrieve(
+        message.sessionId,
+        {
+          expand: ["payment_intent"],
+        },
+      );
 
-    const session = await stripe.checkout.sessions.retrieve(message.sessionId, {
-      expand: ["payment_intent"],
-    });
+      if (session.status !== "complete" || session.payment_status !== "paid") {
+        recordIntegrationEvent({
+          source: "stripe",
+          type: "stripe.checkout.completed.not_paid",
+          message:
+            "Skipped Checkout Session because Stripe does not report it paid.",
+          details: {
+            sessionId: session.id,
+            status: session.status,
+            paymentStatus: session.payment_status,
+          },
+        });
+        markEventProcessed(sessionKey);
+        return false;
+      }
 
-    if (session.status !== "complete" || session.payment_status !== "paid") {
+      const lineItems = await stripe.checkout.sessions.listLineItems(
+        session.id,
+        {
+          limit: 100,
+          expand: ["data.price.product"],
+        },
+      );
+      const paymentIntent =
+        typeof session.payment_intent === "string"
+          ? await stripe.paymentIntents.retrieve(session.payment_intent)
+          : (session.payment_intent ?? null);
+      const payment: PaymentSuccessfulMessage = {
+        orderId: session.id,
+        userId: getCheckoutOwner(session),
+        email:
+          session.customer_details?.email ??
+          session.customer_email ??
+          "unknown@example.com",
+        amount: session.amount_total ?? 0,
+        currency: session.currency ?? "usd",
+        status: "success",
+        paymentMethod: getPaymentMethod(session, paymentIntent),
+        transactionId: getPaymentIntentId(session),
+        items: lineItems.data.map((item) => {
+          const expandedProduct =
+            item.price && typeof item.price.product !== "string"
+              ? item.price.product
+              : null;
+          const product =
+            expandedProduct && !("deleted" in expandedProduct)
+              ? expandedProduct
+              : null;
+
+          return {
+            productId:
+              item.price?.metadata?.sourceProductId ??
+              product?.metadata?.sourceProductId ??
+              item.price?.id ??
+              item.description ??
+              "unknown",
+            name: item.description ?? "Unknown item",
+            quantity: item.quantity ?? 1,
+            price:
+              item.price?.unit_amount ??
+              Math.floor(
+                (item.amount_total ?? 0) / Math.max(item.quantity ?? 1, 1),
+              ),
+          };
+        }),
+        processedAt: new Date().toISOString(),
+      };
+
+      await producer.send(Topics.PAYMENT_SUCCESSFUL, payment, {
+        headers: {
+          "stripe-event-id": message.eventId,
+          "stripe-event-type": message.eventType,
+          "stripe-session-id": session.id,
+        },
+        key: payment.orderId,
+      });
+
+      markEventProcessed(sessionKey);
       recordIntegrationEvent({
-        source: "stripe",
-        type: "stripe.checkout.completed.not_paid",
-        message:
-          "Skipped Checkout Session because Stripe does not report it paid.",
+        source: "kafka",
+        type: "payment.successful.published",
+        message: "Published enriched payment.successful Kafka event.",
         details: {
-          sessionId: session.id,
-          status: session.status,
-          paymentStatus: session.payment_status,
+          orderId: payment.orderId,
+          transactionId: payment.transactionId,
+          amount: payment.amount,
+          itemCount: payment.items.length,
         },
       });
-      return;
+      return true;
+    } catch (error) {
+      releaseProcessableEvent(sessionKey);
+      throw error;
     }
-
-    const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
-      limit: 100,
-      expand: ["data.price.product"],
-    });
-    const paymentIntent =
-      typeof session.payment_intent === "string"
-        ? await stripe.paymentIntents.retrieve(session.payment_intent)
-        : (session.payment_intent ?? null);
-    const payment: PaymentSuccessfulMessage = {
-      orderId: session.id,
-      userId: getCheckoutOwner(session),
-      email:
-        session.customer_details?.email ??
-        session.customer_email ??
-        "unknown@example.com",
-      amount: session.amount_total ?? 0,
-      currency: session.currency ?? "usd",
-      status: "success",
-      paymentMethod: getPaymentMethod(session, paymentIntent),
-      transactionId: getPaymentIntentId(session),
-      items: lineItems.data.map((item) => {
-        const expandedProduct =
-          item.price && typeof item.price.product !== "string"
-            ? item.price.product
-            : null;
-        const product =
-          expandedProduct && !("deleted" in expandedProduct)
-            ? expandedProduct
-            : null;
-
-        return {
-          productId:
-            item.price?.metadata?.sourceProductId ??
-            product?.metadata?.sourceProductId ??
-            item.price?.id ??
-            item.description ??
-            "unknown",
-          name: item.description ?? "Unknown item",
-          quantity: item.quantity ?? 1,
-          price:
-            item.price?.unit_amount ??
-            Math.floor(
-              (item.amount_total ?? 0) / Math.max(item.quantity ?? 1, 1),
-            ),
-        };
-      }),
-      processedAt: new Date().toISOString(),
-    };
-
-    await producer.send(Topics.PAYMENT_SUCCESSFUL, payment, {
-      headers: {
-        "stripe-event-id": message.eventId,
-        "stripe-event-type": message.eventType,
-        "stripe-session-id": session.id,
-      },
-      key: payment.orderId,
-    });
-
-    recordIntegrationEvent({
-      source: "kafka",
-      type: "payment.successful.published",
-      message: "Published enriched payment.successful Kafka event.",
-      details: {
-        orderId: payment.orderId,
-        transactionId: payment.transactionId,
-        amount: payment.amount,
-        itemCount: payment.items.length,
-      },
-    });
   },
 };

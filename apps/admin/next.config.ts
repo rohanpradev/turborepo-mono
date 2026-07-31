@@ -77,6 +77,7 @@ const nextConfig: NextConfig = {
   experimental: {
     turbopackFileSystemCacheForBuild: true,
     turbopackPluginRuntimeStrategy: "workerThreads",
+    useTypeScriptCli: true,
   },
   async headers() {
     return [

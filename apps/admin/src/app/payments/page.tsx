@@ -19,6 +19,29 @@ const liveFetchOptions = {
   cache: "no-store" as const,
 };
 
+const uniquePaymentsByTransaction = <
+  T extends { details?: { transactionId?: unknown } },
+>(
+  events: Array<T>,
+) => {
+  const transactionIds = new Set<string>();
+
+  return events.filter((event) => {
+    const transactionId = event.details?.transactionId;
+
+    if (typeof transactionId !== "string") {
+      return true;
+    }
+
+    if (transactionIds.has(transactionId)) {
+      return false;
+    }
+
+    transactionIds.add(transactionId);
+    return true;
+  });
+};
+
 const PaymentsPage = async () => {
   const { token } = await requireAdminAccess();
   const paymentServiceUrl = getPaymentServiceServerUrl();
@@ -46,15 +69,19 @@ const PaymentsPage = async () => {
 
   const eventPayload = "data" in paymentEvents ? paymentEvents.data : null;
   const recentEvents = eventPayload?.recentEvents ?? [];
-  const paymentTimelineEvents = recentEvents.filter(
-    (event) =>
-      event.type === "checkout.session.created" ||
-      event.type === "payment.successful.published" ||
-      event.type.startsWith("checkout.") ||
-      event.source === "webhook",
+  const paymentTimelineEvents = uniquePaymentsByTransaction(
+    recentEvents.filter(
+      (event) =>
+        event.type === "checkout.session.created" ||
+        event.type === "payment.successful.published" ||
+        event.type.startsWith("checkout.") ||
+        event.source === "webhook",
+    ),
   );
-  const successfulPayments = paymentTimelineEvents.filter(
-    (event) => event.type === "payment.successful.published",
+  const successfulPayments = uniquePaymentsByTransaction(
+    paymentTimelineEvents.filter(
+      (event) => event.type === "payment.successful.published",
+    ),
   );
   const checkoutSessions = paymentTimelineEvents.filter(
     (event) => event.type === "checkout.session.created",

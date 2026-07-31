@@ -85,8 +85,8 @@ For the current expert gap assessment and prioritized roadmap, see [docs/EXPERT_
 | Events | Kafka with typed topics and topic management |
 | Data | PostgreSQL + Prisma, MongoDB + Mongoose |
 | Quality | Biome, Syncpack, Knip, Bun test/coverage, Bun audit, stable TypeScript 7 with TypeScript 6 tooling compatibility |
-| Runtime | Bun 1.3.14, digest-pinned Compose images, Traefik 3.7.8, Docker Hardened Images |
-| Platform | Helm 4.2.3, Kubernetes 1.34-1.36, Gateway API 1.6.1 |
+| Runtime | Bun 1.3.14, digest-pinned Compose images, Traefik 3.7.9, Docker Hardened Images |
+| Platform | Helm 4.2.3, Kubernetes 1.34-1.36, Gateway API 1.5.1 |
 | CI/CD | GitHub Actions, Helm lint plus kubeconform schema matrix, Docker Buildx, GHCR images, SBOM, provenance |
 
 ## Event Flow
@@ -155,7 +155,7 @@ make docker-down
 
 ### Local Kubernetes With Helm
 
-Use this when you want to test Kubernetes locally. It deploys the apps with Helm and Traefik while Postgres, MongoDB, and Kafka stay in Docker for a faster laptop-friendly loop.
+Use this when you want to test Kubernetes locally. It deploys the apps with Helm and Traefik, installs Prometheus and Grafana, and keeps Postgres, MongoDB, and Kafka in Docker for a faster laptop-friendly loop.
 
 ```bash
 make k8s
@@ -169,13 +169,14 @@ Main URLs:
 | Admin | `https://admin.localhost` |
 | API gateway | `https://api.localhost` |
 
+`make k8s` keeps the Traefik, Grafana, and Prometheus port-forwards active in the foreground and prints the local URLs. Press `Ctrl-C` to stop the forwards.
+
 Useful follow-ups:
 
 ```bash
 make k8s-doctor
 make k8s-status
 make k8s-test
-make k8s-open
 make k8s-clear
 ```
 

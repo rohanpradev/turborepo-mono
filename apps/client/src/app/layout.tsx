@@ -1,5 +1,6 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Toaster } from "sonner";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
@@ -70,7 +71,16 @@ export default function RootLayout({
         Skip to main content
       </a>
       <div className="mx-auto flex min-h-screen w-full max-w-[94rem] flex-col px-3 py-3 sm:px-5 sm:py-4 lg:px-8">
-        <Navbar />
+        <Suspense
+          fallback={
+            <div
+              aria-hidden="true"
+              className="mb-8 min-h-24 rounded-xl border border-border/90 bg-card shadow-[0_12px_35px_-26px_rgba(28,25,23,0.55)]"
+            />
+          }
+        >
+          <Navbar />
+        </Suspense>
         <main id="main-content" tabIndex={-1} className="flex-1 outline-none">
           {children}
         </main>

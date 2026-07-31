@@ -33,6 +33,29 @@ const formatEventTimestamp = (timestamp: string) =>
     timeStyle: "short",
   }).format(new Date(timestamp));
 
+const uniquePaymentsByTransaction = <
+  T extends { details?: { transactionId?: unknown } },
+>(
+  events: Array<T>,
+) => {
+  const transactionIds = new Set<string>();
+
+  return events.filter((event) => {
+    const transactionId = event.details?.transactionId;
+
+    if (typeof transactionId !== "string") {
+      return true;
+    }
+
+    if (transactionIds.has(transactionId)) {
+      return false;
+    }
+
+    transactionIds.add(transactionId);
+    return true;
+  });
+};
+
 const HomePage = async () => {
   const { token } = await requireAdminAccess();
   const paymentServiceUrl = getPaymentServiceServerUrl();
@@ -60,8 +83,10 @@ const HomePage = async () => {
 
   const recentEvents =
     "data" in paymentEvents ? paymentEvents.data.recentEvents : [];
-  const recentPayments = recentEvents.filter(
-    (event) => event.type === "payment.successful.published",
+  const recentPayments = uniquePaymentsByTransaction(
+    recentEvents.filter(
+      (event) => event.type === "payment.successful.published",
+    ),
   );
   const recentCheckouts = recentEvents.filter(
     (event) => event.type === "checkout.session.created",

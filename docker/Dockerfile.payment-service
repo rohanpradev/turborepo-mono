@@ -43,4 +43,8 @@ COPY --link --from=builder /app/packages ./packages
 
 EXPOSE 8002
 
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD ["bun", "-e", "fetch('http://127.0.0.1:8002/health/ready').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));"]
+STOPSIGNAL SIGTERM
+
 CMD ["bun", "run", "apps/payment-service/src/index.ts"]
