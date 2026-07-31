@@ -1,5 +1,10 @@
 import type Stripe from "stripe";
 import { recordIntegrationEvent } from "@/observability/integrationEvents";
+import {
+  claimProcessableEvent,
+  markEventProcessed,
+  releaseProcessableEvent,
+} from "@/observability/processedEvents";
 import { enqueuePaidCheckoutSession } from "@/services/StripePaymentEventService";
 import { getStripeClient, getStripeWebhookSecret } from "@/utils/stripe";
 
@@ -103,13 +108,35 @@ export const StripeWebhookService = {
       return { status: "ok" };
     }
 
-    await enqueue({
-      eventId: event.id,
-      eventType: event.type,
-      sessionId: session.id,
-      source: "webhook",
-      occurredAt: new Date(event.created * 1_000).toISOString(),
-    });
+    const eventKey = `stripe-webhook:${event.id}`;
+
+    if (!claimProcessableEvent(eventKey)) {
+      recordIntegrationEvent({
+        source: "webhook",
+        type: "stripe.webhook.duplicate",
+        message: "Skipped duplicate Stripe webhook delivery.",
+        details: {
+          eventId: event.id,
+          eventType: event.type,
+          sessionId: session.id,
+        },
+      });
+      return { status: "ok" };
+    }
+
+    try {
+      await enqueue({
+        eventId: event.id,
+        eventType: event.type,
+        sessionId: session.id,
+        source: "webhook",
+        occurredAt: new Date(event.created * 1_000).toISOString(),
+      });
+      markEventProcessed(eventKey);
+    } catch (error) {
+      releaseProcessableEvent(eventKey);
+      throw error;
+    }
 
     return { status: "ok" };
   },

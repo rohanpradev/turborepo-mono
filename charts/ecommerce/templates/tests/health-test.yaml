@@ -9,6 +9,8 @@ metadata:
     "helm.sh/hook": test
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 spec:
+  os:
+    name: linux
   restartPolicy: Never
   automountServiceAccountToken: false
   enableServiceLinks: false

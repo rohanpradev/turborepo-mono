@@ -51,13 +51,12 @@ make k8s-logs-order
 make k8s-logs-payment
 make k8s-describe K8S_SERVICE=product-service
 make k8s-restart
-make k8s-open
 make k8s-uninstall
 ```
 
 The local workflow installs Traefik as a standard Kubernetes Ingress controller and deploys app routes with `ingressClassName: traefik`.
 
-The deployment toolchain is pinned to Helm 4.2.3, kubeconform 0.8.0, Traefik chart 41.0.2 with the security-fixed Traefik 3.7.8 image digest, kube-prometheus-stack 87.19.1, and Gateway API 1.6.1. Chart 0.3.0 supports the actively maintained Kubernetes 1.34, 1.35, and 1.36 release lines. CI lints and strictly schema-validates every chart profile against the latest published patch in each line. CRD-backed resources without Kubernetes-core schemas are skipped by kubeconform and remain covered by Helm rendering and live-cluster validation. The Traefik and kube-prometheus-stack workflows apply their chart CRDs before upgrading the controllers because Helm does not upgrade CRDs automatically.
+The deployment toolchain is pinned to Helm 4.2.3, kubeconform 0.8.0, Traefik chart 41.0.2 with the security-fixed Traefik 3.7.9 image digest, kube-prometheus-stack 87.19.1, and Gateway API 1.5.1. Gateway API 1.6.1 is newer upstream, but Traefik 3.7's current provider documentation declares support for 1.5.1, so the installer deliberately keeps that compatibility pin. Chart 0.3.0 supports the actively maintained Kubernetes 1.34, 1.35, and 1.36 release lines. CI lints and strictly schema-validates every chart profile against the latest published patch in each line. CRD-backed resources without Kubernetes-core schemas are skipped by kubeconform and remain covered by Helm rendering and live-cluster validation. The Traefik and kube-prometheus-stack workflows apply their chart CRDs before upgrading the controllers because Helm does not upgrade CRDs automatically.
 
 For Prometheus, Grafana, app metrics, Traefik metrics, and alert rules, run:
 
@@ -109,7 +108,7 @@ The default local image names match the Docker Compose builds:
 - `turborepo-monorepo-order-service`
 - `turborepo-monorepo-payment-service`
 
-For registries, set `global.imageRegistry` and per-service tags. Every service image also accepts `digest`; when present, Helm renders `repository@sha256:...` and ignores the tag at runtime. External Stripe CLI and Helm test images are digest-pinned by default.
+For registries, set `global.imageRegistry` and per-service tags. Every service image also accepts `digest`; when present, Helm renders the traceable `repository:tag@sha256:...` form and Kubernetes uses the immutable digest at runtime. External Stripe CLI and Helm test images are digest-pinned by default.
 
 The admin image optimizer reads storefront product assets over the cluster-internal client Service instead of looping through the public ingress. When building outside `make k8s`, pass `NEXT_IMAGE_STOREFRONT_ORIGIN` to the admin image at build time and set the matching `STOREFRONT_ASSET_ORIGIN` at runtime. Private Service IP optimization is enabled only in that admin build and remains restricted by Next.js `remotePatterns`.
 
@@ -130,6 +129,7 @@ services:
 ## Production Notes
 
 - Keep stateful dependencies outside this application chart: Postgres, MongoDB, Kafka, Clerk, Stripe, and secret managers are environment concerns.
+- The local namespace targets apply Kubernetes Pod Security Admission labels at the Restricted level, pinned to the chart's oldest supported minor (`v1.34`). Override `K8S_POD_SECURITY_LEVEL` or `K8S_POD_SECURITY_VERSION` only when the cluster has a documented compatibility requirement.
 - Supply immutable application image digests for shared environments. The chart no longer defaults to `latest`.
 - Keep `secrets.create=false` outside throwaway environments and wire `secrets.name` to your secret manager output.
 - Keep `ingress.tls.secretName` owned by cert-manager or the platform ingress layer outside local development.

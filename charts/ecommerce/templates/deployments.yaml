@@ -47,6 +47,8 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
+      os:
+        name: linux
       serviceAccountName: {{ include "ecommerce.serviceAccountName" $ }}
       automountServiceAccountToken: {{ $.Values.serviceAccount.automountServiceAccountToken }}
       enableServiceLinks: {{ $.Values.global.enableServiceLinks }}
@@ -143,6 +145,7 @@ spec:
             {{- if and (eq $key "payment") $.Values.stripeCli.enabled }}
             - name: stripe-webhook-secret
               mountPath: {{ dir $.Values.stripeCli.webhookSecretFile | quote }}
+              readOnly: true
             {{- end }}
             {{- with $service.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}

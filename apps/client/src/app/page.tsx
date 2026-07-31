@@ -6,6 +6,7 @@ import ProductListSkeleton from "@/components/ProductListSkeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { createStoreMetadata } from "@/lib/metadata";
+import { getSingleSearchParam } from "@/lib/search-params";
 
 export const metadata = createStoreMetadata({
   canonical: "/",
@@ -13,9 +14,6 @@ export const metadata = createStoreMetadata({
     "Shop a considered edit of everyday apparel, denim, and footwear with fast dispatch and secure checkout.",
   title: "Objects for everyday life",
 });
-
-const getSingleParam = (value?: string | Array<string>) =>
-  Array.isArray(value) ? value[0] : value;
 
 const servicePromises = [
   {
@@ -35,12 +33,25 @@ const servicePromises = [
   },
 ] as const;
 
-const Homepage = async ({ searchParams }: PageProps<"/">) => {
+const HomepageCatalog = async ({
+  searchParams,
+}: Pick<PageProps<"/">, "searchParams">) => {
   const resolvedSearchParams = await searchParams;
-  const category = getSingleParam(resolvedSearchParams.category);
-  const search = getSingleParam(resolvedSearchParams.search);
-  const sort = getSingleParam(resolvedSearchParams.sort);
+  const category = getSingleSearchParam(resolvedSearchParams.category);
+  const search = getSingleSearchParam(resolvedSearchParams.search);
+  const sort = getSingleSearchParam(resolvedSearchParams.sort);
 
+  return (
+    <ProductList
+      category={category}
+      search={search}
+      sort={sort}
+      params="homepage"
+    />
+  );
+};
+
+const Homepage = ({ searchParams }: PageProps<"/">) => {
   return (
     <div className="space-y-14 pb-8 sm:space-y-18">
       <section
@@ -178,16 +189,8 @@ const Homepage = async ({ searchParams }: PageProps<"/">) => {
         ))}
       </section>
 
-      <Suspense
-        fallback={<ProductListSkeleton itemCount={8} />}
-        key={`${category ?? "all"}-${search ?? ""}-${sort ?? ""}`}
-      >
-        <ProductList
-          category={category}
-          search={search}
-          sort={sort}
-          params="homepage"
-        />
+      <Suspense fallback={<ProductListSkeleton itemCount={8} />}>
+        <HomepageCatalog searchParams={searchParams} />
       </Suspense>
     </div>
   );

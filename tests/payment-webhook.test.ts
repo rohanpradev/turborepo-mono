@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import type { StripeCheckoutCompletedMessage } from "@repo/kafka";
+import { clearProcessedEventsForTesting } from "../apps/payment-service/src/observability/processedEvents";
 import {
   STRIPE_WEBHOOK_MAX_BODY_SIZE_BYTES,
   webhookRoutes,
@@ -34,6 +35,7 @@ const createStripeSignature = async (payload: string, secret: string) => {
 
 afterEach(() => {
   setStripeClientForTesting(undefined);
+  clearProcessedEventsForTesting();
 
   if (originalStripeSecretKey === undefined) {
     delete process.env.STRIPE_SECRET_KEY;
@@ -118,7 +120,7 @@ describe("payment-service Stripe webhook", () => {
 
     expect(first).toEqual({ status: "ok" });
     expect(replay).toEqual({ status: "ok" });
-    expect(enqueued).toHaveLength(2);
+    expect(enqueued).toHaveLength(1);
     expect(enqueued[0]).toMatchObject({
       eventId: event.id,
       eventType: event.type,

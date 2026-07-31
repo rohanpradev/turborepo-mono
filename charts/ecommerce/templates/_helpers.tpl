@@ -76,7 +76,7 @@ app.kubernetes.io/component: {{ .service.name | quote }}
 {{- $reference = printf "%s/%s" ($registry | trimSuffix "/") $repository -}}
 {{- end -}}
 {{- if $digest -}}
-{{- printf "%s@%s" $reference $digest -}}
+{{- printf "%s:%s@%s" $reference $tag $digest -}}
 {{- else -}}
 {{- printf "%s:%s" $reference $tag -}}
 {{- end -}}
@@ -88,7 +88,7 @@ app.kubernetes.io/component: {{ .service.name | quote }}
 {{- $tag := required "external image.tag is required" .tag -}}
 {{- $digest := default "" .digest -}}
 {{- if $digest -}}
-{{- printf "%s@%s" $repository $digest -}}
+{{- printf "%s:%s@%s" $repository $tag $digest -}}
 {{- else -}}
 {{- printf "%s:%s" $repository $tag -}}
 {{- end -}}
