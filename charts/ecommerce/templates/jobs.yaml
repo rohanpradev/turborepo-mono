@@ -1,6 +1,12 @@
 {{- range $name, $job := .Values.jobs }}
 {{- if $job.enabled }}
+{{- if and $.Values.secrets.create (contains "pre-install" $job.hook) }}
+{{- fail (printf "job %s runs as a pre-install hook and requires an externally managed secret; set secrets.create=false and provision secrets.name before Helm runs" $name) }}
+{{- end }}
 {{- $service := required (printf "job %s must reference a valid service" $name) (index $.Values.services $job.service) }}
+{{- if not $service.enabled }}
+{{- fail (printf "job %s references disabled service %s" $name $job.service) }}
+{{- end }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -29,8 +35,10 @@ spec:
       os:
         name: linux
       restartPolicy: OnFailure
-      serviceAccountName: {{ include "ecommerce.serviceAccountName" $ }}
-      automountServiceAccountToken: {{ $.Values.serviceAccount.automountServiceAccountToken }}
+      # Pre-install hooks run before chart-managed service accounts exist and
+      # these jobs do not call the Kubernetes API.
+      serviceAccountName: default
+      automountServiceAccountToken: false
       enableServiceLinks: {{ $.Values.global.enableServiceLinks }}
       terminationGracePeriodSeconds: {{ $.Values.global.terminationGracePeriodSeconds }}
       securityContext:

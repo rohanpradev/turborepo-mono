@@ -22,6 +22,9 @@ spec:
   rules:
     {{- range $path := $host.paths }}
     {{- $target := required (printf "gateway path %s must reference a valid service" $path.path) (index $.Values.services $path.service) }}
+    {{- if not $target.enabled }}
+    {{- fail (printf "gateway path %s references disabled service %s" $path.path $path.service) }}
+    {{- end }}
     - matches:
         - path:
             {{- if eq (default "Prefix" $path.pathType) "Exact" }}

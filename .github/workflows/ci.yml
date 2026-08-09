@@ -17,14 +17,14 @@ env:
   BUN_VERSION: 1.3.14
   BUN_DEV_IMAGE: dhi.io/bun:1.3.14-debian13-dev@sha256:294098cbf9ef24c7c66cb5849ea0c998fef17245d9aa3d955c078a73ccbada89
   BUN_RUNTIME_IMAGE: dhi.io/bun:1.3.14-debian13@sha256:fb5dda72d73bd1e581d014e6546352766f8565bb78ce66a290e4f11fdc188c11
-  BUILDX_VERSION: v0.35.0
-  BUILDKIT_IMAGE: moby/buildkit:v0.31.2@sha256:2f5adac4ecd194d9f8c10b7b5d7bceb5186853db1b26e5abd3a657af0b7e26ec
+  BUILDX_VERSION: v0.36.1
+  BUILDKIT_IMAGE: moby/buildkit:v0.32.2@sha256:28a898719c18a33f4e8000685287fa36fd0dd9560c6440227d3a732d79bb41d8
   HELM_VERSION: 4.2.3
   KUBECONFORM_IMAGE: ghcr.io/yannh/kubeconform:v0.8.0@sha256:faffaf43f95aa6425306e1ab8d6fcad72acb9049158f38e574c085ea1ec0f64e
   K8S_SUPPORTED_VERSIONS: 1.34.9 1.35.6 1.36.2
   NODE_VERSION: 24
   REGISTRY: ghcr.io
-  TURBO_VERSION: 2.10.6
+  TURBO_VERSION: 2.10.9
   NEXT_TELEMETRY_DISABLED: 1
   TURBO_TELEMETRY_DISABLED: 1
 
@@ -189,6 +189,15 @@ jobs:
     permissions:
       contents: read
       packages: write
+    env:
+      NEXT_IMAGE_STOREFRONT_ORIGIN: ${{ vars.NEXT_IMAGE_STOREFRONT_ORIGIN }}
+      NEXT_PUBLIC_ADMIN_APP_URL: ${{ vars.NEXT_PUBLIC_ADMIN_APP_URL }}
+      NEXT_PUBLIC_CLIENT_APP_URL: ${{ vars.NEXT_PUBLIC_CLIENT_APP_URL }}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      NEXT_PUBLIC_ORDER_SERVICE_URL: ${{ vars.NEXT_PUBLIC_ORDER_SERVICE_URL }}
+      NEXT_PUBLIC_PAYMENT_SERVICE_URL: ${{ vars.NEXT_PUBLIC_PAYMENT_SERVICE_URL }}
+      NEXT_PUBLIC_PRODUCT_SERVICE_URL: ${{ vars.NEXT_PUBLIC_PRODUCT_SERVICE_URL }}
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
 
     strategy:
       fail-fast: false
@@ -254,6 +263,27 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}
 
+      - name: Validate publish-time public configuration
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          required=(
+            NEXT_IMAGE_STOREFRONT_ORIGIN
+            NEXT_PUBLIC_ADMIN_APP_URL
+            NEXT_PUBLIC_CLIENT_APP_URL
+            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+            NEXT_PUBLIC_ORDER_SERVICE_URL
+            NEXT_PUBLIC_PAYMENT_SERVICE_URL
+            NEXT_PUBLIC_PRODUCT_SERVICE_URL
+            NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+          )
+          for variable in "${required[@]}"; do
+            test -n "${!variable}" || {
+              echo "Missing required repository variable: ${variable}" >&2
+              exit 1
+            }
+          done
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
@@ -266,6 +296,25 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix=sha-
 
+      - name: Run Docker build checks
+        run: |
+          docker buildx build \
+            --check \
+            --file "${{ matrix.service.dockerfile }}" \
+            --build-arg "BUN_DEV_IMAGE=${BUN_DEV_IMAGE}" \
+            --build-arg "BUN_RUNTIME_IMAGE=${BUN_RUNTIME_IMAGE}" \
+            --build-arg "TURBO_VERSION=${TURBO_VERSION}" \
+            --build-arg "NEXT_IMAGE_ALLOW_LOCAL_IP=false" \
+            --build-arg "NEXT_IMAGE_STOREFRONT_ORIGIN=${NEXT_IMAGE_STOREFRONT_ORIGIN}" \
+            --build-arg "NEXT_PUBLIC_ADMIN_APP_URL=${NEXT_PUBLIC_ADMIN_APP_URL}" \
+            --build-arg "NEXT_PUBLIC_CLIENT_APP_URL=${NEXT_PUBLIC_CLIENT_APP_URL}" \
+            --build-arg "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}" \
+            --build-arg "NEXT_PUBLIC_ORDER_SERVICE_URL=${NEXT_PUBLIC_ORDER_SERVICE_URL}" \
+            --build-arg "NEXT_PUBLIC_PAYMENT_SERVICE_URL=${NEXT_PUBLIC_PAYMENT_SERVICE_URL}" \
+            --build-arg "NEXT_PUBLIC_PRODUCT_SERVICE_URL=${NEXT_PUBLIC_PRODUCT_SERVICE_URL}" \
+            --build-arg "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}" \
+            .
+
       - name: Build and push Docker image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
@@ -277,6 +326,15 @@ jobs:
             BUN_DEV_IMAGE=${{ env.BUN_DEV_IMAGE }}
             BUN_RUNTIME_IMAGE=${{ env.BUN_RUNTIME_IMAGE }}
             TURBO_VERSION=${{ env.TURBO_VERSION }}
+            NEXT_IMAGE_ALLOW_LOCAL_IP=false
+            NEXT_IMAGE_STOREFRONT_ORIGIN=${{ env.NEXT_IMAGE_STOREFRONT_ORIGIN }}
+            NEXT_PUBLIC_ADMIN_APP_URL=${{ env.NEXT_PUBLIC_ADMIN_APP_URL }}
+            NEXT_PUBLIC_CLIENT_APP_URL=${{ env.NEXT_PUBLIC_CLIENT_APP_URL }}
+            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+            NEXT_PUBLIC_ORDER_SERVICE_URL=${{ env.NEXT_PUBLIC_ORDER_SERVICE_URL }}
+            NEXT_PUBLIC_PAYMENT_SERVICE_URL=${{ env.NEXT_PUBLIC_PAYMENT_SERVICE_URL }}
+            NEXT_PUBLIC_PRODUCT_SERVICE_URL=${{ env.NEXT_PUBLIC_PRODUCT_SERVICE_URL }}
+            NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${{ env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.service.name }}

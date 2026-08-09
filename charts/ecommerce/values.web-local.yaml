@@ -11,8 +11,11 @@ global:
     KAFKA_TOPIC_REPLICATION_FACTOR: "1"
     KAFKA_TOPIC_MIN_INSYNC_REPLICAS: "1"
     KAFKA_UI_URL: ""
-    CORS_ALLOWED_ORIGINS: https://shop.localhost,https://admin.localhost,http://localhost:3002,http://localhost:3003
-    CLERK_AUTHORIZED_PARTIES: https://shop.localhost,https://admin.localhost,https://shop.localhost:8443,https://admin.localhost:8443,http://localhost:3002,http://localhost:3003
+    # The web-local profile is exposed through `make k8s` on 9443. Browser
+    # origins include the port, so both CORS and Clerk must use the exact
+    # public origins rather than their privileged-HTTPS equivalents.
+    CORS_ALLOWED_ORIGINS: https://shop.localhost,https://admin.localhost,https://shop.localhost:9443,https://admin.localhost:9443,http://localhost:3002,http://localhost:3003
+    CLERK_AUTHORIZED_PARTIES: https://shop.localhost,https://admin.localhost,https://shop.localhost:9443,https://admin.localhost:9443,http://localhost:3002,http://localhost:3003
     TELEMETRY_ENABLED: "true"
     TELEMETRY_LOG_FORMAT: json
     PROMETHEUS_METRICS_ENABLED: "true"
@@ -71,47 +74,57 @@ services:
     replicaCount: 1
     image:
       pullPolicy: IfNotPresent
+    podDisruptionBudget:
+      enabled: false
   order:
     enabled: true
     replicaCount: 1
     image:
       pullPolicy: IfNotPresent
+    podDisruptionBudget:
+      enabled: false
   payment:
     enabled: true
     replicaCount: 1
     image:
       pullPolicy: IfNotPresent
+    podDisruptionBudget:
+      enabled: false
     env:
-      CLIENT_APP_URL: https://shop.localhost
+      CLIENT_APP_URL: https://shop.localhost:9443
       PRODUCT_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-product-service:3000
   client:
     replicaCount: 1
     image:
       pullPolicy: IfNotPresent
+    podDisruptionBudget:
+      enabled: false
     env:
-      CLIENT_APP_URL: https://shop.localhost
-      NEXT_PUBLIC_CLIENT_APP_URL: https://shop.localhost
+      CLIENT_APP_URL: https://shop.localhost:9443
+      NEXT_PUBLIC_CLIENT_APP_URL: https://shop.localhost:9443
       PRODUCT_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-product-service:3000
       ORDER_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-order-service:8001
       PAYMENT_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-payment-service:8002
-      NEXT_PUBLIC_PRODUCT_SERVICE_URL: https://api.localhost
-      NEXT_PUBLIC_ORDER_SERVICE_URL: https://api.localhost
-      NEXT_PUBLIC_PAYMENT_SERVICE_URL: https://api.localhost
+      NEXT_PUBLIC_PRODUCT_SERVICE_URL: https://api.localhost:9443
+      NEXT_PUBLIC_ORDER_SERVICE_URL: https://api.localhost:9443
+      NEXT_PUBLIC_PAYMENT_SERVICE_URL: https://api.localhost:9443
   admin:
     replicaCount: 1
     image:
       pullPolicy: IfNotPresent
+    podDisruptionBudget:
+      enabled: false
     env:
-      ADMIN_APP_URL: https://admin.localhost
-      CLIENT_APP_URL: https://shop.localhost
-      NEXT_PUBLIC_CLIENT_APP_URL: https://shop.localhost
-      NEXT_PUBLIC_ADMIN_APP_URL: https://admin.localhost
+      ADMIN_APP_URL: https://admin.localhost:9443
+      CLIENT_APP_URL: https://shop.localhost:9443
+      NEXT_PUBLIC_CLIENT_APP_URL: https://shop.localhost:9443
+      NEXT_PUBLIC_ADMIN_APP_URL: https://admin.localhost:9443
       PRODUCT_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-product-service:3000
       ORDER_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-order-service:8001
       PAYMENT_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-payment-service:8002
-      NEXT_PUBLIC_PRODUCT_SERVICE_URL: https://api.localhost
-      NEXT_PUBLIC_ORDER_SERVICE_URL: https://api.localhost
-      NEXT_PUBLIC_PAYMENT_SERVICE_URL: https://api.localhost
+      NEXT_PUBLIC_PRODUCT_SERVICE_URL: https://api.localhost:9443
+      NEXT_PUBLIC_ORDER_SERVICE_URL: https://api.localhost:9443
+      NEXT_PUBLIC_PAYMENT_SERVICE_URL: https://api.localhost:9443
 
 jobs:
   migrate-product-db:

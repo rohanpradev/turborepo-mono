@@ -20,12 +20,14 @@ secret_dir=$(dirname "$secret_file")
 mkdir -p "$secret_dir"
 umask 077
 
-log_pipe=$(mktemp -u /tmp/stripe-listen.XXXXXX)
+temp_dir=$(mktemp -d "${TMPDIR:-/tmp}/stripe-listen.XXXXXX")
+log_pipe="${temp_dir}/listener.pipe"
 mkfifo "$log_pipe"
 
 cleanup() {
   rm -f "$log_pipe"
   rm -f "$secret_file"
+  rmdir "$temp_dir" 2>/dev/null || true
 }
 
 trap cleanup EXIT HUP INT TERM
@@ -48,6 +50,7 @@ awk_pid=$!
 
 stripe_status=0
 stripe listen \
+  --skip-update \
   --forward-to "$STRIPE_WEBHOOK_FORWARD_TO" \
   --events "${STRIPE_CLI_EVENTS:-checkout.session.completed,payment_intent.succeeded,payment_intent.payment_failed}" \
   > "$log_pipe" 2>&1 || stripe_status=$?

@@ -6,6 +6,11 @@ x-runtime-security: &runtime-security
     - no-new-privileges:true
   cap_drop:
     - ALL
+  logging:
+    driver: json-file
+    options:
+      max-file: "3"
+      max-size: 10m
 
 x-kafka-broker-env: &kafka-broker-env
   KAFKA_PROCESS_ROLES: broker,controller
@@ -28,14 +33,13 @@ services:
   kafka-broker-1:
     <<: *runtime-security
     image: dhi.io/kafka:4.3.1-debian13-native@sha256:89691f2d47ded5c88186e0e61a68b2fe77e2a19dea29ad2669e5626aff7965ff
-    container_name: kafka-broker-1
     environment:
       <<: *kafka-broker-env
       KAFKA_NODE_ID: 1
       KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://0.0.0.0:9094
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-1:9092,EXTERNAL://localhost:9094
     ports:
-      - "9094:9094"
+      - "${KAFKA_BIND_ADDRESS:-127.0.0.1}:9094:9094"
     volumes:
       - kafka-broker-1-data:/opt/kafka/logs
     healthcheck:
@@ -53,14 +57,13 @@ services:
   kafka-broker-2:
     <<: *runtime-security
     image: dhi.io/kafka:4.3.1-debian13-native@sha256:89691f2d47ded5c88186e0e61a68b2fe77e2a19dea29ad2669e5626aff7965ff
-    container_name: kafka-broker-2
     environment:
       <<: *kafka-broker-env
       KAFKA_NODE_ID: 2
       KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://0.0.0.0:9095
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-2:9092,EXTERNAL://localhost:9095
     ports:
-      - "9095:9095"
+      - "${KAFKA_BIND_ADDRESS:-127.0.0.1}:9095:9095"
     volumes:
       - kafka-broker-2-data:/opt/kafka/logs
     healthcheck:
@@ -78,14 +81,13 @@ services:
   kafka-broker-3:
     <<: *runtime-security
     image: dhi.io/kafka:4.3.1-debian13-native@sha256:89691f2d47ded5c88186e0e61a68b2fe77e2a19dea29ad2669e5626aff7965ff
-    container_name: kafka-broker-3
     environment:
       <<: *kafka-broker-env
       KAFKA_NODE_ID: 3
       KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://0.0.0.0:9096
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-3:9092,EXTERNAL://localhost:9096
     ports:
-      - "9096:9096"
+      - "${KAFKA_BIND_ADDRESS:-127.0.0.1}:9096:9096"
     volumes:
       - kafka-broker-3-data:/opt/kafka/logs
     healthcheck:
@@ -103,7 +105,6 @@ services:
   kafka-ui:
     <<: *runtime-security
     image: ghcr.io/kafbat/kafka-ui:v1.5.0@sha256:7cda86a33344160309fdb65146332e4da65db81a945614f2fe32e210803f6fd1
-    container_name: kafka-ui
     read_only: true
     tmpfs:
       - /tmp:size=64m,mode=1777
@@ -113,7 +114,7 @@ services:
       KAFKA_CLUSTERS_0_READONLY: true
       KAFKA_CLUSTERS_0_TOPIC_AUTO_CREATE: false
     ports:
-      - "8080:8080"
+      - "${KAFKA_UI_BIND_ADDRESS:-127.0.0.1}:${KAFKA_UI_PORT:-8080}:8080"
     depends_on:
       kafka-broker-1:
         condition: service_healthy

@@ -1,13 +1,16 @@
 {
   "$schema": "https://json-schema.org/draft-07/schema#",
   "type": "object",
-  "additionalProperties": true,
+  "additionalProperties": false,
   "properties": {
+    "nameOverride": { "type": "string" },
+    "fullnameOverride": { "type": "string" },
     "global": {
       "type": "object",
-      "additionalProperties": true,
+      "additionalProperties": false,
       "properties": {
         "imageRegistry": { "type": "string" },
+        "imagePullSecrets": { "type": "array" },
         "imagePullPolicy": {
           "type": "string",
           "enum": ["Always", "IfNotPresent", "Never"]
@@ -37,6 +40,12 @@
           }
         },
         "topologySpreadConstraints": { "type": "array" },
+        "podAnnotations": { "type": "object" },
+        "podLabels": { "type": "object" },
+        "nodeSelector": { "type": "object" },
+        "tolerations": { "type": "array" },
+        "affinity": { "type": "object" },
+        "priorityClassName": { "type": "string" },
         "podSecurityContext": { "type": "object" },
         "containerSecurityContext": { "type": "object" },
         "env": {
@@ -47,7 +56,7 @@
         },
         "tmp": {
           "type": "object",
-          "additionalProperties": true,
+          "additionalProperties": false,
           "properties": {
             "sizeLimit": { "type": "string", "minLength": 1 }
           }
@@ -56,16 +65,20 @@
     },
     "serviceAccount": {
       "type": "object",
-      "additionalProperties": true,
+      "additionalProperties": false,
       "properties": {
         "create": { "type": "boolean" },
         "automountServiceAccountToken": { "type": "boolean" },
-        "name": { "type": "string" }
+        "name": { "type": "string" },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
       }
     },
     "stripeCli": {
       "type": "object",
-      "additionalProperties": true,
+      "additionalProperties": false,
       "properties": {
         "enabled": { "type": "boolean" },
         "forwardTo": { "type": "string", "minLength": 1 },
@@ -73,6 +86,7 @@
         "events": { "type": "string", "minLength": 1 },
         "image": {
           "type": "object",
+          "additionalProperties": false,
           "required": ["repository", "tag", "pullPolicy"],
           "properties": {
             "repository": { "type": "string", "minLength": 1 },
@@ -92,7 +106,7 @@
     },
     "secrets": {
       "type": "object",
-      "additionalProperties": true,
+      "additionalProperties": false,
       "properties": {
         "create": { "type": "boolean" },
         "name": { "type": "string" },
@@ -104,13 +118,17 @@
     },
     "ingress": {
       "type": "object",
-      "additionalProperties": true,
+      "additionalProperties": false,
       "properties": {
         "enabled": { "type": "boolean" },
         "className": { "type": "string" },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
         "tls": {
           "type": "object",
-          "additionalProperties": true,
+          "additionalProperties": false,
           "properties": {
             "enabled": { "type": "boolean" },
             "secretName": { "type": "string" }
@@ -120,6 +138,7 @@
           "type": "array",
           "items": {
             "type": "object",
+            "additionalProperties": false,
             "required": ["host", "paths"],
             "properties": {
               "host": { "type": "string", "minLength": 1 },
@@ -128,6 +147,7 @@
                 "minItems": 1,
                 "items": {
                   "type": "object",
+                  "additionalProperties": false,
                   "required": ["path", "pathType", "service", "port"],
                   "properties": {
                     "path": { "type": "string", "minLength": 1 },
@@ -150,7 +170,7 @@
     },
     "gateway": {
       "type": "object",
-      "additionalProperties": true,
+      "additionalProperties": false,
       "properties": {
         "enabled": { "type": "boolean" },
         "create": { "type": "boolean" },
@@ -170,6 +190,7 @@
           "type": "array",
           "items": {
             "type": "object",
+            "additionalProperties": false,
             "required": ["name", "port", "protocol"],
             "properties": {
               "name": { "type": "string", "minLength": 1 },
@@ -278,9 +299,12 @@
     },
     "services": {
       "type": "object",
+      "propertyNames": {
+        "enum": ["client", "admin", "product", "order", "payment"]
+      },
       "additionalProperties": {
         "type": "object",
-        "additionalProperties": true,
+        "additionalProperties": false,
         "properties": {
           "enabled": { "type": "boolean" },
           "name": { "type": "string", "minLength": 1 },
@@ -293,6 +317,7 @@
           },
           "image": {
             "type": "object",
+            "additionalProperties": false,
             "required": ["repository"],
             "properties": {
               "repository": { "type": "string", "minLength": 1 },
@@ -309,6 +334,7 @@
           },
           "service": {
             "type": "object",
+            "additionalProperties": false,
             "properties": {
               "type": {
                 "type": "string",
@@ -320,9 +346,21 @@
           },
           "topologySpreadConstraints": { "type": "array" },
           "resources": { "type": "object" },
+          "env": {
+            "type": "object",
+            "additionalProperties": {
+              "type": ["string", "number", "boolean"]
+            }
+          },
+          "secretEnv": { "type": "object" },
+          "readinessProbe": { "type": "object" },
+          "livenessProbe": { "type": "object" },
+          "startupProbe": { "type": "object" },
+          "extraVolumeMounts": { "type": "array" },
+          "extraVolumes": { "type": "array" },
           "autoscaling": {
             "type": "object",
-            "additionalProperties": true,
+            "additionalProperties": false,
             "properties": {
               "enabled": { "type": "boolean" },
               "minReplicas": { "type": "integer", "minimum": 1 },
@@ -336,7 +374,7 @@
           },
           "rollout": {
             "type": "object",
-            "additionalProperties": true,
+            "additionalProperties": false,
             "properties": {
               "minReadySeconds": { "type": "integer", "minimum": 0 },
               "progressDeadlineSeconds": { "type": "integer", "minimum": 1 }
@@ -344,7 +382,7 @@
           },
           "podDisruptionBudget": {
             "type": "object",
-            "additionalProperties": true,
+            "additionalProperties": false,
             "properties": {
               "enabled": { "type": "boolean" },
               "unhealthyPodEvictionPolicy": {
@@ -360,9 +398,12 @@
     },
     "jobs": {
       "type": "object",
+      "propertyNames": {
+        "enum": ["migrate-product-db", "seed-product-db"]
+      },
       "additionalProperties": {
         "type": "object",
-        "additionalProperties": true,
+        "additionalProperties": false,
         "properties": {
           "enabled": { "type": "boolean" },
           "service": {
@@ -374,16 +415,29 @@
             "minItems": 1,
             "items": { "type": "string" }
           },
+          "hook": { "type": "string", "minLength": 1 },
+          "hookWeight": { "type": "string" },
+          "deletePolicy": { "type": "string", "minLength": 1 },
           "backoffLimit": { "type": "integer", "minimum": 0 },
           "activeDeadlineSeconds": { "type": "integer", "minimum": 1 },
           "ttlSecondsAfterFinished": { "type": "integer", "minimum": 0 },
-          "resources": { "type": "object" }
+          "resources": { "type": "object" },
+          "env": {
+            "type": "object",
+            "additionalProperties": {
+              "type": ["string", "number", "boolean"]
+            }
+          },
+          "secretEnv": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          }
         }
       }
     },
     "networkPolicy": {
       "type": "object",
-      "additionalProperties": true,
+      "additionalProperties": false,
       "properties": {
         "enabled": { "type": "boolean" },
         "allowExternalEgress": { "type": "boolean" },
@@ -394,11 +448,13 @@
     },
     "helmTests": {
       "type": "object",
-      "additionalProperties": true,
+      "additionalProperties": false,
       "properties": {
         "enabled": { "type": "boolean" },
+        "activeDeadlineSeconds": { "type": "integer", "minimum": 1 },
         "image": {
           "type": "object",
+          "additionalProperties": false,
           "required": ["repository", "tag", "pullPolicy"],
           "properties": {
             "repository": { "type": "string", "minLength": 1 },

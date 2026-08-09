@@ -20,7 +20,7 @@ make k8s-up-observed
 make k8s-observability-status
 ```
 
-`make k8s` is the one-command local Kubernetes setup: it installs or upgrades Traefik, starts Docker-backed Postgres, MongoDB, and Kafka, migrates and seeds the product catalog, builds app images, loads them into kind or minikube when needed, validates the Helm chart, deletes and waits for the existing application namespace, recreates the same namespace, syncs TLS and runtime secrets, deploys the release, waits for rollout, and smoke-tests the routes. This clears old pods, jobs, and other namespaced resources on every run. `make ks8` is kept as a friendly alias for the common typo, and `make kubernetes` does the same thing. Use `make k8s-full` only when Postgres, MongoDB, and Kafka already run inside your cluster. Run `make k8s-test` against the deployed release if you want Helm test coverage.
+`make k8s` is the one-command local Kubernetes setup: it installs or upgrades the pinned platform charts, starts Docker-backed Postgres, MongoDB, and Kafka, builds app images, loads them into kind or minikube when needed, validates the Helm chart, syncs TLS and runtime secrets, performs an in-place atomic Helm upgrade, waits for rollout, and smoke-tests verified TLS routes. It does not delete namespaces. Use `make k8s-reset-local` only for an intentional ecommerce namespace reset, and `make k8s-delete-namespaces CONFIRM=k8s-delete-namespaces` only when all local platform namespaces should be deleted. `make ks8` remains an alias for the common typo. Run `make k8s-test` for bounded Helm test coverage.
 
 Each one-command deployment generates an immutable `dev-<UTC timestamp>` image tag and passes it to Helm, so rebuilt images always produce a real rollout. To reproduce or resume a deployment across separate Make invocations, provide the same tag explicitly, for example `make k8s K8S_IMAGE_TAG=dev-my-test`.
 
@@ -56,7 +56,7 @@ make k8s-uninstall
 
 The local workflow installs Traefik as a standard Kubernetes Ingress controller and deploys app routes with `ingressClassName: traefik`.
 
-The deployment toolchain is pinned to Helm 4.2.3, kubeconform 0.8.0, Traefik chart 41.0.2 with the security-fixed Traefik 3.7.9 image digest, kube-prometheus-stack 87.19.1, and Gateway API 1.5.1. Gateway API 1.6.1 is newer upstream, but Traefik 3.7's current provider documentation declares support for 1.5.1, so the installer deliberately keeps that compatibility pin. Chart 0.3.0 supports the actively maintained Kubernetes 1.34, 1.35, and 1.36 release lines. CI lints and strictly schema-validates every chart profile against the latest published patch in each line. CRD-backed resources without Kubernetes-core schemas are skipped by kubeconform and remain covered by Helm rendering and live-cluster validation. The Traefik and kube-prometheus-stack workflows apply their chart CRDs before upgrading the controllers because Helm does not upgrade CRDs automatically.
+The deployment toolchain is pinned to Helm 4.2.3, kubeconform 0.8.0, Traefik chart 41.2.0 with Traefik 3.7.10, kube-prometheus-stack 88.2.0, and Gateway API 1.5.1. Gateway API 1.6.1 is newer upstream, but Traefik 3.7 documents support for 1.5.1, so this is an intentional compatibility hold. The Gateway manifest is SHA-256 verified before apply. Chart 0.4.0 supports Kubernetes 1.34, 1.35, and 1.36; its strict values schema rejects unknown root, service, and job fields. CI lints and schema-validates every profile across the supported patch matrix. CRD-backed resources without Kubernetes-core schemas remain covered by Helm rendering and live-cluster validation. Traefik and kube-prometheus-stack values are version-controlled under `charts/platform`, and their CRDs are applied before controller upgrades because Helm does not upgrade CRDs automatically.
 
 For Prometheus, Grafana, app metrics, Traefik metrics, and alert rules, run:
 
@@ -86,6 +86,8 @@ The chart references one runtime secret, `ecommerce-runtime` by default. Create 
 make k8s-runtime-secret
 ```
 
+The migration is a `pre-install,pre-upgrade` hook, so its Secret must already exist. The chart deliberately rejects `secrets.create=true` while that hook is enabled; provision the external Secret before invoking Helm.
+
 For real environments, prefer your cluster secret manager or External Secrets operator and set `HELM_RUNTIME_SECRET` to the secret name.
 
 ## TLS
@@ -110,7 +112,7 @@ The default local image names match the Docker Compose builds:
 
 For registries, set `global.imageRegistry` and per-service tags. Every service image also accepts `digest`; when present, Helm renders the traceable `repository:tag@sha256:...` form and Kubernetes uses the immutable digest at runtime. External Stripe CLI and Helm test images are digest-pinned by default.
 
-The admin image optimizer reads storefront product assets over the cluster-internal client Service instead of looping through the public ingress. When building outside `make k8s`, pass `NEXT_IMAGE_STOREFRONT_ORIGIN` to the admin image at build time and set the matching `STOREFRONT_ASSET_ORIGIN` at runtime. Private Service IP optimization is enabled only in that admin build and remains restricted by Next.js `remotePatterns`.
+The admin image optimizer reads storefront product assets over the cluster-internal client Service instead of looping through the public ingress. When building outside `make k8s`, pass `NEXT_IMAGE_STOREFRONT_ORIGIN` to the admin image at build time and set the matching `STOREFRONT_ASSET_ORIGIN` at runtime. Private-IP optimization defaults off in the Dockerfile and is enabled only by the explicit local Compose/Kubernetes build path.
 
 Example production override:
 
@@ -135,4 +137,5 @@ services:
 - Keep `ingress.tls.secretName` owned by cert-manager or the platform ingress layer outside local development.
 - Prefer standard Ingress for the local Traefik workflow. For Gateway API, run `make k8s-gateway-api`, enable Traefik's Gateway provider, and deploy the chart with `gateway.enabled=true` only after the pinned standard CRDs are installed.
 - The chart spreads replicas across nodes with a soft `ScheduleAnyway` constraint. Override `services.<name>.topologySpreadConstraints` for workload-specific zone or node placement.
+- The local profiles disable PDBs because each workload has one replica. Shared environments should use at least two replicas before enabling the default `minAvailable: 1` budgets.
 - Enable `networkPolicy.enabled=true` only after your cluster CNI enforces NetworkPolicy and you have modeled required ingress and egress. Its safe fallback admits same-namespace pods only; add the ingress controller namespace to `networkPolicy.ingressFrom` when the controller runs elsewhere.

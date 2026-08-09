@@ -65,8 +65,8 @@ stripeCli:
   enabled: false
   image:
     repository: stripe/stripe-cli
-    tag: v1.44.0
-    digest: sha256:f46433445867b7f47526b7588d49c79a336d74a22ee548c18513e3b9c8d40f31
+    tag: v1.45.1
+    digest: sha256:6f5792cd5f45785ef617df1298c69b403cc68aaf3533f952f2836491a0096f8f
     pullPolicy: IfNotPresent
   forwardTo: http://127.0.0.1:8002/api/webhooks/stripe
   webhookSecretFile: /var/run/stripe/webhook-secret
@@ -626,6 +626,7 @@ networkPolicy:
 
 helmTests:
   enabled: true
+  activeDeadlineSeconds: 120
   image:
     repository: curlimages/curl
     tag: "8.21.0"

@@ -178,6 +178,24 @@ spec:
               value: {{ $.Values.stripeCli.events | quote }}
           resources:
             {{- toYaml $.Values.stripeCli.resources | nindent 12 }}
+          startupProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - test -s "$STRIPE_WEBHOOK_SECRET_FILE"
+            periodSeconds: 2
+            timeoutSeconds: 1
+            failureThreshold: 30
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - test -s "$STRIPE_WEBHOOK_SECRET_FILE"
+            periodSeconds: 10
+            timeoutSeconds: 1
+            failureThreshold: 3
           volumeMounts:
             - name: tmp
               mountPath: /tmp

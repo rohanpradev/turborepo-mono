@@ -1,3 +1,5 @@
+name: ${COMPOSE_PROJECT_NAME:-ecommerce}
+
 x-runtime-security: &runtime-security
   init: true
   restart: unless-stopped
@@ -6,6 +8,11 @@ x-runtime-security: &runtime-security
     - no-new-privileges:true
   cap_drop:
     - ALL
+  logging:
+    driver: json-file
+    options:
+      max-file: "3"
+      max-size: 10m
 
 x-app-service: &app-service
   <<: *runtime-security
@@ -39,7 +46,11 @@ services:
 
   docker-socket-proxy:
     image: ghcr.io/tecnativa/docker-socket-proxy:v0.4.2@sha256:1f3a6f303320723d199d2316a3e82b2e2685d86c275d5e3deeaf182573b47476
-    container_name: docker-socket-proxy
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     environment:
       CONTAINERS: 1
       EVENTS: 1
@@ -50,15 +61,19 @@ services:
     expose:
       - "2375"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+        read_only: true
+        bind:
+          create_host_path: false
     networks:
       - ecommerce-network
     restart: unless-stopped
 
   traefik:
     <<: *runtime-security
-    image: traefik:v3.7.9@sha256:652929a140a32d7cafafb13c6cdfab5376cfeff800f51397b87b524501ed02a8
-    container_name: ecommerce-traefik
+    image: traefik:v3.7.10@sha256:9c3b91d5fb7770853ca5c1124a23c34bf2d9b47ffaebeab2614cbaf410dcb2ac
     read_only: true
     tmpfs:
       - /tmp:size=32m,mode=1777
@@ -84,7 +99,7 @@ services:
       - "--providers.docker.endpoint=tcp://docker-socket-proxy:2375"
       - "--providers.docker.watch=true"
       - "--providers.docker.exposedbydefault=false"
-      - "--providers.docker.network=ecommerce-network"
+      - "--providers.docker.network=${COMPOSE_PROJECT_NAME:-ecommerce}_ecommerce-network"
       - "--providers.file.directory=/etc/traefik/dynamic"
       - "--providers.file.watch=true"
       - "--global.sendanonymoususage=false"
@@ -119,7 +134,6 @@ services:
   postgres:
     <<: *runtime-security
     image: dhi.io/postgres:18.4-debian13@sha256:a807e832c1fc9ded731956abcb53dc98ed003fd82e27275eaef8dcf52fb90236
-    container_name: ecommerce-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
@@ -147,9 +161,8 @@ services:
 
   mongodb:
     <<: *runtime-security
-    image: dhi.io/mongodb:8.3.4-debian13@sha256:dd3953a42bf74156b803c53b85a150fbc0505c3b162bc425842c97ba642e5ea5
+    image: dhi.io/mongodb:8.3.7-debian13@sha256:c868540fe59312058c7f4d340766f286416cb5932d93d20e02fb5e033a261220
     platform: linux/amd64
-    container_name: ecommerce-mongodb
     command:
       - "--bind_ip_all"
       - "--noauth"
@@ -166,7 +179,6 @@ services:
   mongodb-ready:
     <<: *runtime-security
     image: dhi.io/bun:1.3.14-debian13@sha256:fb5dda72d73bd1e581d014e6546352766f8565bb78ce66a290e4f11fdc188c11
-    container_name: ecommerce-mongodb-ready
     command:
       [
         "bun",
@@ -180,11 +192,12 @@ services:
     restart: "no"
 
   product-db-migrate:
+    <<: *app-service
     build:
       context: .
       dockerfile: docker/Dockerfile.product-service
-      target: builder
-    container_name: ecommerce-product-db-migrate
+      target: runner
+    image: ${LOCAL_IMAGE_PREFIX:-turborepo-monorepo}-product-service:${LOCAL_IMAGE_TAG:-latest}
     command: ["bun", "run", "--cwd", "packages/product-db", "db:deploy"]
     environment:
       DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/product_db?schema=public}
@@ -196,11 +209,12 @@ services:
     restart: "no"
 
   product-db-seed:
+    <<: *app-service
     build:
       context: .
       dockerfile: docker/Dockerfile.product-service
-      target: builder
-    container_name: ecommerce-product-db-seed
+      target: runner
+    image: ${LOCAL_IMAGE_PREFIX:-turborepo-monorepo}-product-service:${LOCAL_IMAGE_TAG:-latest}
     command: ["bun", "run", "apps/product-service/src/scripts/seed.ts"]
     environment:
       DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/product_db?schema=public}
@@ -219,7 +233,6 @@ services:
   kafka-broker-1:
     <<: *runtime-security
     image: dhi.io/kafka:4.3.1-debian13-native@sha256:89691f2d47ded5c88186e0e61a68b2fe77e2a19dea29ad2669e5626aff7965ff
-    container_name: kafka-broker-1
     environment:
       <<: *kafka-broker-env
       KAFKA_NODE_ID: 1
@@ -245,7 +258,6 @@ services:
   kafka-broker-2:
     <<: *runtime-security
     image: dhi.io/kafka:4.3.1-debian13-native@sha256:89691f2d47ded5c88186e0e61a68b2fe77e2a19dea29ad2669e5626aff7965ff
-    container_name: kafka-broker-2
     environment:
       <<: *kafka-broker-env
       KAFKA_NODE_ID: 2
@@ -271,7 +283,6 @@ services:
   kafka-broker-3:
     <<: *runtime-security
     image: dhi.io/kafka:4.3.1-debian13-native@sha256:89691f2d47ded5c88186e0e61a68b2fe77e2a19dea29ad2669e5626aff7965ff
-    container_name: kafka-broker-3
     environment:
       <<: *kafka-broker-env
       KAFKA_NODE_ID: 3
@@ -297,7 +308,6 @@ services:
   kafka-ui:
     <<: *app-service
     image: ghcr.io/kafbat/kafka-ui:v1.5.0@sha256:7cda86a33344160309fdb65146332e4da65db81a945614f2fe32e210803f6fd1
-    container_name: kafka-ui
     environment:
       KAFKA_CLUSTERS_0_NAME: ecommerce-cluster
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka-broker-1:9092,kafka-broker-2:9092,kafka-broker-3:9092
@@ -316,7 +326,7 @@ services:
       - ecommerce-network
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=ecommerce-network"
+      - "traefik.docker.network=${COMPOSE_PROJECT_NAME:-ecommerce}_ecommerce-network"
       - "traefik.http.routers.kafka-ui.rule=Host(`kafka.localhost`)"
       - "traefik.http.routers.kafka-ui.entrypoints=websecure"
       - "traefik.http.routers.kafka-ui.tls=true"
@@ -330,7 +340,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.product-service
-    container_name: ecommerce-product-service
+    image: ${LOCAL_IMAGE_PREFIX:-turborepo-monorepo}-product-service:${LOCAL_IMAGE_TAG:-latest}
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -376,7 +386,7 @@ services:
       - ecommerce-network
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=ecommerce-network"
+      - "traefik.docker.network=${COMPOSE_PROJECT_NAME:-ecommerce}_ecommerce-network"
       - "traefik.http.routers.product-service.rule=Host(`api.localhost`) && PathPrefix(`/rpc/product`)"
       - "traefik.http.routers.product-service.entrypoints=websecure"
       - "traefik.http.routers.product-service.tls=true"
@@ -388,7 +398,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.order-service
-    container_name: ecommerce-order-service
+    image: ${LOCAL_IMAGE_PREFIX:-turborepo-monorepo}-order-service:${LOCAL_IMAGE_TAG:-latest}
     environment:
       NODE_ENV: production
       PORT: 8001
@@ -432,7 +442,7 @@ services:
       - ecommerce-network
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=ecommerce-network"
+      - "traefik.docker.network=${COMPOSE_PROJECT_NAME:-ecommerce}_ecommerce-network"
       - "traefik.http.routers.order-service.rule=Host(`api.localhost`) && PathPrefix(`/rpc/order`)"
       - "traefik.http.routers.order-service.entrypoints=websecure"
       - "traefik.http.routers.order-service.tls=true"
@@ -444,7 +454,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.payment-service
-    container_name: ecommerce-payment-service
+    image: ${LOCAL_IMAGE_PREFIX:-turborepo-monorepo}-payment-service:${LOCAL_IMAGE_TAG:-latest}
     environment:
       NODE_ENV: production
       PORT: 8002
@@ -492,7 +502,7 @@ services:
       - ecommerce-network
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=ecommerce-network"
+      - "traefik.docker.network=${COMPOSE_PROJECT_NAME:-ecommerce}_ecommerce-network"
       - "traefik.http.routers.payment-service.rule=Host(`api.localhost`) && PathPrefix(`/rpc/payment`)"
       - "traefik.http.routers.payment-webhooks.rule=Host(`api.localhost`) && PathPrefix(`/api/webhooks`)"
       - "traefik.http.routers.payment-service.entrypoints=websecure"
@@ -507,11 +517,8 @@ services:
       - "traefik.http.services.payment-service.loadbalancer.server.scheme=http"
 
   stripe-cli:
-    init: true
-    restart: unless-stopped
-    stop_grace_period: 30s
-    image: stripe/stripe-cli:v1.44.0@sha256:f46433445867b7f47526b7588d49c79a336d74a22ee548c18513e3b9c8d40f31
-    container_name: ecommerce-stripe-cli
+    <<: *app-service
+    image: stripe/stripe-cli:v1.45.1@sha256:6f5792cd5f45785ef617df1298c69b403cc68aaf3533f952f2836491a0096f8f
     environment:
       STRIPE_API_KEY: ${STRIPE_API_KEY:-}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
@@ -548,7 +555,7 @@ services:
         <<: *frontend-build-args
         NEXT_PUBLIC_CLIENT_APP_URL: ${DOCKER_PUBLIC_CLIENT_APP_URL:-https://shop.localhost:8443}
         NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-}
-    container_name: ecommerce-client
+    image: ${LOCAL_IMAGE_PREFIX:-turborepo-monorepo}-client:${LOCAL_IMAGE_TAG:-latest}
     environment:
       NODE_ENV: production
       PORT: 3002
@@ -580,7 +587,7 @@ services:
       - ecommerce-network
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=ecommerce-network"
+      - "traefik.docker.network=${COMPOSE_PROJECT_NAME:-ecommerce}_ecommerce-network"
       - "traefik.http.routers.client.rule=Host(`shop.localhost`)"
       - "traefik.http.routers.client.entrypoints=websecure"
       - "traefik.http.routers.client.tls=true"
@@ -612,7 +619,7 @@ services:
         NEXT_PUBLIC_CLIENT_APP_URL: ${DOCKER_PUBLIC_CLIENT_APP_URL:-https://shop.localhost:8443}
         NEXT_IMAGE_STOREFRONT_ORIGIN: ${DOCKER_IMAGE_STOREFRONT_ORIGIN:-http://client:3002}
         NEXT_IMAGE_ALLOW_LOCAL_IP: "true"
-    container_name: ecommerce-admin
+    image: ${LOCAL_IMAGE_PREFIX:-turborepo-monorepo}-admin:${LOCAL_IMAGE_TAG:-latest}
     environment:
       NODE_ENV: production
       PORT: 3003
@@ -647,7 +654,7 @@ services:
       - ecommerce-network
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=ecommerce-network"
+      - "traefik.docker.network=${COMPOSE_PROJECT_NAME:-ecommerce}_ecommerce-network"
       - "traefik.http.routers.admin.rule=Host(`admin.localhost`)"
       - "traefik.http.routers.admin.entrypoints=websecure"
       - "traefik.http.routers.admin.tls=true"
@@ -668,7 +675,6 @@ services:
 networks:
   ecommerce-network:
     driver: bridge
-    name: ecommerce-network
 
 volumes:
   postgres_data:

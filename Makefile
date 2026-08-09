@@ -1,7 +1,10 @@
 # E-Commerce Microservices Makefile
 # Manage all services, databases, Docker Compose, and Kubernetes/Helm workflows.
 
-.PHONY: help ensure-env install dev stop clean clean-all setup setup-base generate-client kafka-ui db-setup db-migrate db-generate db-studio db-seed local-env-file local-db-migrate local-db-seed local-urls local-dev local-fresh-dev lint type-check format audit test boundaries turbo-summary turbo-graph turbo-report turbo-inspect verify build build-client build-admin logs-product logs-order logs-payment status docker-auth docker-certs docker-validate docker-images docker-lock-images docker-build docker-up docker-up-build docker-smoke docker-test docker-down docker-down-volumes docker-logs docker-logs-traefik docker-logs-product docker-logs-order docker-logs-payment docker-logs-client docker-logs-admin docker-logs-stripe docker-ps docker-restart docker-restart-service docker-rebuild-service docker-shell-traefik docker-shell-product docker-shell-order docker-shell-payment docker-infra-only docker-infra-local docker-stripe-up docker-stripe-down docker-clean docker-clean-images docker-prune docker-kill-all docker-setup docker-fresh-start helm-lint helm-lint-supported helm-validate-supported helm-template helm-dry-run helm-package k8s-doctor k8s-gateway-api k8s-traefik k8s-traefik-status k8s-observability k8s-observability-status k8s-grafana k8s-prometheus k8s-preflight k8s-local-deps k8s-namespace k8s-fresh-namespace k8s-tls-secret k8s-runtime-secret k8s-build-images k8s-build-full-images k8s-tag-images k8s-load-images k8s-validate k8s-validate-full k8s-diff k8s-deploy k8s-deploy-observed k8s-deploy-full k8s-up k8s-up-observed k8s-up-full k8s-full k8s-wait k8s-smoke k8s-smoke-full k8s-test k8s-status k8s-events k8s-logs k8s-logs-traefik k8s-logs-client k8s-logs-admin k8s-logs-product k8s-logs-order k8s-logs-payment k8s-describe k8s-restart k8s-uninstall k8s-clear k8s ks8 kubernetes clear quick-start quick-stop restart docker-quick-start
+SHELL := /bin/bash
+.SHELLFLAGS := -o pipefail -c
+
+.PHONY: help runtime-dir ensure-env install dev stop clean clean-all setup setup-base generate-client kafka-ui db-setup db-migrate db-generate db-studio db-seed local-env-file local-db-migrate local-db-seed local-urls local-dev local-fresh-dev lint type-check format audit test boundaries turbo-summary turbo-graph turbo-report turbo-inspect verify build build-client build-admin logs-product logs-order logs-payment status docker-auth docker-certs docker-validate docker-images docker-lock-images docker-build docker-up docker-up-build docker-smoke docker-test docker-down docker-down-volumes docker-logs docker-logs-traefik docker-logs-product docker-logs-order docker-logs-payment docker-logs-client docker-logs-admin docker-logs-stripe docker-ps docker-restart docker-restart-service docker-rebuild-service docker-shell-traefik docker-shell-product docker-shell-order docker-shell-payment docker-infra-only docker-infra-local docker-stripe-up docker-stripe-down docker-clean docker-clean-images docker-prune docker-kill-all docker-setup docker-fresh-start helm-lint helm-lint-supported helm-validate-supported helm-template helm-dry-run helm-package k8s-doctor k8s-gateway-api k8s-traefik k8s-traefik-status k8s-observability k8s-observability-status k8s-grafana k8s-prometheus k8s-preflight k8s-local-deps k8s-namespace k8s-fresh-namespace k8s-reset-local k8s-tls-secret k8s-runtime-secret k8s-build-images k8s-build-full-images k8s-tag-images k8s-load-images k8s-validate k8s-validate-full k8s-diff k8s-deploy k8s-deploy-observed k8s-deploy-full k8s-up k8s-up-observed k8s-up-full k8s-full k8s-wait k8s-smoke k8s-smoke-full k8s-test k8s-status k8s-events k8s-logs k8s-logs-traefik k8s-logs-client k8s-logs-admin k8s-logs-product k8s-logs-order k8s-logs-payment k8s-describe k8s-restart k8s-uninstall k8s-clear k8s-delete-namespaces k8s ks8 kubernetes clear quick-start quick-stop restart docker-quick-start
 .PHONY: k8s-payment-doctor k8s-logs-stripe
 
 .DEFAULT_GOAL := help
@@ -21,12 +24,14 @@ LOCAL_PAYMENT_SERVICE_URL := http://localhost:8002
 LOCAL_STRIPE_WEBHOOK_URL := http://localhost:8002/api/webhooks/stripe
 LOCAL_CLIENT_APP_URL := http://localhost:3002
 LOCAL_CORS_ALLOWED_ORIGINS := http://localhost:3002,http://localhost:3003
-LOCAL_ENV_FILE := /tmp/ecommerce-local-dev.env
+RUNTIME_DIR ?= $(CURDIR)/.runtime
+LOCAL_ENV_FILE := $(RUNTIME_DIR)/local-dev.env
 DOCKER_COMPOSE ?= docker compose
 DOCKER_WAIT_TIMEOUT ?= 180
 TRAEFIK_HTTP_PORT ?= 8080
 TRAEFIK_HTTPS_PORT ?= 8443
 K8S_LOCAL_HTTPS_PORT ?= 9443
+K8S_SMOKE_MAX_ATTEMPTS ?= 30
 HELM ?= helm
 KUBECTL ?= kubectl
 HELM_VERSION ?= 4.2.3
@@ -36,10 +41,11 @@ K8S_POD_SECURITY_LEVEL ?= restricted
 K8S_POD_SECURITY_VERSION ?= v1.34
 KUBECONFORM_IMAGE ?= ghcr.io/yannh/kubeconform:v0.8.0@sha256:faffaf43f95aa6425306e1ab8d6fcad72acb9049158f38e574c085ea1ec0f64e
 GATEWAY_API_VERSION ?= 1.5.1
-TRAEFIK_CHART_VERSION ?= 41.0.2
-TRAEFIK_IMAGE_VERSION ?= v3.7.9
-TRAEFIK_IMAGE_DIGEST ?= sha256:652929a140a32d7cafafb13c6cdfab5376cfeff800f51397b87b524501ed02a8
-OBS_CHART_VERSION ?= 87.19.1
+GATEWAY_API_MANIFEST_SHA256 ?= 751002b3b91a87f7ae3bd2517c79a47a8d7ed6702901808a1cf9bd97d284f9b8
+TRAEFIK_CHART_VERSION ?= 41.2.0
+TRAEFIK_IMAGE_VERSION ?= v3.7.10
+TRAEFIK_IMAGE_DIGEST ?= sha256:9c3b91d5fb7770853ca5c1124a23c34bf2d9b47ffaebeab2614cbaf410dcb2ac
+OBS_CHART_VERSION ?= 88.2.0
 HELM_CHART ?= charts/ecommerce
 HELM_RELEASE ?= ecommerce
 HELM_NAMESPACE ?= ecommerce
@@ -53,17 +59,20 @@ K8S_ROUTE_SET_ARGS ?= --set gateway.enabled=false --set ingress.enabled=true --s
 HELM_SET_ARGS ?= --set secrets.name=$(HELM_RUNTIME_SECRET) --set ingress.tls.secretName=$(HELM_TLS_SECRET) $(K8S_ROUTE_SET_ARGS) $(K8S_IMAGE_SET_ARGS)
 OBS_NAMESPACE ?= monitoring
 OBS_RELEASE ?= kube-prometheus-stack
-OBS_HELM_SET_ARGS ?= --set grafana.sidecar.dashboards.enabled=true --set grafana.sidecar.dashboards.searchNamespace=ALL --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false --set prometheus.prometheusSpec.ruleSelectorNilUsesHelmValues=false
+TRAEFIK_VALUES ?= charts/platform/traefik.values.yaml
+OBS_VALUES ?= charts/platform/kube-prometheus-stack.values.yaml
 K8S_OBSERVABILITY_SET_ARGS ?= --set observability.serviceMonitor.enabled=true --set observability.serviceMonitor.labels.release=$(OBS_RELEASE) --set observability.traefik.serviceMonitor.enabled=true --set observability.traefik.serviceMonitor.labels.release=$(OBS_RELEASE) --set observability.prometheusRule.enabled=true --set observability.prometheusRule.labels.release=$(OBS_RELEASE) --set observability.grafanaDashboard.enabled=true
 GRAFANA_PORT ?= 3000
 PROMETHEUS_PORT ?= 9090
-HELM_RENDERED_FILE ?= /tmp/$(HELM_RELEASE)-rendered.yaml
-HELM_PACKAGE_DIR ?= /tmp/helm-packages
+HELM_RENDERED_FILE ?= $(RUNTIME_DIR)/$(HELM_RELEASE)-rendered.yaml
+HELM_PACKAGE_DIR ?= $(RUNTIME_DIR)/helm-packages
 K8S_DATABASE_URL ?= postgresql://postgres:postgres@host.docker.internal:5432/product_db?schema=public
 K8S_MONGO_URL ?= mongodb://host.docker.internal:27017/order_db
-K8S_PUBLIC_CLIENT_APP_URL ?= https://shop.localhost
-K8S_PUBLIC_ADMIN_APP_URL ?= https://admin.localhost
-K8S_PUBLIC_API_URL ?= https://api.localhost
+# These values are compiled into browser bundles. Keep them aligned with the
+# local Traefik port-forward instead of assuming the host's privileged 443.
+K8S_PUBLIC_CLIENT_APP_URL ?= https://shop.localhost:$(K8S_LOCAL_HTTPS_PORT)
+K8S_PUBLIC_ADMIN_APP_URL ?= https://admin.localhost:$(K8S_LOCAL_HTTPS_PORT)
+K8S_PUBLIC_API_URL ?= https://api.localhost:$(K8S_LOCAL_HTTPS_PORT)
 K8S_IMAGE_STOREFRONT_ORIGIN ?= http://$(HELM_RELEASE)-client.$(HELM_NAMESPACE).svc.cluster.local:3002
 K8S_INGRESS_CLASS_NAME ?= traefik
 K8S_ROLLOUT_TIMEOUT ?= 5m
@@ -80,7 +89,7 @@ K8S_IMAGE_SET_ARGS ?= --set-string services.product.image.tag=$(K8S_IMAGE_TAG) -
 K8S_LOCAL_IMAGES ?= turborepo-monorepo-product-service:$(K8S_IMAGE_TAG) turborepo-monorepo-order-service:$(K8S_IMAGE_TAG) turborepo-monorepo-payment-service:$(K8S_IMAGE_TAG) turborepo-monorepo-client:$(K8S_IMAGE_TAG) turborepo-monorepo-admin:$(K8S_IMAGE_TAG)
 HELM_UPGRADE_ARGS ?= --rollback-on-failure --wait --timeout $(K8S_ROLLOUT_TIMEOUT)
 DHI_CHECK_IMAGES ?= dhi.io/bun:1.3.14-debian13@sha256:fb5dda72d73bd1e581d014e6546352766f8565bb78ce66a290e4f11fdc188c11 dhi.io/postgres:18.4-debian13@sha256:a807e832c1fc9ded731956abcb53dc98ed003fd82e27275eaef8dcf52fb90236 dhi.io/kafka:4.3.1-debian13-native@sha256:89691f2d47ded5c88186e0e61a68b2fe77e2a19dea29ad2669e5626aff7965ff
-DHI_AMD64_CHECK_IMAGES ?= dhi.io/mongodb:8.3.4-debian13@sha256:dd3953a42bf74156b803c53b85a150fbc0505c3b162bc425842c97ba642e5ea5
+DHI_AMD64_CHECK_IMAGES ?= dhi.io/mongodb:8.3.7-debian13@sha256:c868540fe59312058c7f4d340766f286416cb5932d93d20e02fb5e033a261220
 DOCKER_SMOKE_TIMEOUT ?= 10
 DOCKER_IMAGE_LOCK_FILE ?= docker/compose.images.lock.yml
 LOCAL_TLS_CERT_DIR ?= docker/certs
@@ -95,6 +104,9 @@ help: ## Display this help message
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make $(YELLOW)<target>$(NC)\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  $(GREEN)%-24s$(NC) %s\n", $$1, $$2 } /^##@/ { printf "\n$(BLUE)%s$(NC)\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 ##@ Installation & Setup
+
+runtime-dir:
+	@umask 077; mkdir -p "$(RUNTIME_DIR)"; chmod 0700 "$(RUNTIME_DIR)"
 
 ensure-env: ## Create a Docker-ready .env file when one does not exist
 	@if [ ! -f .env ]; then \
@@ -114,7 +126,10 @@ generate-client: ## Generate the Prisma client for product-db
 	cd packages/product-db && bun run db:generate
 	@echo "$(GREEN)Prisma client generated$(NC)"
 
-setup-base: ensure-env install generate-client
+setup-base: ## Prepare the env, install dependencies, and generate Prisma in deterministic order
+	@$(MAKE) ensure-env
+	@$(MAKE) install
+	@$(MAKE) generate-client
 
 setup: setup-base ## Prepare the repo with a Docker-ready env and local dependencies
 	@echo "$(GREEN)Setup complete$(NC)"
@@ -184,8 +199,8 @@ db-seed: ## Seed the product database
 	cd apps/product-service && bun run src/scripts/seed.ts
 	@echo "$(GREEN)Database seeded$(NC)"
 
-local-env-file: ensure-env ## Create a merged env file for local apps with Docker-backed infra on localhost
-	@cp .env $(LOCAL_ENV_FILE)
+local-env-file: ensure-env runtime-dir ## Create a private merged env file for local apps with Docker-backed infra on localhost
+	@umask 077; install -m 0600 .env "$(LOCAL_ENV_FILE)"
 	@printf '\nDATABASE_URL=%s\nMONGO_URL=%s\nKAFKA_BROKERS=%s\nCLIENT_APP_URL=%s\nCORS_ALLOWED_ORIGINS=%s\nSTRIPE_WEBHOOK_URL=%s\nNEXT_PUBLIC_PRODUCT_SERVICE_URL=%s\nNEXT_PUBLIC_ORDER_SERVICE_URL=%s\nNEXT_PUBLIC_PAYMENT_SERVICE_URL=%s\nPRODUCT_SERVICE_INTERNAL_URL=%s\nORDER_SERVICE_INTERNAL_URL=%s\nPAYMENT_SERVICE_INTERNAL_URL=%s\n' \
 		"$(LOCAL_DATABASE_URL)" \
 		"$(LOCAL_MONGO_URL)" \
@@ -198,7 +213,8 @@ local-env-file: ensure-env ## Create a merged env file for local apps with Docke
 		"$(LOCAL_PAYMENT_SERVICE_URL)" \
 		"$(LOCAL_PRODUCT_SERVICE_URL)" \
 		"$(LOCAL_ORDER_SERVICE_URL)" \
-		"$(LOCAL_PAYMENT_SERVICE_URL)" >> $(LOCAL_ENV_FILE)
+		"$(LOCAL_PAYMENT_SERVICE_URL)" >> "$(LOCAL_ENV_FILE)"
+	@chmod 0600 "$(LOCAL_ENV_FILE)"
 	@echo "$(GREEN)Created merged local env at $(LOCAL_ENV_FILE)$(NC)"
 
 local-db-migrate: local-env-file ## Run Prisma migrations against local Docker Postgres
@@ -285,30 +301,19 @@ build-admin: ## Build the admin dashboard
 clean: ## Clean build artifacts and caches
 	@echo "$(RED)Cleaning build artifacts...$(NC)"
 	@bunx turbo daemon stop || true
-	@find . -type d \( \
-		-name node_modules -o \
-		-name .next -o \
-		-name .turbo -o \
-		-name out -o \
-		-name coverage -o \
-		-name dist -o \
-		-name build -o \
-		-name .cache \
-	\) -prune -exec rm -rf {} +
-	@find . -type f -name '*.tsbuildinfo' -delete
-	@rm -f $(LOCAL_ENV_FILE)
+	@./scripts/clean-workspace.sh
 	@echo "$(GREEN)Cleanup complete$(NC)"
 
-clean-all: clean docker-clean-images ## Clean everything including Docker data and images
+clean-all: ## Clean workspace artifacts and project-owned Docker resources
+	@$(MAKE) clean
+	@$(MAKE) docker-clean
 	@echo "$(GREEN)Full cleanup complete$(NC)"
 
 stop: ## Stop all running services
-	@echo "$(BLUE)Stopping all services...$(NC)"
-	@pkill -f "turbo dev" || true
-	@pkill -f "next dev" || true
-	@pkill -f "bun run" || true
-	@docker compose down 2>/dev/null || true
-	@echo "$(GREEN)All services stopped$(NC)"
+	@echo "$(BLUE)Stopping project-owned background services...$(NC)"
+	@bunx turbo daemon stop 2>/dev/null || true
+	@$(DOCKER_COMPOSE) down --remove-orphans 2>/dev/null || true
+	@echo "$(GREEN)Project background services stopped. Stop foreground dev commands with Ctrl-C.$(NC)"
 
 ##@ Monitoring
 
@@ -416,15 +421,18 @@ docker-up-build: ensure-env docker-auth docker-certs ## Build and start all serv
 
 docker-smoke: ## Smoke-test the running Docker stack over Traefik and service health endpoints
 	@echo "$(BLUE)Smoke-testing Docker stack...$(NC)"
-	@curl -4 -skSf --max-time $(DOCKER_SMOKE_TIMEOUT) https://shop.localhost:$(TRAEFIK_HTTPS_PORT)/api/health >/dev/null
-	@curl -4 -skSf --max-time $(DOCKER_SMOKE_TIMEOUT) https://admin.localhost:$(TRAEFIK_HTTPS_PORT)/api/health >/dev/null
-	@curl -4 -skSf --max-time $(DOCKER_SMOKE_TIMEOUT) -H 'content-type: application/json' --data '{"json":{"limit":1}}' https://api.localhost:$(TRAEFIK_HTTPS_PORT)/rpc/product/product/list >/dev/null
+	@curl -4 -sSf --cacert "$(LOCAL_TLS_CERT_FILE)" --max-time $(DOCKER_SMOKE_TIMEOUT) https://shop.localhost:$(TRAEFIK_HTTPS_PORT)/api/health >/dev/null
+	@curl -4 -sSf --cacert "$(LOCAL_TLS_CERT_FILE)" --max-time $(DOCKER_SMOKE_TIMEOUT) https://admin.localhost:$(TRAEFIK_HTTPS_PORT)/api/health >/dev/null
+	@curl -4 -sSf --cacert "$(LOCAL_TLS_CERT_FILE)" --max-time $(DOCKER_SMOKE_TIMEOUT) -H 'content-type: application/json' --data '{"json":{"limit":1}}' https://api.localhost:$(TRAEFIK_HTTPS_PORT)/rpc/product/product/list >/dev/null
 	$(DOCKER_COMPOSE) exec -T product-service bun -e "const r=await fetch('http://127.0.0.1:3000/health/ready'); if (!r.ok) process.exit(1);"
 	$(DOCKER_COMPOSE) exec -T order-service bun -e "const r=await fetch('http://127.0.0.1:8001/health/ready'); if (!r.ok) process.exit(1);"
 	$(DOCKER_COMPOSE) exec -T payment-service bun -e "const r=await fetch('http://127.0.0.1:8002/health/ready'); if (!r.ok) process.exit(1);"
 	@echo "$(GREEN)Docker smoke tests passed$(NC)"
 
-docker-test: docker-validate docker-up-build docker-smoke ## Validate, build, start, and smoke-test the full Docker stack
+docker-test: ## Validate, build, start, and smoke-test the full Docker stack in order
+	@$(MAKE) docker-validate
+	@$(MAKE) docker-up-build
+	@$(MAKE) docker-smoke
 	@echo "$(GREEN)Docker test pipeline passed$(NC)"
 
 docker-down: ## Stop all Docker services
@@ -464,7 +472,9 @@ docker-logs-stripe: ## View Stripe CLI logs
 docker-ps: ## Show running Docker containers
 	$(DOCKER_COMPOSE) ps
 
-docker-restart: docker-down docker-up ## Restart all Docker services
+docker-restart: ## Restart all Docker services in order
+	@$(MAKE) docker-down
+	@$(MAKE) docker-up
 
 docker-restart-service: ## Restart a specific service (SERVICE=product-service)
 	@echo "$(BLUE)Restarting $(SERVICE)...$(NC)"
@@ -478,16 +488,16 @@ docker-rebuild-service: ensure-env docker-auth ## Rebuild and restart a specific
 	@echo "$(GREEN)$(SERVICE) rebuilt and restarted$(NC)"
 
 docker-shell-traefik: ## DHI runtime images do not include a shell
-	@echo "$(YELLOW)Traefik now runs on a shell-less hardened image. Use 'docker debug ecommerce-traefik' when interactive inspection is needed.$(NC)"
+	@echo "$(YELLOW)Traefik has no shell. Resolve its ID with '$(DOCKER_COMPOSE) ps -q traefik', then use 'docker debug <container-id>'.$(NC)"
 
 docker-shell-product: ## DHI runtime images do not include a shell
-	@echo "$(YELLOW)Product service now runs on a shell-less hardened image. Use 'docker debug ecommerce-product-service' when interactive inspection is needed.$(NC)"
+	@echo "$(YELLOW)Product service has no shell. Resolve its ID with '$(DOCKER_COMPOSE) ps -q product-service', then use 'docker debug <container-id>'.$(NC)"
 
 docker-shell-order: ## DHI runtime images do not include a shell
-	@echo "$(YELLOW)Order service now runs on a shell-less hardened image. Use 'docker debug ecommerce-order-service' when interactive inspection is needed.$(NC)"
+	@echo "$(YELLOW)Order service has no shell. Resolve its ID with '$(DOCKER_COMPOSE) ps -q order-service', then use 'docker debug <container-id>'.$(NC)"
 
 docker-shell-payment: ## DHI runtime images do not include a shell
-	@echo "$(YELLOW)Payment service now runs on a shell-less hardened image. Use 'docker debug ecommerce-payment-service' when interactive inspection is needed.$(NC)"
+	@echo "$(YELLOW)Payment service has no shell. Resolve its ID with '$(DOCKER_COMPOSE) ps -q payment-service', then use 'docker debug <container-id>'.$(NC)"
 
 docker-infra-only: ensure-env docker-auth docker-certs ## Start only infrastructure services
 	@echo "$(BLUE)Starting infrastructure...$(NC)"
@@ -515,17 +525,20 @@ docker-clean: ## Remove project Docker containers, network, volumes, and local i
 	@echo "$(GREEN)Docker resources cleaned$(NC)"
 
 docker-clean-images: ## Stop the project stack and remove all unused Docker images
+	@test "$(CONFIRM)" = "docker-clean-images" || { echo "$(RED)Host-wide image deletion requires CONFIRM=docker-clean-images.$(NC)"; exit 2; }
 	@echo "$(RED)Stopping project stack and removing unused Docker images...$(NC)"
 	$(DOCKER_COMPOSE) down -v --remove-orphans --rmi local
 	docker image prune -af
 	@echo "$(GREEN)Project stack stopped and unused Docker images removed$(NC)"
 
 docker-prune: ## Prune unused Docker resources
+	@test "$(CONFIRM)" = "docker-prune" || { echo "$(RED)Host-wide Docker pruning requires CONFIRM=docker-prune.$(NC)"; exit 2; }
 	@echo "$(BLUE)Pruning Docker system...$(NC)"
 	docker system prune -af --volumes
 	@echo "$(GREEN)Docker system pruned$(NC)"
 
 docker-kill-all: ## Kill every running Docker container on the machine
+	@test "$(CONFIRM)" = "docker-kill-all" || { echo "$(RED)Stopping every host container requires CONFIRM=docker-kill-all.$(NC)"; exit 2; }
 	@echo "$(RED)Killing all running Docker containers...$(NC)"
 	@ids="$$(docker ps -q)"; if [ -n "$$ids" ]; then docker kill $$ids; fi
 	@echo "$(GREEN)All running Docker containers stopped$(NC)"
@@ -609,9 +622,11 @@ k8s-payment-doctor: k8s-doctor ## Diagnose payment/order readiness without print
 	@echo "$(BLUE)Previous order logs$(NC)"
 	@$(KUBECTL) -n $(HELM_NAMESPACE) logs -l app.kubernetes.io/instance=$(HELM_RELEASE),app.kubernetes.io/component=order-service --all-containers=true --previous --tail=$(K8S_LOG_TAIL) 2>/dev/null || echo "$(YELLOW)No previous order container logs.$(NC)"
 
-k8s-gateway-api: ## Install the pinned Gateway API standard CRDs
+k8s-gateway-api: runtime-dir ## Install the checksum-verified Gateway API standard CRDs
 	@echo "$(BLUE)Installing Gateway API $(GATEWAY_API_VERSION) standard CRDs...$(NC)"
-	@$(KUBECTL) apply --server-side -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v$(GATEWAY_API_VERSION)/standard-install.yaml
+	@umask 077; curl -fsSL "https://github.com/kubernetes-sigs/gateway-api/releases/download/v$(GATEWAY_API_VERSION)/standard-install.yaml" -o "$(RUNTIME_DIR)/gateway-api-$(GATEWAY_API_VERSION).yaml"
+	@printf '%s  %s\n' "$(GATEWAY_API_MANIFEST_SHA256)" "$(RUNTIME_DIR)/gateway-api-$(GATEWAY_API_VERSION).yaml" | shasum -a 256 -c -
+	@$(KUBECTL) apply --server-side -f "$(RUNTIME_DIR)/gateway-api-$(GATEWAY_API_VERSION).yaml"
 	@echo "$(GREEN)Gateway API $(GATEWAY_API_VERSION) CRDs are installed$(NC)"
 
 k8s-traefik: ## Install or upgrade the pinned Traefik ingress chart
@@ -632,18 +647,11 @@ k8s-traefik: ## Install or upgrade the pinned Traefik ingress chart
 		--set image.tag=$(TRAEFIK_IMAGE_VERSION) \
 		--set image.digest=$(TRAEFIK_IMAGE_DIGEST) \
 		--set versionOverride=$(TRAEFIK_IMAGE_VERSION) \
+		--values $(TRAEFIK_VALUES) \
 		--namespace $(TRAEFIK_NAMESPACE) \
 		--create-namespace \
 		--skip-crds \
-		--set ingressClass.enabled=true \
 		--set ingressClass.name=$(K8S_INGRESS_CLASS_NAME) \
-		--set providers.kubernetesIngress.enabled=true \
-		--set metrics.addInternals=true \
-		--set metrics.prometheus.addEntryPointsLabels=true \
-		--set metrics.prometheus.addRoutersLabels=true \
-		--set metrics.prometheus.addServicesLabels=true \
-		--set metrics.prometheus.service.enabled=true \
-		--set service.type=LoadBalancer \
 		--wait \
 		--timeout $(K8S_ROLLOUT_TIMEOUT)
 	@echo "$(GREEN)Traefik ingress is ready$(NC)"
@@ -668,7 +676,7 @@ k8s-observability: ## Install or upgrade Prometheus Operator, Prometheus, Alertm
 		--namespace $(OBS_NAMESPACE) \
 		--create-namespace \
 		--skip-crds \
-		$(OBS_HELM_SET_ARGS) \
+		--values $(OBS_VALUES) \
 		--wait \
 		--timeout 10m
 	@echo "$(GREEN)Observability stack is ready$(NC)"
@@ -713,7 +721,8 @@ k8s-namespace: k8s-preflight ## Create the Kubernetes namespace if needed
 		pod-security.kubernetes.io/warn=$(K8S_POD_SECURITY_LEVEL) \
 		pod-security.kubernetes.io/warn-version=$(K8S_POD_SECURITY_VERSION)
 
-k8s-fresh-namespace: k8s-preflight ## Delete and recreate the application namespace for a clean deployment
+k8s-fresh-namespace: k8s-preflight ## Delete and recreate the application namespace (requires explicit confirmation)
+	@test "$(CONFIRM)" = "k8s-reset-local" || { echo "$(RED)Namespace deletion requires CONFIRM=k8s-reset-local.$(NC)"; exit 2; }
 	@echo "$(BLUE)Resetting Kubernetes namespace $(HELM_NAMESPACE)...$(NC)"
 	-$(KUBECTL) delete namespace $(HELM_NAMESPACE) --ignore-not-found=true --wait=true
 	$(KUBECTL) create namespace $(HELM_NAMESPACE) --dry-run=client -o yaml | $(KUBECTL) apply -f -
@@ -725,6 +734,9 @@ k8s-fresh-namespace: k8s-preflight ## Delete and recreate the application namesp
 		pod-security.kubernetes.io/warn=$(K8S_POD_SECURITY_LEVEL) \
 		pod-security.kubernetes.io/warn-version=$(K8S_POD_SECURITY_VERSION)
 	@echo "$(GREEN)Kubernetes namespace $(HELM_NAMESPACE) is fresh$(NC)"
+
+k8s-reset-local: ## Explicitly reset only the ecommerce namespace
+	@$(MAKE) k8s-fresh-namespace CONFIRM=k8s-reset-local
 
 k8s-tls-secret: docker-certs k8s-namespace ## Sync the local mkcert certificate into Kubernetes
 	$(KUBECTL) -n $(HELM_NAMESPACE) create secret tls $(HELM_TLS_SECRET) --cert=$(LOCAL_TLS_CERT_FILE) --key=$(LOCAL_TLS_KEY_FILE) --dry-run=client -o yaml | $(KUBECTL) apply -f -
@@ -786,21 +798,20 @@ k8s-load-images: ## Load locally built images into kind or minikube when the cur
 			;; \
 	esac
 
-k8s-validate: helm-lint ## Render and client-validate Kubernetes manifests without deploying
+k8s-validate: helm-lint runtime-dir ## Render and schema-validate Kubernetes manifests without deploying
 	@echo "$(BLUE)Rendering Helm manifests to $(HELM_RENDERED_FILE)...$(NC)"
-	@$(MAKE) helm-template > $(HELM_RENDERED_FILE)
-	$(KUBECTL) apply --namespace $(HELM_NAMESPACE) --dry-run=client --validate=false -f $(HELM_RENDERED_FILE)
+	@umask 077; $(MAKE) helm-template > "$(HELM_RENDERED_FILE)"; chmod 0600 "$(HELM_RENDERED_FILE)"
+	docker run --rm -i $(KUBECONFORM_IMAGE) -strict -summary -ignore-missing-schemas -kubernetes-version $(K8S_TARGET_VERSION) < "$(HELM_RENDERED_FILE)"
 	@echo "$(GREEN)Kubernetes manifests validated$(NC)"
 
-k8s-validate-full: ## Render and client-validate full-stack Kubernetes manifests without deploying
+k8s-validate-full: ## Render and schema-validate full-stack Kubernetes manifests without deploying
 	@$(MAKE) k8s-validate HELM_VALUES=$(HELM_FULL_VALUES)
 
 k8s-diff: k8s-validate ## Show server-side differences for the rendered release when helm-diff is installed
 	@$(HELM) plugin list | awk '{print $$1}' | grep -qx diff || { echo "$(YELLOW)helm-diff plugin is not installed. Install it with: helm plugin install https://github.com/databus23/helm-diff$(NC)"; exit 1; }
 	$(HELM) diff upgrade --install $(HELM_RELEASE) $(HELM_CHART) --namespace $(HELM_NAMESPACE) --values $(HELM_VALUES) $(HELM_SET_ARGS)
 
-k8s-deploy: ## Delete, recreate, and deploy the local web tier in the same namespace
-	@$(MAKE) k8s-fresh-namespace
+k8s-deploy: ## Validate and deploy the local web tier in place
 	@$(MAKE) helm-lint
 	@$(MAKE) k8s-validate
 	@$(MAKE) k8s-tls-secret
@@ -812,8 +823,7 @@ k8s-deploy: ## Delete, recreate, and deploy the local web tier in the same names
 k8s-deploy-observed: ## Deploy the local web tier with ServiceMonitors, PrometheusRule, and Grafana dashboard enabled
 	@$(MAKE) k8s-deploy HELM_SET_ARGS='$(HELM_SET_ARGS) $(K8S_OBSERVABILITY_SET_ARGS)'
 
-k8s-deploy-full: ## Delete, recreate, and deploy the full app release in the same namespace
-	@$(MAKE) k8s-fresh-namespace
+k8s-deploy-full: ## Validate and deploy the full app release in place
 	@$(MAKE) helm-lint
 	@$(MAKE) k8s-validate-full
 	@$(MAKE) k8s-tls-secret
@@ -822,21 +832,59 @@ k8s-deploy-full: ## Delete, recreate, and deploy the full app release in the sam
 	$(HELM) upgrade --install $(HELM_RELEASE) $(HELM_CHART) --namespace $(HELM_NAMESPACE) --create-namespace --values $(HELM_FULL_VALUES) $(HELM_SET_ARGS) $(HELM_UPGRADE_ARGS)
 	@echo "$(GREEN)Full Kubernetes deployment submitted$(NC)"
 
-k8s-up: k8s-traefik k8s-local-deps k8s-build-images k8s-tag-images k8s-load-images k8s-deploy k8s-wait k8s-smoke ## Prepare data, build images, deploy the local web tier, and smoke-test Traefik
+k8s-up: ## Prepare data, build images, deploy the local web tier, and smoke-test Traefik in order
+	@$(MAKE) k8s-traefik
+	@$(MAKE) k8s-local-deps
+	@$(MAKE) k8s-build-images
+	@$(MAKE) k8s-tag-images
+	@$(MAKE) k8s-load-images
+	@$(MAKE) k8s-deploy
+	@$(MAKE) k8s-wait
+	@$(MAKE) k8s-smoke
 	@echo "$(GREEN)Kubernetes stack is ready$(NC)"
 
-k8s-up-observed: k8s-observability k8s-traefik k8s-local-deps k8s-build-images k8s-tag-images k8s-load-images k8s-deploy-observed k8s-wait k8s-smoke ## Prepare data, build, and deploy local Kubernetes with Prometheus, Grafana, app metrics, and Traefik metrics
+k8s-up-observed: ## Prepare data, build, and deploy observed local Kubernetes in order
+	@$(MAKE) k8s-observability
+	@$(MAKE) k8s-traefik
+	@$(MAKE) k8s-local-deps
+	@$(MAKE) k8s-build-images
+	@$(MAKE) k8s-tag-images
+	@$(MAKE) k8s-load-images
+	@$(MAKE) k8s-deploy-observed
+	@$(MAKE) k8s-wait
+	@$(MAKE) k8s-smoke
 	@echo "$(GREEN)Observed Kubernetes stack is ready$(NC)"
 
-k8s-up-full: k8s-traefik k8s-local-deps k8s-build-full-images k8s-tag-images k8s-load-images k8s-deploy-full k8s-wait k8s-smoke-full ## Prepare data, build images, deploy the full app, and smoke-test it
+k8s-up-full: ## Prepare data, build images, deploy the full app, and smoke-test it in order
+	@$(MAKE) k8s-traefik
+	@$(MAKE) k8s-local-deps
+	@$(MAKE) k8s-build-full-images
+	@$(MAKE) k8s-tag-images
+	@$(MAKE) k8s-load-images
+	@$(MAKE) k8s-deploy-full
+	@$(MAKE) k8s-wait
+	@$(MAKE) k8s-smoke-full
 	@echo "$(GREEN)Full Kubernetes stack is ready$(NC)"
 
-k8s: k8s-up-observed ## One-command local Kubernetes setup with Prometheus, Grafana, and Docker-backed Postgres, MongoDB, and Kafka
+k8s: k8s-up-observed runtime-dir ## One-command local Kubernetes setup with Prometheus, Grafana, and Docker-backed Postgres, MongoDB, and Kafka
 	@echo "$(BLUE)Starting local forwards for the Kubernetes stack...$(NC)"
-	@trap 'kill $$traefik_pid $$grafana_pid $$prometheus_pid 2>/dev/null || true' EXIT INT TERM; \
-		$(KUBECTL) -n $(TRAEFIK_NAMESPACE) port-forward svc/traefik $(K8S_LOCAL_HTTPS_PORT):443 >/tmp/$(HELM_RELEASE)-traefik-port-forward.log 2>&1 & traefik_pid=$$!; \
-		$(KUBECTL) -n $(OBS_NAMESPACE) port-forward svc/$(OBS_RELEASE)-grafana $(GRAFANA_PORT):80 >/tmp/$(OBS_RELEASE)-grafana-port-forward.log 2>&1 & grafana_pid=$$!; \
-		$(KUBECTL) -n $(OBS_NAMESPACE) port-forward svc/$(OBS_RELEASE)-prometheus $(PROMETHEUS_PORT):9090 >/tmp/$(OBS_RELEASE)-prometheus-port-forward.log 2>&1 & prometheus_pid=$$!; \
+	@forward() ( \
+		log_file="$$1"; shift; \
+		trap 'test -n "$$child_pid" && kill "$$child_pid" 2>/dev/null || true; exit 0' EXIT INT TERM; \
+		while true; do \
+			"$$@" >>"$$log_file" 2>&1 & child_pid=$$!; \
+			wait "$$child_pid" || true; \
+			sleep 1; \
+		done \
+	); \
+		traefik_log="$(RUNTIME_DIR)/$(HELM_RELEASE)-traefik-port-forward.log"; \
+		grafana_log="$(RUNTIME_DIR)/$(OBS_RELEASE)-grafana-port-forward.log"; \
+		prometheus_log="$(RUNTIME_DIR)/$(OBS_RELEASE)-prometheus-port-forward.log"; \
+		: >"$$traefik_log"; : >"$$grafana_log"; : >"$$prometheus_log"; \
+		forward "$$traefik_log" $(KUBECTL) -n $(TRAEFIK_NAMESPACE) port-forward svc/traefik $(K8S_LOCAL_HTTPS_PORT):443 & traefik_pid=$$!; \
+		forward "$$grafana_log" $(KUBECTL) -n $(OBS_NAMESPACE) port-forward svc/$(OBS_RELEASE)-grafana $(GRAFANA_PORT):80 & grafana_pid=$$!; \
+		forward "$$prometheus_log" $(KUBECTL) -n $(OBS_NAMESPACE) port-forward svc/$(OBS_RELEASE)-prometheus $(PROMETHEUS_PORT):9090 & prometheus_pid=$$!; \
+		trap 'kill "$$traefik_pid" "$$grafana_pid" "$$prometheus_pid" 2>/dev/null || true; wait "$$traefik_pid" "$$grafana_pid" "$$prometheus_pid" 2>/dev/null || true' EXIT INT TERM; \
 		printf "$(GREEN)Local forwards active. Press Ctrl-C to stop them.$(NC)\\n"; \
 		printf "  Storefront:  https://shop.localhost:$(K8S_LOCAL_HTTPS_PORT)\\n"; \
 		printf "  Admin:       https://admin.localhost:$(K8S_LOCAL_HTTPS_PORT)\\n"; \
@@ -856,25 +904,33 @@ k8s-full: k8s-up-full ## One-command full Kubernetes setup with Docker-backed Po
 k8s-wait: ## Wait for all ecommerce deployments to finish rolling out
 	$(KUBECTL) -n $(HELM_NAMESPACE) rollout status deployment -l app.kubernetes.io/instance=$(HELM_RELEASE) --timeout=$(K8S_ROLLOUT_TIMEOUT)
 
-k8s-smoke: ## Smoke-test local Kubernetes web routes over HTTPS
-	@echo "$(BLUE)Smoke-testing Kubernetes ingress...$(NC)"
-	@ingress_ip="$$($(KUBECTL) -n $(TRAEFIK_NAMESPACE) get svc traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)"; \
-		resolve_args=""; \
-		if [ -n "$$ingress_ip" ]; then resolve_args="--resolve shop.localhost:443:$$ingress_ip --resolve admin.localhost:443:$$ingress_ip --resolve api.localhost:443:$$ingress_ip"; fi; \
-		curl -4 -skSf --max-time $(K8S_SMOKE_TIMEOUT) $$resolve_args https://shop.localhost/api/health >/dev/null && \
-		curl -4 -skSf --max-time $(K8S_SMOKE_TIMEOUT) $$resolve_args https://admin.localhost/api/health >/dev/null && \
-		curl -4 -skSf --max-time $(K8S_SMOKE_TIMEOUT) $$resolve_args --get https://admin.localhost/_next/image \
+k8s-smoke: runtime-dir ## Smoke-test local Kubernetes web routes over HTTPS
+	@echo "$(BLUE)Smoke-testing Kubernetes ingress through a temporary Traefik port-forward...$(NC)"
+	@smoke_port="$(K8S_LOCAL_HTTPS_PORT)"; \
+		port_forward_log="$(RUNTIME_DIR)/$(HELM_RELEASE)-smoke-port-forward.log"; \
+		$(KUBECTL) -n $(TRAEFIK_NAMESPACE) port-forward svc/traefik "$$smoke_port:443" >"$$port_forward_log" 2>&1 & traefik_pid=$$!; \
+		cleanup() { kill "$$traefik_pid" 2>/dev/null || true; wait "$$traefik_pid" 2>/dev/null || true; }; \
+		trap cleanup EXIT INT TERM; \
+		resolve_args="--resolve shop.localhost:$$smoke_port:127.0.0.1 --resolve admin.localhost:$$smoke_port:127.0.0.1 --resolve api.localhost:$$smoke_port:127.0.0.1"; \
+		for attempt in $$(seq 1 $(K8S_SMOKE_MAX_ATTEMPTS)); do \
+			if curl -4 -sSf --cacert "$(LOCAL_TLS_CERT_FILE)" --connect-timeout 1 --max-time 2 $$resolve_args "https://shop.localhost:$$smoke_port/api/health" >/dev/null; then break; fi; \
+			if ! kill -0 "$$traefik_pid" 2>/dev/null; then cat "$$port_forward_log"; exit 1; fi; \
+			if [ "$$attempt" -eq "$(K8S_SMOKE_MAX_ATTEMPTS)" ]; then echo "$(RED)Timed out waiting for the Traefik smoke-test port-forward.$(NC)"; cat "$$port_forward_log"; exit 1; fi; \
+			sleep 1; \
+		done; \
+		curl -4 -sSf --cacert "$(LOCAL_TLS_CERT_FILE)" --max-time $(K8S_SMOKE_TIMEOUT) $$resolve_args "https://admin.localhost:$$smoke_port/api/health" >/dev/null && \
+		curl -4 -sSf --cacert "$(LOCAL_TLS_CERT_FILE)" --max-time $(K8S_SMOKE_TIMEOUT) $$resolve_args --get "https://admin.localhost:$$smoke_port/_next/image" \
 			--data-urlencode "url=$(K8S_IMAGE_STOREFRONT_ORIGIN)/logo.png" \
 			--data-urlencode "w=64" \
 			--data-urlencode "q=75" >/dev/null && \
-		curl -4 -skSf --max-time $(K8S_SMOKE_TIMEOUT) $$resolve_args https://shop.localhost/ >/dev/null && \
-		status="$$(curl -4 -skS -o /dev/null -w '%{http_code}' --max-time $(K8S_SMOKE_TIMEOUT) $$resolve_args -X POST https://api.localhost/api/webhooks/stripe)"; \
+		curl -4 -sSf --cacert "$(LOCAL_TLS_CERT_FILE)" --max-time $(K8S_SMOKE_TIMEOUT) $$resolve_args "https://shop.localhost:$$smoke_port/" >/dev/null && \
+		status="$$(curl -4 -sS --cacert "$(LOCAL_TLS_CERT_FILE)" -o /dev/null -w '%{http_code}' --max-time $(K8S_SMOKE_TIMEOUT) $$resolve_args -X POST "https://api.localhost:$$smoke_port/api/webhooks/stripe")"; \
 		test "$$status" = "400" || { echo "$(RED)Expected unsigned Stripe webhook to reach payment-service and return 400; received $$status.$(NC)"; exit 1; }
 	@echo "$(GREEN)Kubernetes smoke tests passed$(NC)"
 
 k8s-smoke-full: k8s-smoke ## Smoke-test full Kubernetes API routes
 	@echo "$(BLUE)Smoke-testing Kubernetes API ingress...$(NC)"
-	@curl -4 -skSf --max-time $(K8S_SMOKE_TIMEOUT) -H 'content-type: application/json' --data '{"json":{"limit":1}}' https://api.localhost/rpc/product/product/list >/dev/null
+	@curl -4 -sSf --cacert "$(LOCAL_TLS_CERT_FILE)" --max-time $(K8S_SMOKE_TIMEOUT) -H 'content-type: application/json' --data '{"json":{"limit":1}}' https://api.localhost/rpc/product/product/list >/dev/null
 	@echo "$(GREEN)Full Kubernetes smoke tests passed$(NC)"
 
 k8s-test: ## Run Helm tests for the deployed ecommerce release
@@ -922,37 +978,51 @@ k8s-restart: ## Restart all ecommerce deployments and wait for rollout
 k8s-uninstall: ## Uninstall the ecommerce Helm release
 	$(HELM) uninstall $(HELM_RELEASE) --namespace $(HELM_NAMESPACE) --wait --timeout $(K8S_ROLLOUT_TIMEOUT)
 
-k8s-clear: ## Stop and remove local Kubernetes resources plus Docker backing services
+k8s-clear: ## Uninstall local releases and remove project Docker backing services
 	@echo "$(RED)Clearing local Kubernetes and Docker resources...$(NC)"
 	-$(HELM) uninstall $(HELM_RELEASE) --namespace $(HELM_NAMESPACE) --wait --timeout $(K8S_ROLLOUT_TIMEOUT) --ignore-not-found
 	-$(HELM) uninstall traefik --namespace $(TRAEFIK_NAMESPACE) --wait --timeout $(K8S_ROLLOUT_TIMEOUT) --ignore-not-found
-	-$(KUBECTL) delete namespace $(HELM_NAMESPACE) --ignore-not-found=true --wait=true
-	-$(KUBECTL) delete namespace $(TRAEFIK_NAMESPACE) --ignore-not-found=true --wait=true
+	-$(HELM) uninstall $(OBS_RELEASE) --namespace $(OBS_NAMESPACE) --wait --timeout $(K8S_ROLLOUT_TIMEOUT) --ignore-not-found
 	$(DOCKER_COMPOSE) down -v --remove-orphans
-	@echo "$(GREEN)Local Kubernetes and Docker resources cleared$(NC)"
+	@echo "$(GREEN)Local releases and project Docker resources cleared; namespaces were retained.$(NC)"
+
+k8s-delete-namespaces: ## Delete all three local namespaces (requires explicit confirmation)
+	@test "$(CONFIRM)" = "k8s-delete-namespaces" || { echo "$(RED)Namespace deletion requires CONFIRM=k8s-delete-namespaces.$(NC)"; exit 2; }
+	$(KUBECTL) delete namespace $(HELM_NAMESPACE) $(TRAEFIK_NAMESPACE) $(OBS_NAMESPACE) --ignore-not-found=true --wait=true
 
 clear: k8s-clear ## Alias for k8s-clear
 
 ##@ Quick Commands
 
-quick-start: docker-infra-only dev ## Start infrastructure plus local dev services
+quick-start: ## Start infrastructure, then local dev services
+	@$(MAKE) docker-infra-only
+	@$(MAKE) dev
 
-local-dev: setup-base docker-infra-local local-env-file local-db-migrate local-db-seed local-urls ## Run apps locally over HTTP with Docker only for DB and Kafka
-	@echo "$(BLUE)Starting local application services...$(NC)"
-	@bun --env-file=$(LOCAL_ENV_FILE) run dev
-
-local-fresh-dev: setup-base ## Kill all containers, start only DB/Kafka infra, then run local apps over HTTP
-	@$(MAKE) docker-kill-all
+local-dev: ## Run apps locally over HTTP with Docker only for DB and Kafka
+	@$(MAKE) setup-base
 	@$(MAKE) docker-infra-local
 	@$(MAKE) local-env-file
 	@$(MAKE) local-db-migrate
 	@$(MAKE) local-db-seed
 	@$(MAKE) local-urls
 	@echo "$(BLUE)Starting local application services...$(NC)"
-	@bun --env-file=$(LOCAL_ENV_FILE) run dev
+	@trap 'rm -f "$(LOCAL_ENV_FILE)"' EXIT INT TERM; bun --env-file=$(LOCAL_ENV_FILE) run dev
+
+local-fresh-dev: ## Reset only this project, start DB/Kafka infra, then run local apps over HTTP
+	@$(MAKE) setup-base
+	@$(MAKE) docker-down-volumes
+	@$(MAKE) docker-infra-local
+	@$(MAKE) local-env-file
+	@$(MAKE) local-db-migrate
+	@$(MAKE) local-db-seed
+	@$(MAKE) local-urls
+	@echo "$(BLUE)Starting local application services...$(NC)"
+	@trap 'rm -f "$(LOCAL_ENV_FILE)"' EXIT INT TERM; bun --env-file=$(LOCAL_ENV_FILE) run dev
 
 quick-stop: stop ## Stop everything quickly
 
-restart: stop quick-start ## Restart everything
+restart: ## Restart project services in order
+	@$(MAKE) stop
+	@$(MAKE) quick-start
 
 docker-quick-start: docker-setup ## Install, prepare env, and start the full Docker stack
