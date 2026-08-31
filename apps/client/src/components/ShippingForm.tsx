@@ -73,7 +73,8 @@ const ShippingForm = ({
           cleared after payment.
         </p>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <fieldset className="grid gap-4 sm:grid-cols-2">
+        <legend className="sr-only">Contact details</legend>
         <div className="flex flex-col gap-1">
           <label
             htmlFor="name"
@@ -84,7 +85,7 @@ const ShippingForm = ({
           <Input
             type="text"
             id="name"
-            autoComplete="shipping name"
+            autoComplete="name"
             placeholder="Jordan Lee"
             required
             aria-invalid={Boolean(errors.name)}
@@ -130,8 +131,12 @@ const ShippingForm = ({
             </p>
           )}
         </div>
-      </div>
-      <div className="flex flex-col gap-1">
+      </fieldset>
+      <fieldset className="space-y-4">
+        <legend className="text-sm font-semibold text-foreground">
+          Delivery address
+        </legend>
+        <div className="flex flex-col gap-1">
         <label
           htmlFor="phone"
           className="text-xs font-semibold text-foreground"
@@ -155,8 +160,8 @@ const ShippingForm = ({
             {errors.phone}
           </p>
         )}
-      </div>
-      <div className="flex flex-col gap-1">
+        </div>
+        <div className="flex flex-col gap-1">
         <label
           htmlFor="address"
           className="text-xs font-semibold text-foreground"
@@ -183,7 +188,8 @@ const ShippingForm = ({
             {errors.address}
           </p>
         )}
-      </div>
+        </div>
+      </fieldset>
       <div className="flex flex-col gap-1">
         <label htmlFor="city" className="text-xs font-semibold text-foreground">
           City
