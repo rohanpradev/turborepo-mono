@@ -137,57 +137,61 @@ const ShippingForm = ({
           Delivery address
         </legend>
         <div className="flex flex-col gap-1">
-        <label
-          htmlFor="phone"
-          className="text-xs font-semibold text-foreground"
-        >
-          Phone
-        </label>
-        <Input
-          type="tel"
-          id="phone"
-          autoComplete="tel"
-          inputMode="tel"
-          placeholder="(555) 123-4567"
-          required
-          aria-invalid={Boolean(errors.phone)}
-          aria-describedby={errors.phone ? "phone-error" : undefined}
-          value={values.phone}
-          onChange={(event) => updateField("phone", event.target.value)}
-        />
-        {errors.phone && (
-          <p id="phone-error" role="alert" className="text-xs text-destructive">
-            {errors.phone}
-          </p>
-        )}
+          <label
+            htmlFor="phone"
+            className="text-xs font-semibold text-foreground"
+          >
+            Phone
+          </label>
+          <Input
+            type="tel"
+            id="phone"
+            autoComplete="tel"
+            inputMode="tel"
+            placeholder="(555) 123-4567"
+            required
+            aria-invalid={Boolean(errors.phone)}
+            aria-describedby={errors.phone ? "phone-error" : undefined}
+            value={values.phone}
+            onChange={(event) => updateField("phone", event.target.value)}
+          />
+          {errors.phone && (
+            <p
+              id="phone-error"
+              role="alert"
+              className="text-xs text-destructive"
+            >
+              {errors.phone}
+            </p>
+          )}
         </div>
         <div className="flex flex-col gap-1">
-        <label
-          htmlFor="address"
-          className="text-xs font-semibold text-foreground"
-        >
-          Address
-        </label>
-        <Input
-          type="text"
-          id="address"
-          autoComplete="shipping street-address"
-          placeholder="123 Main Street"
-          required
-          aria-invalid={Boolean(errors.address)}
-          aria-describedby={errors.address ? "address-error" : undefined}
-          value={values.address}
-          onChange={(event) => updateField("address", event.target.value)}
-        />
-        {errors.address && (
-          <p
-            id="address-error"
-            role="alert"
-            className="text-xs text-destructive"
+          <label
+            htmlFor="address"
+            className="text-xs font-semibold text-foreground"
           >
-            {errors.address}
-          </p>
-        )}
+            Address
+          </label>
+          <Input
+            type="text"
+            id="address"
+            autoComplete="shipping street-address"
+            placeholder="123 Main Street"
+            required
+            aria-invalid={Boolean(errors.address)}
+            aria-describedby={errors.address ? "address-error" : undefined}
+            value={values.address}
+            onChange={(event) => updateField("address", event.target.value)}
+          />
+          {errors.address && (
+            <p
+              id="address-error"
+              role="alert"
+              className="text-xs text-destructive"
+            >
+              {errors.address}
+            </p>
+          )}
         </div>
       </fieldset>
       <div className="flex flex-col gap-1">
