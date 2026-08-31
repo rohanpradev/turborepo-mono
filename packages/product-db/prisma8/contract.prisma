@@ -1,0 +1,59 @@
+// use prisma-next
+// Contract inferred from the live database schema. Edit as needed, then run `prisma contract emit`.
+
+namespace public {
+  model Category {
+    id       Int       @id(map: "Category_pkey") @default(autoincrement())
+    name     String
+    slug     String
+    products Product[]
+
+    @@index([slug], map: "Category_slug_key", unique: true)
+    @@map("Category")
+  }
+
+  model Product {
+    id               Int          @id(map: "Product_pkey") @default(autoincrement())
+    name             String
+    shortDescription String
+    description      String
+    price            Int
+    sizes            String[]     @noCheck(elementNotNull)
+    colors           String[]     @noCheck(elementNotNull)
+    images           Jsonb
+    createdAt        Timestamp(3) @default(now())
+    updatedAt        Timestamp(3)
+    categorySlug     String
+    category         Category     @relation(fields: [categorySlug], references: [slug], onDelete: Restrict, onUpdate: Cascade, map: "Product_categorySlug_fkey", index: false)
+
+    @@index([categorySlug, createdAt], map: "Product_categorySlug_createdAt_idx")
+    @@index([categorySlug, price], map: "Product_categorySlug_price_idx")
+    @@index([createdAt], map: "Product_createdAt_idx")
+    @@index([price], map: "Product_price_idx")
+    @@map("Product")
+  }
+
+  model ProductOutboxEvent {
+    id          String                @id(map: "ProductOutboxEvent_pkey")
+    topic       String
+    eventKey    String
+    payload     Jsonb
+    status      pg.enum(OutboxStatus) @default("PENDING")
+    attempts    Int                   @default(0)
+    availableAt Timestamp(3)          @default(now())
+    leaseUntil  Timestamp(3)?
+    publishedAt Timestamp(3)?
+    lastError   String?
+    createdAt   Timestamp(3)          @default(now())
+    updatedAt   Timestamp(3)
+
+    @@index([status, availableAt, createdAt], map: "ProductOutboxEvent_status_availableAt_createdAt_idx")
+    @@map("ProductOutboxEvent")
+  }
+
+  native_enum OutboxStatus {
+    PENDING = "PENDING"
+    PUBLISHING = "PUBLISHING"
+    PUBLISHED = "PUBLISHED"
+  }
+}

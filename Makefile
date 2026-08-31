@@ -4,7 +4,7 @@
 SHELL := /bin/bash
 .SHELLFLAGS := -o pipefail -c
 
-.PHONY: help runtime-dir ensure-env install dev stop clean clean-all setup setup-base generate-client kafka-ui db-setup db-migrate db-generate db-studio db-seed local-env-file local-db-migrate local-db-seed local-urls local-dev local-fresh-dev lint type-check format audit test boundaries turbo-summary turbo-graph turbo-report turbo-inspect verify build build-client build-admin logs-product logs-order logs-payment status docker-auth docker-certs docker-validate docker-images docker-lock-images docker-build docker-up docker-up-build docker-smoke docker-test docker-down docker-down-volumes docker-logs docker-logs-traefik docker-logs-product docker-logs-order docker-logs-payment docker-logs-client docker-logs-admin docker-logs-stripe docker-ps docker-restart docker-restart-service docker-rebuild-service docker-shell-traefik docker-shell-product docker-shell-order docker-shell-payment docker-infra-only docker-infra-local docker-stripe-up docker-stripe-down docker-clean docker-clean-images docker-prune docker-kill-all docker-setup docker-fresh-start helm-lint helm-lint-supported helm-validate-supported helm-template helm-dry-run helm-package k8s-doctor k8s-gateway-api k8s-traefik k8s-traefik-status k8s-observability k8s-observability-status k8s-grafana k8s-prometheus k8s-preflight k8s-local-deps k8s-namespace k8s-fresh-namespace k8s-reset-local k8s-tls-secret k8s-runtime-secret k8s-build-images k8s-build-full-images k8s-tag-images k8s-load-images k8s-validate k8s-validate-full k8s-diff k8s-deploy k8s-deploy-observed k8s-deploy-full k8s-up k8s-up-observed k8s-up-full k8s-full k8s-wait k8s-smoke k8s-smoke-full k8s-test k8s-status k8s-events k8s-logs k8s-logs-traefik k8s-logs-client k8s-logs-admin k8s-logs-product k8s-logs-order k8s-logs-payment k8s-describe k8s-restart k8s-uninstall k8s-clear k8s-delete-namespaces k8s ks8 kubernetes clear quick-start quick-stop restart docker-quick-start
+.PHONY: help infra-versions runtime-dir ensure-env install dev stop clean clean-all setup setup-base generate-client kafka-ui db-setup db-migrate db-generate db-studio db-seed local-env-file local-db-migrate local-db-seed local-urls local-dev local-fresh-dev lint type-check format audit test boundaries turbo-summary turbo-graph turbo-report turbo-inspect verify build build-client build-admin logs-product logs-order logs-payment status docker-auth docker-certs docker-validate docker-images docker-lock-images docker-build docker-up docker-up-build docker-smoke docker-test docker-down docker-down-volumes docker-logs docker-logs-traefik docker-logs-product docker-logs-order docker-logs-payment docker-logs-client docker-logs-admin docker-logs-stripe docker-ps docker-restart docker-restart-service docker-rebuild-service docker-shell-traefik docker-shell-product docker-shell-order docker-shell-payment docker-infra-only docker-infra-local docker-stripe-up docker-stripe-down docker-clean docker-clean-images docker-prune docker-kill-all docker-setup docker-fresh-start helm-lint helm-lint-supported helm-validate-supported helm-template helm-dry-run helm-package k8s-doctor k8s-toolchain-check k8s-gateway-api k8s-traefik k8s-traefik-status k8s-observability k8s-observability-status k8s-grafana k8s-prometheus k8s-preflight k8s-local-deps k8s-namespace k8s-fresh-namespace k8s-reset-local k8s-tls-secret k8s-runtime-secret k8s-build-images k8s-build-full-images k8s-tag-images k8s-load-images k8s-validate k8s-validate-full k8s-diff k8s-deploy k8s-deploy-observed k8s-deploy-full k8s-up k8s-up-observed k8s-up-full k8s-forward k8s-full k8s-wait k8s-smoke k8s-smoke-full k8s-test k8s-status k8s-events k8s-logs k8s-logs-traefik k8s-logs-client k8s-logs-admin k8s-logs-product k8s-logs-order k8s-logs-payment k8s-describe k8s-restart k8s-uninstall k8s-clear k8s-delete-namespaces k8s ks8 kubernetes clear quick-start quick-stop restart docker-quick-start
 .PHONY: k8s-payment-doctor k8s-logs-stripe
 
 .DEFAULT_GOAL := help
@@ -34,18 +34,18 @@ K8S_LOCAL_HTTPS_PORT ?= 9443
 K8S_SMOKE_MAX_ATTEMPTS ?= 30
 HELM ?= helm
 KUBECTL ?= kubectl
-HELM_VERSION ?= 4.2.3
-K8S_TARGET_VERSION ?= 1.36.2
-K8S_SUPPORTED_VERSIONS ?= 1.34.9 1.35.6 1.36.2
+HELM_VERSION ?= 4.2.4
+K8S_TARGET_VERSION ?= 1.37.0
+K8S_SUPPORTED_VERSIONS ?= 1.35.8 1.36.4 1.37.0
 K8S_POD_SECURITY_LEVEL ?= restricted
-K8S_POD_SECURITY_VERSION ?= v1.34
+K8S_POD_SECURITY_VERSION ?= v1.35
 KUBECONFORM_IMAGE ?= ghcr.io/yannh/kubeconform:v0.8.0@sha256:faffaf43f95aa6425306e1ab8d6fcad72acb9049158f38e574c085ea1ec0f64e
 GATEWAY_API_VERSION ?= 1.5.1
 GATEWAY_API_MANIFEST_SHA256 ?= 751002b3b91a87f7ae3bd2517c79a47a8d7ed6702901808a1cf9bd97d284f9b8
-TRAEFIK_CHART_VERSION ?= 41.2.0
-TRAEFIK_IMAGE_VERSION ?= v3.7.10
-TRAEFIK_IMAGE_DIGEST ?= sha256:9c3b91d5fb7770853ca5c1124a23c34bf2d9b47ffaebeab2614cbaf410dcb2ac
-OBS_CHART_VERSION ?= 88.2.0
+TRAEFIK_CHART_VERSION ?= 41.4.0
+TRAEFIK_IMAGE_VERSION ?= v3.7.12
+TRAEFIK_IMAGE_DIGEST ?= sha256:9c2a54d87f76f5c2f5f2682c68394af92fb12c0a2686798d6462a3f84bd78eaf
+OBS_CHART_VERSION ?= 88.5.4
 HELM_CHART ?= charts/ecommerce
 HELM_RELEASE ?= ecommerce
 HELM_NAMESPACE ?= ecommerce
@@ -88,7 +88,7 @@ export K8S_IMAGE_TAG
 K8S_IMAGE_SET_ARGS ?= --set-string services.product.image.tag=$(K8S_IMAGE_TAG) --set-string services.order.image.tag=$(K8S_IMAGE_TAG) --set-string services.payment.image.tag=$(K8S_IMAGE_TAG) --set-string services.client.image.tag=$(K8S_IMAGE_TAG) --set-string services.admin.image.tag=$(K8S_IMAGE_TAG)
 K8S_LOCAL_IMAGES ?= turborepo-monorepo-product-service:$(K8S_IMAGE_TAG) turborepo-monorepo-order-service:$(K8S_IMAGE_TAG) turborepo-monorepo-payment-service:$(K8S_IMAGE_TAG) turborepo-monorepo-client:$(K8S_IMAGE_TAG) turborepo-monorepo-admin:$(K8S_IMAGE_TAG)
 HELM_UPGRADE_ARGS ?= --rollback-on-failure --wait --timeout $(K8S_ROLLOUT_TIMEOUT)
-DHI_CHECK_IMAGES ?= dhi.io/bun:1.3.14-debian13@sha256:fb5dda72d73bd1e581d014e6546352766f8565bb78ce66a290e4f11fdc188c11 dhi.io/postgres:18.4-debian13@sha256:a807e832c1fc9ded731956abcb53dc98ed003fd82e27275eaef8dcf52fb90236 dhi.io/kafka:4.3.1-debian13-native@sha256:89691f2d47ded5c88186e0e61a68b2fe77e2a19dea29ad2669e5626aff7965ff
+DHI_CHECK_IMAGES ?= dhi.io/postgres:18.4-debian13@sha256:a807e832c1fc9ded731956abcb53dc98ed003fd82e27275eaef8dcf52fb90236 dhi.io/kafka:4.3.1-debian13-native@sha256:89691f2d47ded5c88186e0e61a68b2fe77e2a19dea29ad2669e5626aff7965ff
 DHI_AMD64_CHECK_IMAGES ?= dhi.io/mongodb:8.3.7-debian13@sha256:c868540fe59312058c7f4d340766f286416cb5932d93d20e02fb5e033a261220
 DOCKER_SMOKE_TIMEOUT ?= 10
 DOCKER_IMAGE_LOCK_FILE ?= docker/compose.images.lock.yml
@@ -102,6 +102,12 @@ help: ## Display this help message
 	@echo "$(BLUE)E-Commerce Microservices Platform$(NC)"
 	@echo ""
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make $(YELLOW)<target>$(NC)\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  $(GREEN)%-24s$(NC) %s\n", $$1, $$2 } /^##@/ { printf "\n$(BLUE)%s$(NC)\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+
+infra-versions: ## Show the active Docker, Compose, Helm, kubectl, and cluster versions
+	@docker version --format 'Docker: client={{.Client.Version}} server={{.Server.Version}}'
+	@$(DOCKER_COMPOSE) version
+	@$(HELM) version --short
+	@$(KUBECTL) version
 
 ##@ Installation & Setup
 
@@ -608,6 +614,23 @@ k8s-doctor: ## Show local Kubernetes tooling, context, ingress, and release diag
 	@$(KUBECTL) -n $(TRAEFIK_NAMESPACE) get pods,svc 2>/dev/null || true
 	@$(KUBECTL) -n $(HELM_NAMESPACE) get pods,svc,ingress,httproute 2>/dev/null || true
 
+k8s-toolchain-check: ## Enforce the pinned Helm release and supported kubectl/server version skew
+	@actual_helm="$$( $(HELM) version --template '{{ .Version }}' | sed 's/^v//' )"; \
+		test "$$actual_helm" = "$(HELM_VERSION)" || { \
+			echo "$(RED)Helm $$actual_helm is active; expected $(HELM_VERSION).$(NC)"; \
+			exit 1; \
+		}
+	@client_minor="$$( $(KUBECTL) version --client=true -o yaml | awk '/^[[:space:]]+minor:/ { value=$$2; gsub(/"/, "", value); gsub(/[^0-9].*/, "", value); print value; exit }' )"; \
+		server_minor="$$( $(KUBECTL) version -o yaml | awk '/^serverVersion:/ { server=1; next } server && /^[[:space:]]+minor:/ { value=$$2; gsub(/"/, "", value); gsub(/[^0-9].*/, "", value); print value; exit }' )"; \
+		test -n "$$client_minor" -a -n "$$server_minor" || { echo "$(RED)Unable to determine kubectl/server versions.$(NC)"; exit 1; }; \
+		skew=$$((client_minor - server_minor)); \
+		if [ $$skew -lt 0 ]; then skew=$$((-skew)); fi; \
+		test $$skew -le 1 || { \
+			echo "$(RED)kubectl and the API server differ by $$skew minor releases; Kubernetes supports at most one.$(NC)"; \
+			exit 1; \
+		}; \
+		echo "$(GREEN)Helm $(HELM_VERSION) and kubectl/server version skew checks passed$(NC)"
+
 k8s-payment-doctor: k8s-doctor ## Diagnose payment/order readiness without printing credentials
 	@echo ""
 	@echo "$(BLUE)Runtime secret keys (base64 lengths only)$(NC)"
@@ -693,7 +716,7 @@ k8s-grafana: ## Port-forward Grafana locally at the configured Grafana port
 k8s-prometheus: ## Port-forward Prometheus locally at the configured Prometheus port
 	$(KUBECTL) -n $(OBS_NAMESPACE) port-forward svc/$(OBS_RELEASE)-prometheus $(PROMETHEUS_PORT):9090
 
-k8s-preflight: ## Verify local Kubernetes, Helm, kubectl, and Traefik ingress prerequisites
+k8s-preflight: k8s-toolchain-check ## Verify local Kubernetes, Helm, kubectl, and Traefik ingress prerequisites
 	@echo "$(BLUE)Checking Kubernetes prerequisites...$(NC)"
 	@command -v $(HELM) >/dev/null || { echo "$(RED)helm is required$(NC)"; exit 1; }
 	@command -v $(KUBECTL) >/dev/null || { echo "$(RED)kubectl is required$(NC)"; exit 1; }
@@ -866,7 +889,10 @@ k8s-up-full: ## Prepare data, build images, deploy the full app, and smoke-test 
 	@$(MAKE) k8s-smoke-full
 	@echo "$(GREEN)Full Kubernetes stack is ready$(NC)"
 
-k8s: k8s-up-observed runtime-dir ## One-command local Kubernetes setup with Prometheus, Grafana, and Docker-backed Postgres, MongoDB, and Kafka
+k8s: k8s-up-observed ## One-command local Kubernetes setup with Prometheus, Grafana, and Docker-backed Postgres, MongoDB, and Kafka
+	@$(MAKE) k8s-forward
+
+k8s-forward: runtime-dir ## Keep local Storefront, Admin, Grafana, and Prometheus forwards open
 	@echo "$(BLUE)Starting local forwards for the Kubernetes stack...$(NC)"
 	@forward() ( \
 		log_file="$$1"; shift; \
@@ -938,7 +964,8 @@ k8s-test: ## Run Helm tests for the deployed ecommerce release
 
 k8s-status: ## Show Kubernetes release and workload status
 	$(HELM) status $(HELM_RELEASE) --namespace $(HELM_NAMESPACE)
-	$(KUBECTL) get pods,svc,ingress,httproute,jobs --namespace $(HELM_NAMESPACE)
+	$(KUBECTL) get pods,svc,ingress,jobs --namespace $(HELM_NAMESPACE)
+	@$(KUBECTL) get httproute --namespace $(HELM_NAMESPACE) 2>/dev/null || true
 	$(KUBECTL) get events --namespace $(HELM_NAMESPACE) --sort-by=.lastTimestamp | tail -n 20
 
 k8s-events: ## Show recent Kubernetes events for the ecommerce namespace

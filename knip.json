@@ -1,5 +1,9 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignore": [
+    "packages/product-db/prisma/schema.prisma",
+    "packages/product-db/prisma8/contract.prisma"
+  ],
   "ignoreBinaries": ["make"],
   "ignoreExportsUsedInFile": {
     "interface": true,
@@ -22,6 +26,7 @@
       "ignoreDependencies": ["@clerk/backend"]
     },
     "packages/product-db": {
+      "entry": ["prisma7.config.ts", "src/**/*.ts"],
       "ignoreDependencies": ["@prisma/client", "pg"]
     },
     "packages/typescript-config": {

@@ -18,9 +18,12 @@ make k8s-test
 make k8s-status
 make k8s-up-observed
 make k8s-observability-status
+make k8s-forward
 ```
 
 `make k8s` is the one-command local Kubernetes setup: it installs or upgrades the pinned platform charts, starts Docker-backed Postgres, MongoDB, and Kafka, builds app images, loads them into kind or minikube when needed, validates the Helm chart, syncs TLS and runtime secrets, performs an in-place atomic Helm upgrade, waits for rollout, and smoke-tests verified TLS routes. It does not delete namespaces. Use `make k8s-reset-local` only for an intentional ecommerce namespace reset, and `make k8s-delete-namespaces CONFIRM=k8s-delete-namespaces` only when all local platform namespaces should be deleted. `make ks8` remains an alias for the common typo. Run `make k8s-test` for bounded Helm test coverage.
+
+After an existing deployment, run `make k8s-forward` to expose the Storefront, Admin, Grafana, and Prometheus without rebuilding or upgrading the cluster. The target keeps reconnecting transiently dropped port-forwards until you stop it with Ctrl-C.
 
 Each one-command deployment generates an immutable `dev-<UTC timestamp>` image tag and passes it to Helm, so rebuilt images always produce a real rollout. To reproduce or resume a deployment across separate Make invocations, provide the same tag explicitly, for example `make k8s K8S_IMAGE_TAG=dev-my-test`.
 
@@ -56,7 +59,7 @@ make k8s-uninstall
 
 The local workflow installs Traefik as a standard Kubernetes Ingress controller and deploys app routes with `ingressClassName: traefik`.
 
-The deployment toolchain is pinned to Helm 4.2.3, kubeconform 0.8.0, Traefik chart 41.2.0 with Traefik 3.7.10, kube-prometheus-stack 88.2.0, and Gateway API 1.5.1. Gateway API 1.6.1 is newer upstream, but Traefik 3.7 documents support for 1.5.1, so this is an intentional compatibility hold. The Gateway manifest is SHA-256 verified before apply. Chart 0.4.0 supports Kubernetes 1.34, 1.35, and 1.36; its strict values schema rejects unknown root, service, and job fields. CI lints and schema-validates every profile across the supported patch matrix. CRD-backed resources without Kubernetes-core schemas remain covered by Helm rendering and live-cluster validation. Traefik and kube-prometheus-stack values are version-controlled under `charts/platform`, and their CRDs are applied before controller upgrades because Helm does not upgrade CRDs automatically.
+The deployment toolchain is pinned to Helm 4.2.4, kubeconform 0.8.0, Traefik chart 41.4.0 with Traefik 3.7.12, kube-prometheus-stack 88.5.4, and Gateway API 1.5.1. Gateway API is held at the latest supported standard-channel release documented for this Traefik line. The Gateway manifest is SHA-256 verified before apply. Chart 0.5.0 supports Kubernetes 1.35, 1.36, and 1.37; its strict values schema rejects unknown root, service, and job fields. CI lints and schema-validates every profile across the supported patch matrix. CRD-backed resources without Kubernetes-core schemas remain covered by Helm rendering and live-cluster validation. Traefik and kube-prometheus-stack values are version-controlled under `charts/platform`, and their CRDs are applied before controller upgrades because Helm does not upgrade CRDs automatically.
 
 For Prometheus, Grafana, app metrics, Traefik metrics, and alert rules, run:
 
@@ -131,7 +134,7 @@ services:
 ## Production Notes
 
 - Keep stateful dependencies outside this application chart: Postgres, MongoDB, Kafka, Clerk, Stripe, and secret managers are environment concerns.
-- The local namespace targets apply Kubernetes Pod Security Admission labels at the Restricted level, pinned to the chart's oldest supported minor (`v1.34`). Override `K8S_POD_SECURITY_LEVEL` or `K8S_POD_SECURITY_VERSION` only when the cluster has a documented compatibility requirement.
+- The local namespace targets apply Kubernetes Pod Security Admission labels at the Restricted level, pinned to the chart's oldest supported minor (`v1.35`). Override `K8S_POD_SECURITY_LEVEL` or `K8S_POD_SECURITY_VERSION` only when the cluster has a documented compatibility requirement.
 - Supply immutable application image digests for shared environments. The chart no longer defaults to `latest`.
 - Keep `secrets.create=false` outside throwaway environments and wire `secrets.name` to your secret manager output.
 - Keep `ingress.tls.secretName` owned by cert-manager or the platform ingress layer outside local development.

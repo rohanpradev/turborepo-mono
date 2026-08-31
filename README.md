@@ -17,7 +17,7 @@ This is not a single demo app in a big folder. It is a real distributed commerce
 - **Kubernetes observability** with Prometheus Operator ServiceMonitors, app `/metrics`, Traefik metrics, alert rules, and a Grafana dashboard.
 - **Polyglot persistence** with Prisma/PostgreSQL for product catalog writes and a Kafka-fed MongoDB read model for orders.
 - **Hardened Docker stack** using Docker Hardened Images, Traefik TLS routing, Kafka UI, health waits, read-only app containers, capability drops, and reproducible image locking support.
-- **CI-grade standards**: Biome, Syncpack, Knip, Bun tests with coverage, Bun audit, type checking, Next builds, Compose validation, Docker image builds, SBOM, and provenance.
+- **CI-grade standards**: Biome, Syncpack, Knip, Bun 1.4 isolated parallel tests, lockfile deduplication, Bun audit, production license inventory, type checking, Next builds, Compose validation, Docker image builds, SBOM, and provenance.
 
 ## System Map
 
@@ -85,8 +85,8 @@ For the current expert gap assessment and prioritized roadmap, see [docs/EXPERT_
 | Events | Kafka with typed topics and topic management |
 | Data | PostgreSQL + Prisma, MongoDB + Mongoose |
 | Quality | Biome, Syncpack, Knip, Bun test/coverage, Bun audit, stable TypeScript 7 with TypeScript 6 tooling compatibility |
-| Runtime | Bun 1.3.14, digest-pinned Compose images, Traefik 3.7.10, Docker Hardened Images |
-| Platform | Helm 4.2.3, Kubernetes 1.34-1.36, Gateway API 1.5.1 |
+| Runtime | Bun 1.4.0, digest-pinned Compose images, Traefik 3.7.12, Docker Hardened Images |
+| Platform | Helm 4.2.4, Kubernetes 1.35-1.37, Gateway API 1.5.1 |
 | CI/CD | GitHub Actions, Helm lint plus kubeconform schema matrix, Docker Buildx, GHCR images, SBOM, provenance |
 
 ## Event Flow
@@ -103,7 +103,7 @@ For the current expert gap assessment and prioritized roadmap, see [docs/EXPERT_
 
 ## Prerequisites
 
-- `Bun >= 1.3.14`
+- `Bun >= 1.4.0`
 - `Node >= 20.19.0`
 - Docker with Compose
 - `mkcert` for locally trusted `*.localhost` TLS certificates
@@ -222,6 +222,7 @@ Run the same checks the repo is designed around:
 bun run doctor
 bun run deps:outdated
 bun run deps:check
+bun run deps:dedupe:check
 bun run lint
 bun run knip
 bun run boundaries
@@ -245,6 +246,7 @@ bun run verify:full
 What the gates cover:
 
 - dependency freshness and catalog consistency
+- duplicate lockfile resolutions and production license inventory
 - formatting/lint policy with Biome
 - unused exports/dependencies with Knip
 - executable package boundary rules with Turborepo
@@ -300,7 +302,7 @@ The Docker workflow can run Stripe CLI webhook forwarding. The payment service r
 
 ## Docker And Security Posture
 
-The Docker path uses Docker Hardened Images for Bun, Postgres, Kafka, and MongoDB, plus the digest-pinned official Traefik image. The Compose stack includes:
+The Docker path uses the digest-pinned official Bun 1.4 image for application builds and runtimes, Docker Hardened Images for Postgres, Kafka, and MongoDB, and the digest-pinned official Traefik image. The Compose stack includes:
 
 - TLS routing through Traefik for local `*.localhost` domains
 - `exposedByDefault=false` so only explicitly labelled services are routed
@@ -313,7 +315,7 @@ The Docker path uses Docker Hardened Images for Bun, Postgres, Kafka, and MongoD
 
 | Compose service | Image / Build | Purpose |
 | --- | --- | --- |
-| `traefik` | `traefik:v3.7.10` | TLS router, API gateway, dashboard |
+| `traefik` | `traefik:v3.7.12` | TLS router, API gateway, dashboard |
 | `docker-socket-proxy` | `ghcr.io/tecnativa/docker-socket-proxy:v0.4.2` | Restricted Docker API surface for Traefik discovery |
 | `postgres` | `dhi.io/postgres:18.4-debian13` | Product catalog database |
 | `mongodb` | `dhi.io/mongodb:8.3.7-debian13` | Order read-model database |
@@ -324,7 +326,7 @@ The Docker path uses Docker Hardened Images for Bun, Postgres, Kafka, and MongoD
 | `order-service` | `docker/Dockerfile.order-service` | Order API and MongoDB read model |
 | `client` | `docker/Dockerfile.client` | Customer storefront |
 | `admin` | `docker/Dockerfile.admin` | Admin operations dashboard |
-| `stripe-cli` | `stripe/stripe-cli:v1.45.1` | Local webhook forwarding |
+| `stripe-cli` | `stripe/stripe-cli:v1.50.6` | Local webhook forwarding |
 
 The five application Dockerfiles use Turbo pruning, Bun frozen installs, and hardened Bun runtime images. Frontend images build standalone Next.js output, while service images copy only runtime code, generated clients, shared packages, and production dependencies.
 

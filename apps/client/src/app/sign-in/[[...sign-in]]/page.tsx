@@ -1,4 +1,7 @@
 import { SignIn } from "@clerk/nextjs";
+import { Suspense } from "react";
+
+export const instant = false;
 
 const isClerkConfigured = Boolean(
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
@@ -14,5 +17,11 @@ export default function Page() {
     );
   }
 
-  return <SignIn />;
+  return (
+    <Suspense
+      fallback={<div className="min-h-96 animate-pulse rounded-xl bg-muted" />}
+    >
+      <SignIn />
+    </Suspense>
+  );
 }

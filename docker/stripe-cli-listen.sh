@@ -18,7 +18,10 @@ fi
 secret_file="${STRIPE_WEBHOOK_SECRET_FILE:-/var/run/stripe/webhook-secret}"
 secret_dir=$(dirname "$secret_file")
 mkdir -p "$secret_dir"
-umask 077
+# The dedicated runtime volume is mounted read-only by payment-service. Keep the
+# listener as the only writer while allowing the non-root payment user to read
+# the listener-generated secret across the container boundary.
+umask 033
 
 temp_dir=$(mktemp -d "${TMPDIR:-/tmp}/stripe-listen.XXXXXX")
 log_pipe="${temp_dir}/listener.pipe"

@@ -6,7 +6,7 @@ Summary: .turbo/runs/3HfPNIp8k08qIDW2Tf2pIGcNHwO.json
 ## Run
 
 - Command: `turbo run check-types build`
-- Turbo: 2.10.9
+- Turbo: 2.10.12
 - Env mode: strict
 - Started: 2026-08-09T06:15:07.294Z
 - Duration: 1.60s

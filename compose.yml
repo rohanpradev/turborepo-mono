@@ -21,6 +21,7 @@ x-app-service: &app-service
     - /tmp:size=64m,mode=1777
 
 x-frontend-build-args: &frontend-build-args
+  NEXT_DEPLOYMENT_ID: ${NEXT_DEPLOYMENT_ID:-local}
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
   NEXT_PUBLIC_PRODUCT_SERVICE_URL: ${DOCKER_PUBLIC_PRODUCT_SERVICE_URL:-https://api.localhost:8443}
   NEXT_PUBLIC_ORDER_SERVICE_URL: ${DOCKER_PUBLIC_ORDER_SERVICE_URL:-https://api.localhost:8443}
@@ -73,7 +74,7 @@ services:
 
   traefik:
     <<: *runtime-security
-    image: traefik:v3.7.10@sha256:9c3b91d5fb7770853ca5c1124a23c34bf2d9b47ffaebeab2614cbaf410dcb2ac
+    image: traefik:v3.7.12@sha256:9c2a54d87f76f5c2f5f2682c68394af92fb12c0a2686798d6462a3f84bd78eaf
     read_only: true
     tmpfs:
       - /tmp:size=32m,mode=1777
@@ -178,7 +179,7 @@ services:
 
   mongodb-ready:
     <<: *runtime-security
-    image: dhi.io/bun:1.3.14-debian13@sha256:fb5dda72d73bd1e581d014e6546352766f8565bb78ce66a290e4f11fdc188c11
+    image: oven/bun:1.4.0@sha256:5ff609364c049b54eb0ff560ec96319729a972078ef2c755d758f0c6ef89c2d6
     command:
       [
         "bun",
@@ -345,6 +346,9 @@ services:
       NODE_ENV: production
       PORT: 3000
       DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/product_db?schema=public}
+      POSTGRES_POOL_MAX: ${POSTGRES_POOL_MAX:-20}
+      POSTGRES_IDLE_TIMEOUT_MS: ${POSTGRES_IDLE_TIMEOUT_MS:-30000}
+      POSTGRES_CONNECTION_TIMEOUT_MS: ${POSTGRES_CONNECTION_TIMEOUT_MS:-5000}
       CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY:-}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
       CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
@@ -518,7 +522,7 @@ services:
 
   stripe-cli:
     <<: *app-service
-    image: stripe/stripe-cli:v1.45.1@sha256:6f5792cd5f45785ef617df1298c69b403cc68aaf3533f952f2836491a0096f8f
+    image: stripe/stripe-cli:v1.50.6@sha256:40145a651e181b564c8442e1218f8fde4cf6aefe23f01bd2e450b9ee2e8c1b25
     environment:
       STRIPE_API_KEY: ${STRIPE_API_KEY:-}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}

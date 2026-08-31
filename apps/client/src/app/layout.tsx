@@ -93,14 +93,26 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased">
         {isClerkConfigured ? (
-          <ClerkProvider
-            signInUrl="/sign-in"
-            signUpUrl="/sign-up"
-            signInFallbackRedirectUrl="/"
-            signUpFallbackRedirectUrl="/"
+          <Suspense
+            fallback={
+              <div
+                role="status"
+                aria-label="Loading Common Goods"
+                className="flex min-h-screen items-center justify-center bg-background"
+              >
+                <div className="size-10 animate-spin rounded-full border-2 border-border border-t-foreground" />
+              </div>
+            }
           >
-            {shell}
-          </ClerkProvider>
+            <ClerkProvider
+              signInUrl="/sign-in"
+              signUpUrl="/sign-up"
+              signInFallbackRedirectUrl="/"
+              signUpFallbackRedirectUrl="/"
+            >
+              {shell}
+            </ClerkProvider>
+          </Suspense>
         ) : (
           shell
         )}

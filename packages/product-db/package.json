@@ -4,19 +4,23 @@
   "type": "module",
   "scripts": {
     "check-types": "tsc --noEmit",
-    "db:generate": "bunx --bun prisma generate",
-    "db:migrate": "bunx --bun prisma migrate dev",
+    "db:generate": "bunx --bun prisma7 generate && bunx --bun prisma contract emit",
+    "db:migrate": "bunx --bun prisma7 migrate dev",
+    "db:validate": "bunx --bun prisma7 validate && bunx --bun prisma contract emit",
+    "db8:emit": "bunx --bun prisma contract emit",
     "db:deploy": "bun run src/deploy-migrations.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "catalog:",
     "@prisma/client": "catalog:",
-    "pg": "catalog:",
-    "prisma": "catalog:"
+    "@prisma/orm-postgres": "catalog:",
+    "@prisma/prisma7": "catalog:",
+    "pg": "catalog:"
   },
   "devDependencies": {
     "@types/bun": "catalog:",
-    "@repo/typescript-config": "workspace:*"
+    "@repo/typescript-config": "workspace:*",
+    "prisma": "catalog:"
   },
   "exports": {
     ".": "./src/index.ts"

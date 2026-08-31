@@ -1,6 +1,6 @@
 # @repo/product-db
 
-Shared Prisma client and schema for the product database.
+Shared Prisma data layer and schema contracts for the product database.
 
 ## Overview
 
@@ -8,7 +8,7 @@ This package provides a centralized Prisma configuration for the PostgreSQL prod
 
 ## Technology
 
-- **ORM**: Prisma
+- **ORM**: Prisma 8 contract/runtime with an explicitly namespaced Prisma 7 compatibility client
 - **Database**: PostgreSQL
 - **Driver Adapter**: `@prisma/adapter-pg`
 
@@ -52,10 +52,13 @@ const product = await prisma.product.create({
 ## Scripts
 
 ```bash
-# Generate Prisma client
+# Generate the Prisma 7 compatibility client and emit the Prisma 8 contract
 bun run db:generate
 
-# Create and apply migration
+# Validate the schema and Prisma configuration
+bun run db:validate
+
+# Create and apply a migration through the current Prisma 7 owner
 bun run db:migrate
 
 # Deploy migrations (production)
@@ -70,10 +73,13 @@ DATABASE_URL="postgresql://postgres:postgres@localhost:5432/product_db?schema=pu
 
 ## Prisma Client
 
-The package exports a singleton Prisma client instance using Prisma's PostgreSQL driver adapter. `connectProductDB()` and `disconnectProductDB()` are available for explicit service lifecycle management.
+Prisma 8 is the primary CLI and PostgreSQL runtime. Its contract is inferred from the same database and emitted during validation/builds. Existing product queries continue through the namespaced Prisma 7 compatibility client until their query and transaction behavior has moved to Prisma 8; Prisma 7 remains the migration owner during that supported side-by-side phase. `connectProductDB()` and `disconnectProductDB()` are available for explicit service lifecycle management.
 
 ## Schema Location
 
-- Schema: `prisma/schema.prisma`
-- Migrations: `prisma/migrations/`
-- Generated client: `generated/prisma/`
+- Prisma 8 contract: `prisma8/contract.prisma`
+- Prisma 8 configuration: `prisma.config.ts`
+- Prisma 7 compatibility schema: `prisma/schema.prisma`
+- Prisma 7 compatibility configuration: `prisma7.config.ts`
+- Current migrations: `prisma/migrations/`
+- Generated artifacts: `generated/prisma8/` and `generated/prisma/`

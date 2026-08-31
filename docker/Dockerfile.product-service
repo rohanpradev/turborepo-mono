@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.26.0@sha256:ecfaec9ed6d810b56388c508f4121597bfbba70d41a6dfeee4d8cad5f295fc32
-ARG BUN_DEV_IMAGE=dhi.io/bun:1.3.14-debian13-dev@sha256:294098cbf9ef24c7c66cb5849ea0c998fef17245d9aa3d955c078a73ccbada89
-ARG BUN_RUNTIME_IMAGE=dhi.io/bun:1.3.14-debian13@sha256:fb5dda72d73bd1e581d014e6546352766f8565bb78ce66a290e4f11fdc188c11
-ARG TURBO_VERSION=2.10.9
+ARG BUN_DEV_IMAGE=oven/bun:1.4.0@sha256:5ff609364c049b54eb0ff560ec96319729a972078ef2c755d758f0c6ef89c2d6
+ARG BUN_RUNTIME_IMAGE=oven/bun:1.4.0@sha256:5ff609364c049b54eb0ff560ec96319729a972078ef2c755d758f0c6ef89c2d6
+ARG TURBO_VERSION=2.10.12
 
 FROM ${BUN_DEV_IMAGE} AS pruner
 ARG TURBO_VERSION
@@ -51,6 +51,8 @@ COPY --link --from=builder /app/apps/product-service/tsconfig.json ./apps/produc
 COPY --link --from=builder /app/apps/product-service/src ./apps/product-service/src
 
 COPY --link --from=builder /app/packages ./packages
+
+USER bun
 
 EXPOSE 3000
 
