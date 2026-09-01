@@ -111,42 +111,7 @@ jobs:
         run: |
           make helm-validate-supported
           make helm-validate-experimental
-          render_dir="$(mktemp -d)"
-          for kubernetes_version in ${K8S_SUPPORTED_VERSIONS} ${K8S_EXPERIMENTAL_VERSIONS}; do
-            for profile in ingress gateway local local-full; do
-              case "${profile}" in
-                ingress) profile_values="charts/ecommerce/ci/ingress-values.yaml" ;;
-                gateway) profile_values="charts/ecommerce/ci/gateway-values.yaml" ;;
-                local) profile_values="deploy/environments/local/ecommerce.values.yaml" ;;
-                local-full) profile_values="deploy/environments/local/ecommerce-full.values.yaml" ;;
-              esac
-              helm template ecommerce charts/ecommerce \
-                --namespace ecommerce \
-                --kube-version "${kubernetes_version}" \
-                --values "${profile_values}" \
-                > "${render_dir}/ecommerce-${profile}-${kubernetes_version}.yaml"
-            done
-          done
-
-          for kubernetes_version in ${K8S_SUPPORTED_VERSIONS} ${K8S_EXPERIMENTAL_VERSIONS}; do
-            for profile in ingress local local-full; do
-              rg -q '^kind: Ingress$' "${render_dir}/ecommerce-${profile}-${kubernetes_version}.yaml"
-              if rg -q '^kind: HTTPRoute$' "${render_dir}/ecommerce-${profile}-${kubernetes_version}.yaml"; then
-                echo "Unexpected HTTPRoute in ${profile} profile for Kubernetes ${kubernetes_version}." >&2
-                exit 1
-              fi
-            done
-            rg -q '^kind: HTTPRoute$' "${render_dir}/ecommerce-gateway-${kubernetes_version}.yaml"
-            if rg -q '^kind: Ingress$' "${render_dir}/ecommerce-gateway-${kubernetes_version}.yaml"; then
-              echo "Unexpected Ingress in gateway profile for Kubernetes ${kubernetes_version}." >&2
-              exit 1
-            fi
-          done
-
-          if rg -n 'image:.*:latest([@"[:space:]]|$)' "${render_dir}"; then
-            echo "Rendered Helm manifests must not contain latest image tags." >&2
-            exit 1
-          fi
+          make helm-assert-profiles
 
       - name: Lint
         run: bun run lint:ci

@@ -43,6 +43,10 @@ helm-validate-supported: helm-lint-supported ## Schema-validate every real profi
 
 helm-validate-experimental: ## Schema-validate every profile against experimental Kubernetes minors
 	@$(MAKE) --no-print-directory helm-validate-supported K8S_SUPPORTED_VERSIONS="$(K8S_EXPERIMENTAL_VERSIONS)" K8S_VERSION_TIER=experimental
+
+helm-assert-profiles: ## Enforce rendered resource and image policies across the Kubernetes matrix
+	bun run helm:assert-profiles -- $(K8S_SUPPORTED_VERSIONS) $(K8S_EXPERIMENTAL_VERSIONS)
+
 helm-template: ## Render the ecommerce Helm chart locally
 	@$(HELM) template $(HELM_RELEASE) $(HELM_CHART) --namespace $(HELM_NAMESPACE) --kube-version $(K8S_TARGET_VERSION) --values $(HELM_VALUES) $(HELM_SET_ARGS)
 
