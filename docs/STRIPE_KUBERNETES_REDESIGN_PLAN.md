@@ -79,7 +79,7 @@ Make authenticated checkout, Stripe payment confirmation, webhook delivery, and 
 
 - Add an opt-in Stripe CLI sidecar and script ConfigMap to the payment pod.
 - Share only the generated webhook secret file; never expose it in logs or ConfigMaps.
-- Enable the sidecar only in `values.web-local.yaml` and keep it disabled in production defaults.
+- Enable the sidecar only in `deploy/environments/local/ecommerce.values.yaml` and keep it disabled in production defaults.
 - Ensure local payment readiness waits for a valid Stripe API key, webhook secret, and Kafka handoff.
 - Keep the webhook Ingress path free of Clerk/forward-auth middleware.
 

@@ -1,0 +1,6 @@
+# Explicit Gateway API profile used by chart validation.
+ingress:
+  enabled: false
+
+gateway:
+  enabled: true

@@ -1,3 +1,5 @@
+# Local kube-prometheus-stack values.
+
 grafana:
   sidecar:
     dashboards:

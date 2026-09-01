@@ -103,10 +103,10 @@ Status: implemented in this pass.
 - Docker Buildx is pinned to 0.36.1 in CI, and its BuildKit backend is pinned to 0.32.2 with a verified multi-architecture image digest instead of resolving mutable defaults.
 - CI actions are pinned to immutable current-release commit SHAs, including `actions/checkout` 7.0.1 and `docker/login-action` 4.5.1.
 - Traefik uses the official 3.7.12 release with a verified multi-architecture image digest.
-- Helm is pinned to 4.2.4 in CI through Azure Setup Helm 5.0.1. The application chart is now 0.5.0 and supports maintained Kubernetes 1.35 through 1.37.
-- CI and `make helm-lint-supported` validate all chart profiles against Kubernetes 1.35.8, 1.36.4, and 1.37.0, the current official stable patch channels during this audit.
+- Helm is pinned to 4.2.4 in CI through Azure Setup Helm 5.0.1. The application chart is 0.5.0; Kubernetes 1.35 and 1.36 are the supported deployment baseline, with 1.37 retained as an experimental render target until the pinned Helm release supports it.
+- CI and the Make targets validate explicit Ingress, Gateway, local, and local-full profiles against Kubernetes 1.35.8 and 1.36.4, plus the experimental Kubernetes 1.37.0 target.
 - Kubeconform 0.8.0 is digest-pinned and strictly validates all built-in rendered resources for every chart profile and supported Kubernetes patch; CRD-backed resources without core schemas are reported as skipped.
-- Gateway API standard CRDs are pinned and checksum-verified at 1.5.1, the version Traefik 3.7 documents as supported, while Traefik's chart is pinned at 41.4.0 and kube-prometheus-stack at 88.5.4.
+- Gateway API standard CRDs are pinned and checksum-verified at 1.6.1, supported by Traefik 3.7, while Traefik's chart is pinned at 41.4.0 and kube-prometheus-stack at 88.5.4.
 - Helm application images accept SHA-256 digests, the Stripe CLI and curl test images are digest-pinned, and no chart default uses `latest`.
 
 Keep these gates:

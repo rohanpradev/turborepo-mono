@@ -4,7 +4,7 @@ This chart deploys the ecommerce application layer: storefront, admin, product s
 
 Stateful infrastructure is not bundled into this chart. Postgres, MongoDB, Kafka, Clerk, and Stripe are supplied through values and Kubernetes Secrets. That keeps the app chart portable across local clusters, staging, and production.
 
-The web-local profile enables a Stripe CLI sidecar in the payment pod. It forwards test events directly to the payment container and shares the listener-specific `whsec_...` through an in-memory file. Production defaults keep this sidecar disabled; register the public HTTPS webhook in Stripe Workbench and supply that endpoint's signing secret through your secret manager instead.
+The local profile in `deploy/environments/local/ecommerce.values.yaml` enables a Stripe CLI sidecar in the payment pod. It forwards test events directly to the payment container and shares the listener-specific `whsec_...` through an in-memory file. Production defaults keep this sidecar disabled; register the public HTTPS webhook in Stripe Workbench and supply that endpoint's signing secret through your secret manager instead.
 
 ## Local Workflow
 
@@ -32,7 +32,9 @@ Useful lower-level commands:
 ```bash
 make helm-lint
 make helm-lint-supported
+make helm-lint-experimental
 make helm-validate-supported
+make helm-validate-experimental
 make helm-template
 make helm-dry-run
 make helm-package
@@ -59,7 +61,7 @@ make k8s-uninstall
 
 The local workflow installs Traefik as a standard Kubernetes Ingress controller and deploys app routes with `ingressClassName: traefik`.
 
-The deployment toolchain is pinned to Helm 4.2.4, kubeconform 0.8.0, Traefik chart 41.4.0 with Traefik 3.7.12, kube-prometheus-stack 88.5.4, and Gateway API 1.5.1. Gateway API is held at the latest supported standard-channel release documented for this Traefik line. The Gateway manifest is SHA-256 verified before apply. Chart 0.5.0 supports Kubernetes 1.35, 1.36, and 1.37; its strict values schema rejects unknown root, service, and job fields. CI lints and schema-validates every profile across the supported patch matrix. CRD-backed resources without Kubernetes-core schemas remain covered by Helm rendering and live-cluster validation. Traefik and kube-prometheus-stack values are version-controlled under `charts/platform`, and their CRDs are applied before controller upgrades because Helm does not upgrade CRDs automatically.
+The deployment toolchain is pinned to Helm 4.2.4, kubeconform 0.8.0, Traefik chart 41.4.0 with Traefik 3.7.12, kube-prometheus-stack 88.5.4, and Gateway API 1.6.1. The Gateway manifest is SHA-256 verified before apply. Kubernetes 1.35 and 1.36 form the Helm-supported deployment baseline; Kubernetes 1.37 is kept as an experimental render and schema-validation target until the pinned Helm release officially supports it. The chart's strict values schema rejects unknown root, service, and job fields. CI checks explicit Ingress, Gateway, local, and local-full profiles across both tiers. CRD-backed resources without Kubernetes-core schemas remain covered by Helm rendering and live-cluster validation. Environment-owned values live under `deploy/environments`, while chart-only validation fixtures live under `charts/ecommerce/ci`. Traefik and kube-prometheus-stack CRDs are applied before controller upgrades because Helm does not upgrade CRDs automatically.
 
 For Prometheus, Grafana, app metrics, Traefik metrics, and alert rules, run:
 
@@ -79,7 +81,7 @@ Local routes:
 
 Docker Compose intentionally uses `https://shop.localhost:8443` so it does not fight Kubernetes for host port 443.
 
-For clusters that use a different Kubernetes Ingress provider, set `K8S_INGRESS_CLASS_NAME=<your-class>` and override `K8S_ROUTE_SET_ARGS` if the chart needs a different `ingress.className`.
+For clusters that use a different Kubernetes Ingress provider, override `ingress.className` in that environment's values file. If Make also installs Traefik for that environment, set `K8S_INGRESS_CLASS_NAME=<your-class>` to the same value. Keep route selection explicit in the values file by enabling exactly one of `ingress` or `gateway`.
 
 ## Secrets
 

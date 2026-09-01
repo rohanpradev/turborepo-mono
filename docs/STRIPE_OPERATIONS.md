@@ -6,7 +6,7 @@ This runbook covers the supported Stripe, Clerk, Kafka, and Kubernetes operating
 
 ### Local Kubernetes
 
-`values.web-local.yaml` enables a Stripe CLI sidecar in the payment pod. The sidecar:
+`deploy/environments/local/ecommerce.values.yaml` enables a Stripe CLI sidecar in the payment pod. The sidecar:
 
 1. Authenticates with the configured Stripe secret key.
 2. Opens a Stripe event stream.

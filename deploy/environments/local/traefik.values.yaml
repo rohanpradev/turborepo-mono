@@ -1,3 +1,5 @@
+# Local Traefik platform values.
+
 ingressClass:
   enabled: true
   name: traefik

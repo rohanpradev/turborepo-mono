@@ -1,3 +1,6 @@
+# Full local Kubernetes profile with all application workloads.
+# Routing is explicit here; Make only injects secret names and immutable image tags.
+
 global:
   imagePullPolicy: IfNotPresent
   env:
@@ -19,10 +22,10 @@ global:
     PROMETHEUS_METRICS_PATH: /metrics
 
 ingress:
-  enabled: false
+  enabled: true
 
 gateway:
-  enabled: true
+  enabled: false
   create: false
   name: traefik-gateway
   namespace: traefik

@@ -4,10 +4,10 @@
   "type": "module",
   "scripts": {
     "check-types": "tsc --noEmit",
-    "db:generate": "bunx --bun prisma7 generate && bunx --bun prisma contract emit",
-    "db:migrate": "bunx --bun prisma7 migrate dev",
-    "db:validate": "bunx --bun prisma7 validate && bunx --bun prisma contract emit",
-    "db8:emit": "bunx --bun prisma contract emit",
+    "db:generate": "prisma7 generate && prisma contract emit",
+    "db:migrate": "prisma7 migrate dev",
+    "db:validate": "prisma7 validate && prisma contract emit",
+    "db8:emit": "prisma contract emit",
     "db:deploy": "bun run src/deploy-migrations.ts"
   },
   "dependencies": {
