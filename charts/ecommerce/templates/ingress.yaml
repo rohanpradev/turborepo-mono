@@ -28,6 +28,9 @@ spec:
         paths:
           {{- range .paths }}
           {{- $target := required (printf "ingress path %s must reference a valid service" .path) (index $.Values.services .service) }}
+          {{- if not $target.enabled }}
+          {{- fail (printf "ingress path %s references disabled service %s" .path .service) }}
+          {{- end }}
           - path: {{ .path | quote }}
             pathType: {{ .pathType | default "Prefix" }}
             backend:

@@ -67,6 +67,27 @@ const createCheckoutRequest = async (
   }
 };
 
+const readCheckoutResponse = async (response: Response) => {
+  const contentType = response.headers.get("content-type") ?? "";
+  const body = await response.text();
+
+  if (!contentType.includes("application/json")) {
+    throw new Error(
+      response.status === 401 || response.status === 403
+        ? "Your checkout session could not be verified. Please sign in again."
+        : "Checkout returned an unexpected response. Please try again.",
+    );
+  }
+
+  try {
+    return JSON.parse(body) as
+      | { message: string }
+      | { data: { clientSecret: string } };
+  } catch {
+    throw new Error("Checkout returned an invalid response. Please try again.");
+  }
+};
+
 const StripePaymentForm = ({
   shippingForm,
 }: {
@@ -151,9 +172,7 @@ const AuthenticatedStripePaymentForm = ({
           abortController,
         );
 
-        const responseBody = (await response.json()) as
-          | { message: string }
-          | { data: { clientSecret: string } };
+        const responseBody = await readCheckoutResponse(response);
 
         if (!response.ok || !("data" in responseBody)) {
           throw new Error(

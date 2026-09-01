@@ -17,7 +17,7 @@ This is not a single demo app in a big folder. It is a real distributed commerce
 - **Kubernetes observability** with Prometheus Operator ServiceMonitors, app `/metrics`, Traefik metrics, alert rules, and a Grafana dashboard.
 - **Polyglot persistence** with Prisma/PostgreSQL for product catalog writes and a Kafka-fed MongoDB read model for orders.
 - **Hardened Docker stack** using Docker Hardened Images, Traefik TLS routing, Kafka UI, health waits, read-only app containers, capability drops, and reproducible image locking support.
-- **CI-grade standards**: Biome, Syncpack, Knip, Bun tests with coverage, Bun audit, type checking, Next builds, Compose validation, Docker image builds, SBOM, and provenance.
+- **CI-grade standards**: Biome, Syncpack, Knip, Bun 1.4 isolated parallel tests, lockfile deduplication, Bun audit, production license inventory, type checking, Next builds, Compose validation, Docker image builds, SBOM, and provenance.
 
 ## System Map
 
@@ -78,15 +78,15 @@ For the current expert gap assessment and prioritized roadmap, see [docs/EXPERT_
 | Layer | Technology |
 | --- | --- |
 | Monorepo | Turborepo, Bun workspaces, Bun catalogs |
-| Frontend | Next.js 16, React 19, Tailwind CSS 4, Radix UI, Lucide |
-| APIs | Hono, Zod, OpenAPI, Scalar API Reference |
+| Frontend | Next.js 16.3, React 19, Tailwind CSS 4, Radix UI, Lucide |
+| APIs | Hono 4.13, Zod, OpenAPI, Scalar API Reference |
 | Auth | Clerk for frontend sessions and service bearer auth |
 | Payments | Stripe Checkout and webhooks |
 | Events | Kafka with typed topics and topic management |
 | Data | PostgreSQL + Prisma, MongoDB + Mongoose |
 | Quality | Biome, Syncpack, Knip, Bun test/coverage, Bun audit, stable TypeScript 7 with TypeScript 6 tooling compatibility |
-| Runtime | Bun 1.3.14, digest-pinned Compose images, Traefik 3.7.9, Docker Hardened Images |
-| Platform | Helm 4.2.3, Kubernetes 1.34-1.36, Gateway API 1.5.1 |
+| Runtime | Bun 1.4.0, digest-pinned Compose images, Traefik 3.7.12, Docker Hardened Images |
+| Platform | Helm 4.2.4, Kubernetes 1.35-1.36 supported (1.37 experimental), Gateway API 1.6.1 |
 | CI/CD | GitHub Actions, Helm lint plus kubeconform schema matrix, Docker Buildx, GHCR images, SBOM, provenance |
 
 ## Event Flow
@@ -103,7 +103,7 @@ For the current expert gap assessment and prioritized roadmap, see [docs/EXPERT_
 
 ## Prerequisites
 
-- `Bun >= 1.3.14`
+- `Bun >= 1.4.0`
 - `Node >= 20.19.0`
 - Docker with Compose
 - `mkcert` for locally trusted `*.localhost` TLS certificates
@@ -200,7 +200,7 @@ make docker-infra-local
 make local-env-file
 make local-db-migrate
 make local-db-seed
-bun --env-file=/tmp/ecommerce-local-dev.env run dev
+bun --env-file=.runtime/local-dev.env run dev
 ```
 
 Local URLs:
@@ -222,6 +222,7 @@ Run the same checks the repo is designed around:
 bun run doctor
 bun run deps:outdated
 bun run deps:check
+bun run deps:dedupe:check
 bun run lint
 bun run knip
 bun run boundaries
@@ -245,6 +246,7 @@ bun run verify:full
 What the gates cover:
 
 - dependency freshness and catalog consistency
+- duplicate lockfile resolutions and production license inventory
 - formatting/lint policy with Biome
 - unused exports/dependencies with Knip
 - executable package boundary rules with Turborepo
@@ -300,7 +302,7 @@ The Docker workflow can run Stripe CLI webhook forwarding. The payment service r
 
 ## Docker And Security Posture
 
-The Docker path uses Docker Hardened Images for Bun, Traefik, Postgres, Kafka, and MongoDB. The Compose stack includes:
+The Docker path uses the digest-pinned official Bun 1.4 image for application builds and runtimes, Docker Hardened Images for Postgres, Kafka, and MongoDB, and the digest-pinned official Traefik image. The Compose stack includes:
 
 - TLS routing through Traefik for local `*.localhost` domains
 - `exposedByDefault=false` so only explicitly labelled services are routed
@@ -311,20 +313,20 @@ The Docker path uses Docker Hardened Images for Bun, Traefik, Postgres, Kafka, a
 
 ### Container Topology
 
-| Container | Image / Build | Purpose |
+| Compose service | Image / Build | Purpose |
 | --- | --- | --- |
-| `ecommerce-traefik` | `dhi.io/traefik:3.7-debian13` | TLS router, API gateway, dashboard |
-| `docker-socket-proxy` | `tecnativa/docker-socket-proxy:v0.4.2` | Restricted Docker API surface for Traefik discovery |
-| `ecommerce-postgres` | `dhi.io/postgres:18-debian13` | Product catalog database |
-| `ecommerce-mongodb` | `dhi.io/mongodb:8.3-debian13` | Order read-model database |
-| `kafka-broker-1..3` | `dhi.io/kafka:4.2-debian13-native` | Three-broker Kafka cluster |
-| `ecommerce-kafka-ui` | `ghcr.io/kafbat/kafka-ui:v1.5.0` | Kafka topic, consumer, and message visibility |
-| `ecommerce-product-service` | `docker/Dockerfile.product-service` | Catalog API, Prisma writes, product events |
-| `ecommerce-payment-service` | `docker/Dockerfile.payment-service` | Stripe checkout, webhooks, payment events |
-| `ecommerce-order-service` | `docker/Dockerfile.order-service` | Order API and MongoDB read model |
-| `ecommerce-client` | `docker/Dockerfile.client` | Customer storefront |
-| `ecommerce-admin` | `docker/Dockerfile.admin` | Admin operations dashboard |
-| `stripe-cli` | `stripe/stripe-cli:v1.43.2` | Local webhook forwarding |
+| `traefik` | `traefik:v3.7.12` | TLS router, API gateway, dashboard |
+| `docker-socket-proxy` | `ghcr.io/tecnativa/docker-socket-proxy:v0.4.2` | Restricted Docker API surface for Traefik discovery |
+| `postgres` | `dhi.io/postgres:18.4-debian13` | Product catalog database |
+| `mongodb` | `dhi.io/mongodb:8.3.7-debian13` | Order read-model database |
+| `kafka-broker-1..3` | `dhi.io/kafka:4.3.1-debian13-native` | Three-broker Kafka cluster |
+| `kafka-ui` | `ghcr.io/kafbat/kafka-ui:v1.5.0` | Kafka topic, consumer, and message visibility |
+| `product-service` | `docker/Dockerfile.product-service` | Catalog API, Prisma writes, product events |
+| `payment-service` | `docker/Dockerfile.payment-service` | Stripe checkout, webhooks, payment events |
+| `order-service` | `docker/Dockerfile.order-service` | Order API and MongoDB read model |
+| `client` | `docker/Dockerfile.client` | Customer storefront |
+| `admin` | `docker/Dockerfile.admin` | Admin operations dashboard |
+| `stripe-cli` | `stripe/stripe-cli:v1.50.6` | Local webhook forwarding |
 
 The five application Dockerfiles use Turbo pruning, Bun frozen installs, and hardened Bun runtime images. Frontend images build standalone Next.js output, while service images copy only runtime code, generated clients, shared packages, and production dependencies.
 
@@ -360,7 +362,7 @@ make k8s-logs-traefik
 make k8s-test
 ```
 
-`make k8s` is the one-command local Kubernetes setup: it installs or upgrades Traefik, builds the app images, validates the Helm chart, deletes the existing application namespace, waits for it to terminate, recreates that same namespace, syncs TLS and runtime secrets, deploys the release, waits for rollout, and smoke-tests the routes. This removes old pods, jobs, and other namespaced resources before each run. `make k8s-full` does the same for all five application workloads and starts Docker-backed Postgres, MongoDB, and Kafka first. `make ks8` is kept as a friendly alias for the common typo, and `make kubernetes` does the same thing as `make k8s`.
+`make k8s` is the one-command local Kubernetes setup: it installs or upgrades the pinned platform charts, starts Docker-backed dependencies, builds and tags the app images, validates the Helm chart, syncs TLS and runtime secrets, performs an in-place atomic Helm upgrade, waits for rollout, and smoke-tests verified TLS routes. Existing namespaces and unrelated resources are retained. Use `make k8s-reset-local` only when an explicit ecommerce namespace reset is required. `make ks8` is kept as a friendly alias for the common typo, and `make kubernetes` does the same thing as `make k8s`.
 
 The chart lives in `charts/ecommerce`. It can deploy the five application workloads, ClusterIP services, Traefik-backed Ingress routes for the local cluster, optional Gateway API HTTPRoutes for other clusters, readiness/liveness probes, read-only security contexts, PDBs, optional HPAs, optional network policies, and Helm hook jobs for product database migration and optional seeding. Runtime infrastructure such as Postgres, MongoDB, Kafka, Clerk, and Stripe is intentionally externalized through Kubernetes Secrets and values.
 

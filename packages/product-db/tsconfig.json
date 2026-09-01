@@ -6,6 +6,6 @@
       "@prisma/*": ["./generated/prisma/*"]
     }
   },
-  "include": ["src/**/*"],
-  "exclude": ["generated/**/*"]
+  "include": ["src/**/*", "generated/prisma8/**/*.d.ts"],
+  "exclude": ["generated/prisma/**/*"]
 }

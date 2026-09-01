@@ -58,7 +58,9 @@ const workspaceRoot = path.join(__dirname, "../../");
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
+  deploymentId: process.env.NEXT_DEPLOYMENT_ID || undefined,
   output: "standalone",
+  reactCompiler: true,
   typedRoutes: true,
   outputFileTracingRoot: workspaceRoot,
   poweredByHeader: false,

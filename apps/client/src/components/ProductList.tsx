@@ -161,9 +161,22 @@ const ProductList = async ({
       ) : (
         <div
           role="status"
-          className="rounded-2xl border border-dashed border-border bg-card px-5 py-12 text-center text-sm text-muted-foreground shadow-sm"
+          className="rounded-2xl border border-dashed border-border bg-card px-5 py-12 text-center shadow-sm"
         >
-          No products matched the current filter.
+          <p className="text-sm text-muted-foreground">
+            No products matched the current filter.
+          </p>
+          {(selectedCategory !== "all" ||
+            normalizedSearch ||
+            normalizedSort !== "newest") && (
+            <Button
+              href={params === "homepage" ? "/" : "/products"}
+              variant="outline"
+              className="mt-4"
+            >
+              Clear filters
+            </Button>
+          )}
         </div>
       )}
 

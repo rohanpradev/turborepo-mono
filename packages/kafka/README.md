@@ -53,7 +53,7 @@ Kafka UI:
 
 - `http://localhost:8080`
 
-The Compose file uses `dhi.io/kafka:4.2.0-debian13-native`, persistent broker
+The Compose file uses the digest-pinned `dhi.io/kafka:4.3.1-debian13-native`, loopback-only host ports, persistent broker
 volumes, disabled broker-side auto topic creation, and health checks before
 dependent services start. Authenticate with `docker login dhi.io` before
 starting it.

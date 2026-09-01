@@ -8,7 +8,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { cache } from "react";
+import { cache, Suspense } from "react";
 import ProductInteraction from "@/components/ProductInteraction";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -17,6 +17,8 @@ import {
   isExternalProductImage,
 } from "@/lib/catalog";
 import { getSingleSearchParam } from "@/lib/search-params";
+
+export const instant = false;
 
 const getProductId = (value: string) => {
   const id = Number(value);
@@ -272,11 +274,23 @@ const ProductPage = async ({
               </div>
             </div>
 
-            <ProductInteraction
-              product={product}
-              selectedSize={selectedSize}
-              selectedColor={selectedColor}
-            />
+            <Suspense
+              fallback={
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="mt-6 min-h-72 animate-pulse rounded-xl border border-border bg-muted/50"
+                >
+                  <span className="sr-only">Loading product options...</span>
+                </div>
+              }
+            >
+              <ProductInteraction
+                product={product}
+                selectedSize={selectedSize}
+                selectedColor={selectedColor}
+              />
+            </Suspense>
           </div>
 
           <div className="mt-8 grid gap-2 border-t border-border pt-5 text-xs text-muted-foreground sm:grid-cols-3">

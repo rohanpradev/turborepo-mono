@@ -1,15 +1,12 @@
-import { Show, SignInButton } from "@clerk/nextjs";
 import { ArrowRight, Search } from "lucide-react";
 import type { Route } from "next";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Suspense } from "react";
+import AuthControls from "@/components/AuthControls";
 import BrandMark from "@/components/BrandMark";
 import SearchBar from "@/components/SearchBar";
 import ShoppingCartIcon from "@/components/ShoppingCartIcon";
 import { Button } from "@/components/ui/button";
-
-const ProfileButton = dynamic(() => import("@/components/ProfileButton"));
 
 const isClerkConfigured = Boolean(
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
@@ -92,18 +89,7 @@ const Navbar = () => {
           </Link>
           <ShoppingCartIcon />
           {isClerkConfigured ? (
-            <>
-              <Show when="signed-out">
-                <SignInButton mode="modal">
-                  <Button type="button" variant="outline" size="sm">
-                    Sign in
-                  </Button>
-                </SignInButton>
-              </Show>
-              <Show when="signed-in">
-                <ProfileButton />
-              </Show>
-            </>
+            <AuthControls />
           ) : (
             <Button
               href={"/sign-in" as Route}

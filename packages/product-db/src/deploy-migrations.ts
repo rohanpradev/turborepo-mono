@@ -20,8 +20,8 @@ if (!schemaEnginePath) {
 }
 
 const prismaCliCandidates = [
-  resolve(repositoryRoot, "node_modules/prisma/build/index.js"),
-  resolve(packageRoot, "node_modules/prisma/build/index.js"),
+  resolve(repositoryRoot, "node_modules/@prisma/prisma7/build/prisma7.js"),
+  resolve(packageRoot, "node_modules/@prisma/prisma7/build/prisma7.js"),
 ];
 const prismaCliPath = prismaCliCandidates.find(existsSync);
 

@@ -9,6 +9,7 @@ metadata:
     "helm.sh/hook": test
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 spec:
+  activeDeadlineSeconds: {{ .Values.helmTests.activeDeadlineSeconds }}
   os:
     name: linux
   restartPolicy: Never
@@ -32,18 +33,18 @@ spec:
         - -ec
         - |
           {{- if .Values.services.client.enabled }}
-          curl -fsS "http://{{ include "ecommerce.componentName" (dict "root" . "service" .Values.services.client) }}:3002/api/health"
+          curl -fsS --connect-timeout 5 --max-time 20 "http://{{ include "ecommerce.componentName" (dict "root" . "service" .Values.services.client) }}:3002/api/health"
           {{- end }}
           {{- if .Values.services.admin.enabled }}
-          curl -fsS "http://{{ include "ecommerce.componentName" (dict "root" . "service" .Values.services.admin) }}:3003/api/health"
+          curl -fsS --connect-timeout 5 --max-time 20 "http://{{ include "ecommerce.componentName" (dict "root" . "service" .Values.services.admin) }}:3003/api/health"
           {{- end }}
           {{- if .Values.services.product.enabled }}
-          curl -fsS "http://{{ include "ecommerce.componentName" (dict "root" . "service" .Values.services.product) }}:3000/health/ready"
+          curl -fsS --connect-timeout 5 --max-time 20 "http://{{ include "ecommerce.componentName" (dict "root" . "service" .Values.services.product) }}:3000/health/ready"
           {{- end }}
           {{- if .Values.services.order.enabled }}
-          curl -fsS "http://{{ include "ecommerce.componentName" (dict "root" . "service" .Values.services.order) }}:8001/health/ready"
+          curl -fsS --connect-timeout 5 --max-time 20 "http://{{ include "ecommerce.componentName" (dict "root" . "service" .Values.services.order) }}:8001/health/ready"
           {{- end }}
           {{- if .Values.services.payment.enabled }}
-          curl -fsS "http://{{ include "ecommerce.componentName" (dict "root" . "service" .Values.services.payment) }}:8002/health/ready"
+          curl -fsS --connect-timeout 5 --max-time 20 "http://{{ include "ecommerce.componentName" (dict "root" . "service" .Values.services.payment) }}:8002/health/ready"
           {{- end }}
 {{- end }}

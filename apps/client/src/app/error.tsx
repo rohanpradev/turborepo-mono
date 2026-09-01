@@ -10,6 +10,8 @@ export default function ErrorBoundary({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  console.error("Storefront route rendering failed", error);
+
   return (
     <section className="mx-auto flex min-h-[50vh] max-w-2xl flex-col items-center justify-center gap-4 py-12 text-center">
       <span className="rounded-full bg-destructive/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-destructive">
@@ -20,7 +22,8 @@ export default function ErrorBoundary({
           Something interrupted this page.
         </h1>
         <p className="text-sm text-muted-foreground">
-          {error.message || "The storefront could not render this route."}
+          We could not load this view just now. Your bag and checkout details
+          are still safe—please try again or return to the collection.
         </p>
       </div>
       <div className="flex flex-wrap justify-center gap-3">

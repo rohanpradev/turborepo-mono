@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077
 
 if ! command -v mkcert >/dev/null 2>&1; then
   cat >&2 <<'EOF'
@@ -17,7 +18,8 @@ key_file="${cert_dir}/localhost-key.pem"
 mkdir -p "${cert_dir}"
 
 if [[ -s "${cert_file}" && -s "${key_file}" ]]; then
-  chmod 0644 "${cert_file}" "${key_file}" 2>/dev/null || true
+  chmod 0644 "${cert_file}"
+  chmod 0600 "${key_file}"
 
   if command -v openssl >/dev/null 2>&1 && openssl x509 -checkend 86400 -noout -in "${cert_file}" >/dev/null 2>&1; then
     echo "Using existing local TLS certificate at ${cert_file}"
@@ -46,4 +48,5 @@ mkcert \
   dashboard.localhost \
   kafka.localhost
 
-chmod 0644 "${cert_file}" "${key_file}" 2>/dev/null || true
+chmod 0644 "${cert_file}"
+chmod 0600 "${key_file}"

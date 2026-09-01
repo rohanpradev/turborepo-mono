@@ -10,11 +10,16 @@ const isClerkConfigured = Boolean(
 const isPublicPath = (pathname: string) =>
   pathname === "/" ||
   pathname === "/api/health" ||
+  pathname === "/api/checkout" ||
+  pathname.startsWith("/api/checkout/") ||
   pathname === "/robots.txt" ||
   pathname === "/sitemap.xml" ||
   pathname === "/diagnostics" ||
   pathname === "/products" ||
   pathname.startsWith("/products/") ||
+  pathname === "/cart" ||
+  pathname === "/orders" ||
+  pathname === "/return" ||
   pathname === "/sign-in" ||
   pathname.startsWith("/sign-in/") ||
   pathname === "/sign-up" ||

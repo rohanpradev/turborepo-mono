@@ -40,6 +40,9 @@ global:
   env:
     NODE_ENV: production
     REQUEST_TIMEOUT_MS: "30000"
+    POSTGRES_POOL_MAX: "20"
+    POSTGRES_IDLE_TIMEOUT_MS: "30000"
+    POSTGRES_CONNECTION_TIMEOUT_MS: "5000"
     KAFKA_BROKERS: kafka:9092
     KAFKA_LOG_LEVEL: error
     KAFKA_CONNECTION_TIMEOUT_MS: "3000"
@@ -65,8 +68,8 @@ stripeCli:
   enabled: false
   image:
     repository: stripe/stripe-cli
-    tag: v1.44.0
-    digest: sha256:f46433445867b7f47526b7588d49c79a336d74a22ee548c18513e3b9c8d40f31
+    tag: v1.50.6
+    digest: sha256:40145a651e181b564c8442e1218f8fde4cf6aefe23f01bd2e450b9ee2e8c1b25
     pullPolicy: IfNotPresent
   forwardTo: http://127.0.0.1:8002/api/webhooks/stripe
   webhookSecretFile: /var/run/stripe/webhook-secret
@@ -626,6 +629,7 @@ networkPolicy:
 
 helmTests:
   enabled: true
+  activeDeadlineSeconds: 120
   image:
     repository: curlimages/curl
     tag: "8.21.0"

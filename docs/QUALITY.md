@@ -19,7 +19,7 @@ Use the smallest check that matches the risk of the change.
 | Change type | Minimum verification |
 | --- | --- |
 | Documentation only | `bun run lint` |
-| Package/catalog changes | `bun run deps:check`, `bun run lint`, `bun run test` |
+| Package/catalog changes | `bun run deps:check`, `bun run deps:dedupe:check`, `bun run lint`, `bun run test` |
 | Shared types or API client | `bun run test`, `bun run check-types` |
 | Frontend routes/components | `bun run lint`, `bun run check-types`, `bun run build` |
 | Hono services | `bun run test`, `bun run check-types`, `bun run build` |
@@ -34,6 +34,7 @@ Use the smallest check that matches the risk of the change.
 ```bash
 bun run doctor
 bun run deps:check
+bun run deps:dedupe:check
 bun run lint
 bun run knip
 bun run boundaries
@@ -65,6 +66,9 @@ make docker-test
 - `syncpack lint` is the authority for catalog drift.
 - Run `bun outdated --recursive` before dependency refreshes.
 - Run `bun install` after package or catalog edits so `bun.lock` stays authoritative.
+- Run `bun dedupe` after dependency refreshes; CI enforces `bun dedupe --check`.
+- Use `bun run test:changed` for a focused local loop and the parallel isolated suite for full verification.
+- Review `bun run deps:licenses` when introducing production dependencies; CI publishes the JSON inventory.
 - CI and Dockerfile tool versions should stay aligned with root tool versions.
 
 ## Monorepo Governance

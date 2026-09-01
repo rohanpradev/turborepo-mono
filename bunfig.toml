@@ -1,0 +1,4 @@
+[install]
+# Bun 1.4's isolated linker uses the shared global virtual store while keeping
+# undeclared transitive dependencies out of workspace resolution.
+linker = "isolated"

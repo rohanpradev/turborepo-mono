@@ -1,0 +1,6 @@
+# Explicit Ingress profile used by chart validation.
+ingress:
+  enabled: true
+
+gateway:
+  enabled: false

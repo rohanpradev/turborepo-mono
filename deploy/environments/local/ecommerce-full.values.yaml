@@ -1,3 +1,6 @@
+# Full local Kubernetes profile with all application workloads.
+# Routing is explicit here; Make only injects secret names and immutable image tags.
+
 global:
   imagePullPolicy: IfNotPresent
   env:
@@ -11,18 +14,18 @@ global:
     KAFKA_TOPIC_REPLICATION_FACTOR: "3"
     KAFKA_TOPIC_MIN_INSYNC_REPLICAS: "2"
     KAFKA_UI_URL: https://kafka.localhost
-    CORS_ALLOWED_ORIGINS: https://shop.localhost,https://admin.localhost,http://localhost:3002,http://localhost:3003
-    CLERK_AUTHORIZED_PARTIES: https://shop.localhost,https://admin.localhost,https://shop.localhost:8443,https://admin.localhost:8443,http://localhost:3002,http://localhost:3003
+    CORS_ALLOWED_ORIGINS: https://shop.localhost:8443,https://admin.localhost:8443,http://localhost:3002,http://localhost:3003
+    CLERK_AUTHORIZED_PARTIES: https://shop.localhost:8443,https://admin.localhost:8443,http://localhost:3002,http://localhost:3003
     TELEMETRY_ENABLED: "true"
     TELEMETRY_LOG_FORMAT: json
     PROMETHEUS_METRICS_ENABLED: "true"
     PROMETHEUS_METRICS_PATH: /metrics
 
 ingress:
-  enabled: false
+  enabled: true
 
 gateway:
-  enabled: true
+  enabled: false
   create: false
   name: traefik-gateway
   namespace: traefik
@@ -47,38 +50,48 @@ services:
     replicaCount: 1
     image:
       pullPolicy: IfNotPresent
+    podDisruptionBudget:
+      enabled: false
   order:
     replicaCount: 1
     image:
       pullPolicy: IfNotPresent
+    podDisruptionBudget:
+      enabled: false
   payment:
     replicaCount: 1
     image:
       pullPolicy: IfNotPresent
+    podDisruptionBudget:
+      enabled: false
     env:
       CLIENT_APP_URL: https://shop.localhost
   client:
     replicaCount: 1
     image:
       pullPolicy: IfNotPresent
+    podDisruptionBudget:
+      enabled: false
     env:
-      CLIENT_APP_URL: https://shop.localhost
-      NEXT_PUBLIC_CLIENT_APP_URL: https://shop.localhost
-      NEXT_PUBLIC_PRODUCT_SERVICE_URL: https://api.localhost
-      NEXT_PUBLIC_ORDER_SERVICE_URL: https://api.localhost
-      NEXT_PUBLIC_PAYMENT_SERVICE_URL: https://api.localhost
+      CLIENT_APP_URL: https://shop.localhost:8443
+      NEXT_PUBLIC_CLIENT_APP_URL: https://shop.localhost:8443
+      NEXT_PUBLIC_PRODUCT_SERVICE_URL: https://api.localhost:8443
+      NEXT_PUBLIC_ORDER_SERVICE_URL: https://api.localhost:8443
+      NEXT_PUBLIC_PAYMENT_SERVICE_URL: https://api.localhost:8443
   admin:
     replicaCount: 1
     image:
       pullPolicy: IfNotPresent
+    podDisruptionBudget:
+      enabled: false
     env:
       ADMIN_APP_URL: https://admin.localhost
-      CLIENT_APP_URL: https://shop.localhost
-      NEXT_PUBLIC_CLIENT_APP_URL: https://shop.localhost
-      NEXT_PUBLIC_ADMIN_APP_URL: https://admin.localhost
-      NEXT_PUBLIC_PRODUCT_SERVICE_URL: https://api.localhost
-      NEXT_PUBLIC_ORDER_SERVICE_URL: https://api.localhost
-      NEXT_PUBLIC_PAYMENT_SERVICE_URL: https://api.localhost
+      CLIENT_APP_URL: https://shop.localhost:8443
+      NEXT_PUBLIC_CLIENT_APP_URL: https://shop.localhost:8443
+      NEXT_PUBLIC_ADMIN_APP_URL: https://admin.localhost:8443
+      NEXT_PUBLIC_PRODUCT_SERVICE_URL: https://api.localhost:8443
+      NEXT_PUBLIC_ORDER_SERVICE_URL: https://api.localhost:8443
+      NEXT_PUBLIC_PAYMENT_SERVICE_URL: https://api.localhost:8443
 
 jobs:
   seed-product-db:

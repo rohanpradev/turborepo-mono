@@ -1,0 +1,21 @@
+# Local Traefik platform values.
+
+ingressClass:
+  enabled: true
+  name: traefik
+
+providers:
+  kubernetesIngress:
+    enabled: true
+
+metrics:
+  addInternals: true
+  prometheus:
+    addEntryPointsLabels: true
+    addRoutersLabels: true
+    addServicesLabels: true
+    service:
+      enabled: true
+
+service:
+  type: LoadBalancer

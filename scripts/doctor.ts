@@ -271,15 +271,15 @@ const main = async () => {
       (output) => `Kafka Compose validation failed. ${summarizeOutput(output)}`,
     ),
     optionalCommandCheck(
-      "Docker Hardened Images auth",
+      "Official Bun runtime image",
       [
         "docker",
         "pull",
-        "dhi.io/bun:1.3.14-debian13@sha256:fb5dda72d73bd1e581d014e6546352766f8565bb78ce66a290e4f11fdc188c11",
+        "oven/bun:1.4.0@sha256:5ff609364c049b54eb0ff560ec96319729a972078ef2c755d758f0c6ef89c2d6",
       ],
-      "DHI Bun runtime image can be pulled.",
+      "Bun 1.4 runtime image can be pulled.",
       (output) =>
-        `DHI image pull is not ready. Run docker login dhi.io. ${summarizeOutput(output)}`,
+        `Bun runtime image pull is not ready. ${summarizeOutput(output)}`,
     ),
   ];
 
