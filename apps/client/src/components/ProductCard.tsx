@@ -1,13 +1,26 @@
 "use client";
 
 import { formatUsdFromCents } from "@repo/types";
+import { ArrowUpRight, Plus } from "lucide-react";
 import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import ProductCardActions from "@/components/ProductCardActions";
-import { Badge } from "@/components/ui/badge";
-import { getPrimaryProductImage, isExternalProductImage } from "@/lib/catalog";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  getColorSwatchStyle,
+  getPrimaryProductImage,
+  isExternalProductImage,
+} from "@/lib/catalog";
 import type { ProductType } from "@/types";
 
 const ProductCard = ({
@@ -19,14 +32,15 @@ const ProductCard = ({
 }) => {
   const [selectedColor, setSelectedColor] = useState(product.colors[0] ?? "");
   const previewImage = getPrimaryProductImage(product, selectedColor);
+  const href = `/products/${product.id}` as Route;
 
   return (
-    <article className="group flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card transition-[border-color,box-shadow] duration-300 hover:border-foreground/20 hover:shadow-[0_18px_45px_-34px_rgba(28,25,23,0.6)]">
+    <article className="group flex h-full min-w-0 flex-col rounded-2xl border border-border/70 bg-card p-2 transition-[border-color,box-shadow] hover:border-foreground/20 hover:shadow-lg sm:p-3">
       <Link
-        href={`/products/${product.id}` as Route}
-        className="block rounded-t-xl focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/45"
+        href={href}
+        className="relative block overflow-hidden rounded-xl bg-[#f0ede7] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45"
       >
-        <div className="relative aspect-[4/4.6] overflow-hidden bg-[#f0ede7]">
+        <div className="relative aspect-[4/4.6]">
           <Image
             src={previewImage}
             alt={product.name}
@@ -36,45 +50,93 @@ const ProductCard = ({
             fetchPriority={eager ? "high" : "auto"}
             decoding="async"
             quality={85}
-            className="object-contain p-3 transition-transform duration-700 group-hover:scale-[1.025] sm:p-4"
-            sizes="(min-width: 1536px) 18rem, (min-width: 1280px) 25vw, (min-width: 640px) 50vw, 100vw"
+            className="object-contain p-2 transition-transform duration-700 group-hover:scale-[1.04] sm:p-4"
+            sizes="(min-width: 1536px) 18rem, (min-width: 1024px) 33vw, 50vw"
           />
-          <div className="absolute left-3 right-3 top-3 flex flex-wrap justify-between gap-2">
-            <Badge
-              variant="outline"
-              className="border-white/70 bg-white/85 text-[0.625rem] uppercase tracking-[0.12em] text-stone-700 backdrop-blur"
-            >
-              {product.categorySlug}
-            </Badge>
-          </div>
         </div>
+        <span className="absolute bottom-3 right-3 hidden size-9 place-items-center rounded-full bg-card/90 text-foreground transition-transform group-hover:-rotate-12 sm:grid">
+          <ArrowUpRight className="size-4" aria-hidden="true" />
+        </span>
       </Link>
-
-      <div className="flex flex-1 flex-col gap-4 p-4">
-        <div className="space-y-1">
-          <div className="grid min-h-12 grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-            <h3 className="line-clamp-2 text-base font-semibold leading-6 tracking-[-0.01em] text-foreground">
-              <Link
-                href={`/products/${product.id}` as Route}
-                className="inline-flex min-h-6 items-center rounded-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45"
-              >
-                {product.name}
-              </Link>
-            </h3>
-            <p className="max-w-24 break-words text-right text-sm font-bold text-foreground">
-              {formatUsdFromCents(product.price)}
-            </p>
-          </div>
-          <p className="line-clamp-2 min-h-12 text-sm leading-6 text-muted-foreground">
-            {product.shortDescription}
+      <div className="flex flex-1 flex-col gap-2 px-1 pb-1 pt-3 sm:pt-4">
+        <p className="text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          {product.categorySlug.replaceAll("-", " ")}
+        </p>
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+          <h3 className="line-clamp-2 text-sm font-semibold leading-5 tracking-tight sm:text-base sm:leading-6">
+            <Link
+              href={href}
+              className="rounded-sm hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45"
+            >
+              {product.name}
+            </Link>
+          </h3>
+          <p className="shrink-0 text-sm font-semibold tabular-nums">
+            {formatUsdFromCents(product.price)}
           </p>
         </div>
-
-        <ProductCardActions
-          product={product}
-          selectedColor={selectedColor}
-          onSelectedColorChange={setSelectedColor}
-        />
+        <div className="mb-1 flex flex-wrap items-center gap-1.5">
+          {product.colors.slice(0, 5).map((color) => (
+            <span
+              key={color}
+              aria-hidden="true"
+              className="size-3 rounded-full border border-black/15"
+              style={getColorSwatchStyle(color)}
+            />
+          ))}
+          <span className="text-xs text-muted-foreground">
+            {product.colors.length} color
+            {product.colors.length === 1 ? "" : "s"}
+          </span>
+        </div>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button
+              variant="outline"
+              className="mt-auto h-11 w-full gap-1 border-border/70 bg-muted/50 px-2 text-xs sm:text-sm"
+              aria-label={`Choose options for ${product.name}`}
+            >
+              <Plus className="size-4" aria-hidden="true" />
+              Choose options
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="pr-8 font-serif text-2xl leading-tight">
+                {product.name}
+              </DialogTitle>
+              <DialogDescription>{product.shortDescription}</DialogDescription>
+            </DialogHeader>
+            <div className="flex items-center gap-4 rounded-xl bg-muted p-3">
+              <div className="relative size-24 shrink-0">
+                <Image
+                  src={previewImage}
+                  alt={`${product.name} in ${selectedColor}`}
+                  fill
+                  unoptimized={isExternalProductImage(previewImage)}
+                  sizes="96px"
+                  className="object-contain"
+                />
+              </div>
+              <div>
+                <p className="text-lg font-semibold">
+                  {formatUsdFromCents(product.price)}
+                </p>
+                <Link
+                  href={href}
+                  className="mt-2 inline-flex min-h-11 items-center text-sm text-muted-foreground underline underline-offset-4"
+                >
+                  View full details
+                </Link>
+              </div>
+            </div>
+            <ProductCardActions
+              product={product}
+              selectedColor={selectedColor}
+              onSelectedColorChange={setSelectedColor}
+            />
+          </DialogContent>
+        </Dialog>
       </div>
     </article>
   );

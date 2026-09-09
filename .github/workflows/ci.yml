@@ -14,16 +14,16 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  BUN_VERSION: 1.4.0
-  BUN_DEV_IMAGE: oven/bun:1.4.0@sha256:5ff609364c049b54eb0ff560ec96319729a972078ef2c755d758f0c6ef89c2d6
-  BUN_RUNTIME_IMAGE: oven/bun:1.4.0@sha256:5ff609364c049b54eb0ff560ec96319729a972078ef2c755d758f0c6ef89c2d6
-  BUILDX_VERSION: v0.36.1
-  BUILDKIT_IMAGE: moby/buildkit:v0.32.2@sha256:28a898719c18a33f4e8000685287fa36fd0dd9560c6440227d3a732d79bb41d8
+  BUN_VERSION: 1.4.2
+  BUN_DEV_IMAGE: oven/bun:1.4.2@sha256:9114c058aeae42162ee16dd5084b95fe9473970bb6bcb5b232ab1630f0546895
+  BUN_RUNTIME_IMAGE: oven/bun:1.4.2@sha256:9114c058aeae42162ee16dd5084b95fe9473970bb6bcb5b232ab1630f0546895
+  BUILDX_VERSION: v0.37.0
+  BUILDKIT_IMAGE: moby/buildkit:v0.33.0@sha256:6c2fa84a6b61ccd72899dde4239f8d5717f05f9a8ca6f3cad185fb1a95a94de3
   HELM_VERSION: 4.2.4
   KUBECONFORM_IMAGE: ghcr.io/yannh/kubeconform:v0.8.0@sha256:faffaf43f95aa6425306e1ab8d6fcad72acb9049158f38e574c085ea1ec0f64e
   K8S_SUPPORTED_VERSIONS: 1.35.8 1.36.4
   K8S_EXPERIMENTAL_VERSIONS: 1.37.0
-  NODE_VERSION: 24
+  NODE_VERSION: 24.20.0
   REGISTRY: ghcr.io
   TURBO_VERSION: 2.10.12
   NEXT_TELEMETRY_DISABLED: 1
@@ -102,6 +102,9 @@ jobs:
       - name: Install dependencies
         run: bun ci
 
+      - name: Validate Prisma 8 contract and migration graph
+        run: bun run db:validate
+
       - name: Validate Docker Compose files
         run: |
           docker compose --env-file .env.example config > /tmp/compose.rendered.yml
@@ -138,6 +141,9 @@ jobs:
 
       - name: Typecheck and build
         run: bun run ci:types-build
+
+      - name: Smoke test standalone web apps and static assets
+        run: bun run test:web
 
       - name: Generate Turbo task graph
         if: always()
@@ -177,17 +183,60 @@ jobs:
           SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ env.SONAR_HOST_URL }}
 
+  database-integration:
+    name: Database integration
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18@sha256:4ef4dbc939d61acea57712655ddb4b4ab27419c913f94cca0cd57cb3ea3c2280
+        env:
+          POSTGRES_PASSWORD: integration-only-password
+          POSTGRES_DB: ecommerce_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ecommerce_test"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+      mongodb:
+        image: mongo:8@sha256:5211c51171f57ae60842b11664bb244628971b3d35325762a97888337b9bb0db
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand({ ping: 1 })'"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      INTEGRATION_DATABASE_URL: postgresql://postgres:integration-only-password@127.0.0.1:5432/ecommerce_test
+      INTEGRATION_MONGO_URL: mongodb://127.0.0.1:27017/ecommerce_test
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - name: Setup Node.js environment
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install dependencies
+        run: bun ci
+      - name: Verify database guarantees
+        run: bun run test:integration
+
   docker-images:
     name: Docker ${{ matrix.service.name }}
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    needs: validate
+    needs: [validate, database-integration]
     timeout-minutes: 60
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
     env:
-      NEXT_IMAGE_STOREFRONT_ORIGIN: ${{ vars.NEXT_IMAGE_STOREFRONT_ORIGIN }}
+      # Published images use the public storefront unless a deployment-specific
+      # image-optimizer origin is configured explicitly.
+      NEXT_IMAGE_STOREFRONT_ORIGIN: ${{ vars.NEXT_IMAGE_STOREFRONT_ORIGIN || vars.NEXT_PUBLIC_CLIENT_APP_URL }}
       NEXT_PUBLIC_ADMIN_APP_URL: ${{ vars.NEXT_PUBLIC_ADMIN_APP_URL }}
       NEXT_PUBLIC_CLIENT_APP_URL: ${{ vars.NEXT_PUBLIC_CLIENT_APP_URL }}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
@@ -218,10 +267,10 @@ jobs:
           fetch-depth: 0
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
+        uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # v4.3.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
         with:
           version: ${{ env.BUILDX_VERSION }}
           driver-opts: |
@@ -233,7 +282,7 @@ jobs:
 
       - name: Log in to Container Registry
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4.5.1
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -244,7 +293,6 @@ jobs:
         shell: bash
         run: |
           required=(
-            NEXT_IMAGE_STOREFRONT_ORIGIN
             NEXT_PUBLIC_ADMIN_APP_URL
             NEXT_PUBLIC_CLIENT_APP_URL
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY

@@ -161,6 +161,13 @@ const mergeHeaders = (...sources: Array<HeaderSource | undefined>) => {
   return headers;
 };
 
+// Bound network waits without discarding cancellation from either caller.
+const requestSignal = (...signals: Array<AbortSignal | null | undefined>) =>
+  AbortSignal.any([
+    AbortSignal.timeout(15_000),
+    ...signals.filter((signal): signal is AbortSignal => Boolean(signal)),
+  ]);
+
 const toApiClientError = (error: unknown): ApiClientError => {
   if (error instanceof ApiClientError) {
     return error;
@@ -197,6 +204,11 @@ const createRpcLink = (
       const fetchInit = {
         ...options.fetchOptions,
         ...init,
+        signal: requestSignal(
+          request instanceof Request ? request.signal : undefined,
+          options.fetchOptions?.signal,
+          initWithHeaders.signal,
+        ),
         headers: mergeHeaders(
           requestHeaders,
           options.fetchOptions?.headers,
@@ -265,12 +277,23 @@ const parseJson = async <T>(response: Response): Promise<T> => {
     throw new ApiClientError(message, response.status, payload);
   }
 
+  if (payload === null) {
+    throw new ApiClientError(
+      "Service returned an invalid JSON response",
+      502,
+      null,
+    );
+  }
+
   return payload as T;
 };
 
 const createServiceClient = (baseUrl: string) => ({
   request: (path: string, init?: RequestInit) =>
-    fetch(new URL(path, baseUrl), init),
+    fetch(new URL(path, baseUrl), {
+      ...init,
+      signal: requestSignal(init?.signal),
+    }),
 });
 
 export const createProductServiceClient = (baseUrl: string) =>

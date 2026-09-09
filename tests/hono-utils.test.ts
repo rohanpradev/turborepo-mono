@@ -7,12 +7,15 @@ import {
   createTraceparent,
   getClerkAuthenticationErrorMessage,
   getCorsOrigins,
+  getServerIdleTimeoutSeconds,
   parseTraceparent,
 } from "../packages/hono-utils/src/index";
 
 const originalCorsAllowedOrigins = process.env.CORS_ALLOWED_ORIGINS;
 const originalPrometheusMetricsEnabled = process.env.PROMETHEUS_METRICS_ENABLED;
 const originalTelemetryEnabled = process.env.TELEMETRY_ENABLED;
+const originalHttpIdleTimeoutSeconds = process.env.HTTP_IDLE_TIMEOUT_SECONDS;
+const originalRequestTimeoutMs = process.env.REQUEST_TIMEOUT_MS;
 
 afterEach(() => {
   if (originalCorsAllowedOrigins === undefined) {
@@ -31,6 +34,18 @@ afterEach(() => {
     delete process.env.TELEMETRY_ENABLED;
   } else {
     process.env.TELEMETRY_ENABLED = originalTelemetryEnabled;
+  }
+
+  if (originalHttpIdleTimeoutSeconds === undefined) {
+    delete process.env.HTTP_IDLE_TIMEOUT_SECONDS;
+  } else {
+    process.env.HTTP_IDLE_TIMEOUT_SECONDS = originalHttpIdleTimeoutSeconds;
+  }
+
+  if (originalRequestTimeoutMs === undefined) {
+    delete process.env.REQUEST_TIMEOUT_MS;
+  } else {
+    process.env.REQUEST_TIMEOUT_MS = originalRequestTimeoutMs;
   }
 });
 
@@ -69,6 +84,24 @@ describe("@repo/hono-utils", () => {
       "https://shop.localhost",
       "https://admin.localhost",
     ]);
+  });
+
+  it("keeps Bun's idle timeout above the application timeout", () => {
+    delete process.env.HTTP_IDLE_TIMEOUT_SECONDS;
+    process.env.REQUEST_TIMEOUT_MS = "45000";
+
+    expect(getServerIdleTimeoutSeconds()).toBe(50);
+
+    process.env.HTTP_IDLE_TIMEOUT_SECONDS = "60";
+    expect(getServerIdleTimeoutSeconds()).toBe(60);
+  });
+
+  it("rejects invalid Bun idle timeout configuration", () => {
+    process.env.HTTP_IDLE_TIMEOUT_SECONDS = "256";
+
+    expect(() => getServerIdleTimeoutSeconds()).toThrow(
+      "must be an integer between 1 and 255",
+    );
   });
 
   it("returns actionable Clerk authentication failures", () => {

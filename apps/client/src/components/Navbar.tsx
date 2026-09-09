@@ -1,9 +1,10 @@
-import { ArrowRight, Search } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import type { Route } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import AuthControls from "@/components/AuthControls";
 import BrandMark from "@/components/BrandMark";
+import MobileNavigation from "@/components/MobileNavigation";
 import SearchBar from "@/components/SearchBar";
 import ShoppingCartIcon from "@/components/ShoppingCartIcon";
 import { Button } from "@/components/ui/button";
@@ -41,7 +42,7 @@ const Navbar = () => {
 
       <nav
         aria-label="Primary navigation"
-        className="flex min-h-16 items-center gap-4 px-3 py-2.5 sm:px-4 lg:px-5"
+        className="flex min-h-16 items-center gap-2 px-3 py-2.5 sm:px-4 lg:px-5"
       >
         <Link
           href="/"
@@ -49,7 +50,7 @@ const Navbar = () => {
           className="group flex shrink-0 items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30"
         >
           <BrandMark className="size-9 shrink-0 transition-transform group-hover:-rotate-2" />
-          <span className="hidden sm:block">
+          <span>
             <span className="block font-serif text-lg font-semibold leading-none tracking-[-0.025em] text-foreground">
               Common Goods
             </span>
@@ -77,17 +78,11 @@ const Navbar = () => {
               <div className="hidden h-10 w-[min(30vw,22rem)] animate-pulse rounded-lg bg-muted lg:block" />
             }
           >
-            <SearchBar />
+            <SearchBar className="hidden min-w-0 lg:block lg:w-[min(27vw,22rem)]" />
           </Suspense>
 
-          <Link
-            href={"/products" as Route}
-            aria-label="Search and browse products"
-            className="inline-flex size-10 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30 lg:hidden"
-          >
-            <Search className="size-4" aria-hidden="true" />
-          </Link>
           <ShoppingCartIcon />
+          <MobileNavigation links={catalogLinks} />
           {isClerkConfigured ? (
             <AuthControls />
           ) : (
@@ -102,6 +97,13 @@ const Navbar = () => {
           )}
         </div>
       </nav>
+      <div className="border-t border-border px-3 py-2.5 lg:hidden">
+        <Suspense
+          fallback={<div className="h-10 animate-pulse rounded-lg bg-muted" />}
+        >
+          <SearchBar className="w-full" />
+        </Suspense>
+      </div>
     </header>
   );
 };

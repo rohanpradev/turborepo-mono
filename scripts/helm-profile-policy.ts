@@ -89,6 +89,62 @@ export const findImageReferences = (
   });
 };
 
+const record = (value: unknown): Record<string, unknown> =>
+  isRecord(value) ? value : {};
+
+const selectorMatches = (
+  selector: Record<string, unknown>,
+  labels: Record<string, unknown>,
+) => {
+  if (
+    !Object.entries(record(selector.matchLabels)).every(
+      ([key, value]) => labels[key] === value,
+    )
+  )
+    return false;
+  const expressions = Array.isArray(selector.matchExpressions)
+    ? selector.matchExpressions
+    : [];
+  return expressions.every((value) => {
+    const expression = record(value);
+    const key = String(expression.key);
+    const values = Array.isArray(expression.values) ? expression.values : [];
+    switch (expression.operator) {
+      case "DoesNotExist":
+        return !(key in labels);
+      case "Exists":
+        return key in labels;
+      case "In":
+        return values.includes(labels[key]);
+      case "NotIn":
+        return !values.includes(labels[key]);
+      default:
+        throw new Error(
+          `Unsupported selector operator: ${expression.operator}`,
+        );
+    }
+  });
+};
+
+const assertJobBudgetIsolation = (resources: Array<KubernetesResource>) => {
+  for (const job of resources.filter(({ kind }) => kind === "Job")) {
+    const labels = record(
+      record(record(record(job.spec).template).metadata).labels,
+    );
+    for (const budget of resources.filter(
+      ({ kind }) => kind === "PodDisruptionBudget",
+    )) {
+      const selector = record(budget.spec).selector;
+      // A null policy/v1 selector selects nothing; an empty selector selects everything.
+      if (isRecord(selector) && selectorMatches(selector, labels)) {
+        throw new Error(
+          `Job ${record(job.metadata).name} must not be selected by PodDisruptionBudget ${record(budget.metadata).name}.`,
+        );
+      }
+    }
+  }
+};
+
 export const assertProfilePolicy = (
   manifest: string,
   profile: Pick<HelmProfile, "forbiddenKind" | "name" | "requiredKind">,
@@ -129,6 +185,7 @@ export const assertProfilePolicy = (
     );
   }
 
+  assertJobBudgetIsolation(resources);
   return resources.length;
 };
 

@@ -14,6 +14,11 @@ spec:
   maxUnavailable: {{ default 1 $service.podDisruptionBudget.maxUnavailable }}
   {{- end }}
   selector:
+    # Database hooks share component labels for NetworkPolicy coverage, but
+    # must not count toward an application availability budget.
+    matchExpressions:
+      - key: app.kubernetes.io/job-name
+        operator: DoesNotExist
     matchLabels:
       {{- include "ecommerce.selectorLabels" (dict "root" $ "service" $service) | nindent 6 }}
 ---

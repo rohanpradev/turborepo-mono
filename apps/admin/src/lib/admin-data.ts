@@ -3,10 +3,12 @@ import {
   getPaymentIntegrationEvents,
   getPaymentServiceServerUrl,
   getProductServiceServerUrl,
+  type ListProductsResponse,
   listCategories,
   listOrders,
   listProducts,
   type PaymentIntegrationEventsResponse,
+  type ProductListQuery,
 } from "@repo/api-client";
 import type { CategoryRecord, OrderRecord, ProductRecord } from "@repo/types";
 import { requireAdminAccess } from "@/lib/auth";
@@ -43,23 +45,6 @@ const isString = (value: unknown): value is string => typeof value === "string";
 
 const isNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
-
-const getStorefrontUrl = () =>
-  process.env.CLIENT_APP_URL ?? "http://localhost:3002";
-
-const getStorefrontAssetOrigin = () =>
-  process.env.STOREFRONT_ASSET_ORIGIN ?? getStorefrontUrl();
-
-export const getStorefrontAssetUrl = (path: string) => {
-  if (path.startsWith("http://") || path.startsWith("https://")) {
-    return path;
-  }
-
-  return new URL(path, getStorefrontAssetOrigin()).toString();
-};
-
-export const getStorefrontProductUrl = (productId: number) =>
-  new URL(`/products/${productId}`, getStorefrontUrl()).toString();
 
 export const formatCustomerLabel = (userId: string) =>
   userId === "unknown"
@@ -275,9 +260,12 @@ export const loadOptionalAdminOrders = async () => {
   }
 };
 
-export const loadCatalogSnapshot = async (): Promise<{
+export const loadCatalogSnapshot = async (
+  query: ProductListQuery = {},
+): Promise<{
   categories: Array<CategoryRecord>;
   products: Array<ProductRecord>;
+  pagination: ListProductsResponse["meta"];
 }> => {
   await requireAdminAccess();
   const productServiceUrl = getProductServiceServerUrl();
@@ -287,6 +275,7 @@ export const loadCatalogSnapshot = async (): Promise<{
       {
         limit: 24,
         sort: "newest",
+        ...query,
       },
       liveFetchOptions,
     ),
@@ -296,5 +285,6 @@ export const loadCatalogSnapshot = async (): Promise<{
   return {
     categories: categories.data,
     products: products.data,
+    pagination: products.meta,
   };
 };

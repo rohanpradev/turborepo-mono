@@ -1,8 +1,8 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "ignore": [
-    "packages/product-db/prisma/schema.prisma",
-    "packages/product-db/prisma8/contract.prisma"
+    "packages/product-db/migrations/**",
+    "packages/product-db/src/contract.prisma"
   ],
   "ignoreBinaries": ["make"],
   "ignoreExportsUsedInFile": {
@@ -10,13 +10,14 @@
     "type": true
   },
   "ignoreIssues": {
-    "apps/admin/src/components/ui/**": ["exports"]
+    "apps/admin/src/components/ui/**": ["exports"],
+    "apps/client/src/components/ui/dialog.tsx": ["exports"]
   },
   "tags": ["-lintignore"],
   "workspaces": {
     ".": {
-      "entry": ["tests/**/*.test.ts"],
-      "project": ["tests/**/*.ts"],
+      "entry": ["tests/**/*.test.ts", "integration-tests/**/*.test.ts"],
+      "project": ["tests/**/*.ts", "integration-tests/**/*.ts"],
       "ignoreUnresolved": ["./tests/preload.ts"]
     },
     "apps/product-service": {
@@ -26,8 +27,7 @@
       "ignoreDependencies": ["@clerk/backend"]
     },
     "packages/product-db": {
-      "entry": ["prisma7.config.ts", "src/**/*.ts"],
-      "ignoreDependencies": ["@prisma/client", "pg"]
+      "entry": ["src/**/*.ts"]
     },
     "packages/typescript-config": {
       "ignoreUnresolved": ["next"]

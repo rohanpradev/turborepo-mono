@@ -37,12 +37,12 @@ const ProductsCatalog = async ({
 const ProductsPage = ({ searchParams }: PageProps<"/products">) => {
   return (
     <div className="space-y-8 pb-10 pt-2">
-      <header className="grid gap-8 rounded-2xl border border-border bg-card p-6 sm:p-9 lg:grid-cols-[1fr_auto] lg:items-end lg:p-11">
+      <header className="grid gap-6 rounded-2xl border border-border bg-card p-6 sm:p-7 lg:grid-cols-[1fr_auto] lg:items-end lg:p-8">
         <div>
           <p className="text-[0.6875rem] font-bold uppercase tracking-[0.18em] text-primary">
             Collection / 2026
           </p>
-          <h1 className="mt-4 max-w-3xl font-serif text-5xl font-semibold leading-[0.9] tracking-[-0.05em] text-foreground sm:text-6xl lg:text-7xl">
+          <h1 className="mt-4 max-w-3xl font-serif text-5xl font-semibold leading-[0.9] tracking-[-0.05em] text-foreground sm:text-6xl">
             The complete edit.
           </h1>
         </div>

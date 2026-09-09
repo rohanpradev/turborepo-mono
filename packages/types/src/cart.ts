@@ -29,7 +29,8 @@ export type CartStoreStateType = {
 };
 
 export type CartStoreActionsType = {
-  addToCart: (product: CartItemType) => void;
+  // False means the requested addition could not fit; the cart stays unchanged.
+  addToCart: (product: CartItemType) => boolean;
   removeFromCart: (product: CartItemType) => void;
   setCartItemQuantity: (product: CartItemType, quantity: number) => void;
   clearCart: () => void;

@@ -91,8 +91,8 @@ Status: implemented in this pass.
 - Next.js 16.3, Hono 4.13.5, Mongoose 9.9, Clerk 7.8/3.16, oRPC 1.15, and the supporting UI/runtime catalog are current.
 - Turborepo is aligned at 2.10.12 in the workspace, CI, and Docker defaults.
 - Stripe CLI is aligned at 1.50.6 in Compose and Helm.
-- Prisma 8.0.0-rc.12 is the primary CLI with `@prisma/orm-postgres` 8.0.0-rc.8 and an emitted contract; Prisma 7.10 remains explicitly namespaced for compatibility queries and existing migration ownership during the documented incremental cutover.
-- PostgreSQL 18.4, MongoDB 8.3.7, and Bun 1.4.0 were checked against their current documentation and release metadata. Bun 1.4's isolated linker, recursive catalog-aware outdated checks, frozen `bun ci`, and parallel test/script execution are used by the workspace.
+- Prisma 8 is the only product-database CLI/runtime. The current `latest` packages are `prisma` 8.0.0-rc.12 and `@prisma/orm-postgres` 8.0.0-rc.8; the repository uses the current Prisma 8 contract/query/migration workflow and contains no Prisma 7 compatibility client.
+- PostgreSQL 18.6, MongoDB 8.3.8, and Bun 1.4.2 were checked against their current documentation and release metadata. Bun 1.4's isolated linker, recursive catalog-aware outdated checks, frozen `bun ci`, and parallel test/script execution are used by the workspace.
 - Security overrides pin patched `fast-uri` 4.1.2, `valibot` 1.4.2, `find-my-way` 9.7.0, and `sharp` 0.35.3 releases until their direct dependents widen or update their ranges.
 - Nano ID resolves to patched 5.1.16 under Scalar while PostCSS remains on its declared safe 3.3.18 branch; this avoids a global cross-major override and clears GHSA-28wg-ghj8-5hjv.
 - Redis Open Source 8.8 documentation was reviewed, but this repository has no Redis package or runtime today. Do not add an unused datastore; introduce a managed Redis deployment only for a measured cache, rate-limit, or ephemeral coordination requirement, never as commerce state of record.
@@ -335,7 +335,7 @@ When Redis is added, define cluster mode, TLS/auth, eviction policy, max memory,
 
 ### Prisma and PostgreSQL
 
-Prisma 7 delegates pooling to the `pg` driver adapter. Configure `max`, `connectionTimeoutMillis`, `idleTimeoutMillis`, query timeouts, and an application name explicitly per pod. The current adapter inherits defaults, including an unlimited connection timeout. Size the total pool as:
+Prisma 8 accepts an application-owned `pg` pool. Configure `max`, `connectionTimeoutMillis`, and `idleTimeoutMillis` explicitly per pod, retain the pool for the service process lifetime, and close both the client and pool during graceful shutdown. Size the total pool as:
 
 ```text
 maximum pods x pool max + migration/admin headroom <= database connection budget
@@ -378,8 +378,8 @@ Recommended implementation order:
 
 Prisma's August 2026 platform direction is relevant, but it separates into changes with different maturity and ownership implications:
 
-- Keep Prisma 8 as the primary CLI/runtime and emitted contract. Preserve the namespaced Prisma 7 compatibility client and migration owner only while transaction, outbox leasing, pagination, generated types, and deploy-migration behavior are moved and regression-tested on Prisma 8.
-- Transfer migration ownership only through Prisma 8's documented baseline, `db sign`, and `db` ref workflow; do not replay the baseline against the existing database or mix Prisma 7 and Prisma 8 migration commands.
+- Keep Prisma 8 as the sole CLI/runtime and emitted contract. Product CRUD, aggregates, Temporal timestamps, transactions, outbox leasing, pagination, generated types, and deployment migrations now use Prisma 8 APIs.
+- Migration ownership uses Prisma 8's checked-in baseline and `db` ref. Deployment stops on migration errors. Adopt an unsigned existing database explicitly with `bun run db:adopt`, which requires strict schema verification to succeed. Do not replay the baseline over that database.
 - Run `bun run db:validate` in local and CI verification now so schema/configuration errors fail before image builds or deployment.
 - Treat Prisma Compute, Composer, Prisma Postgres, and per-stage databases as an optional preview-environment platform evaluation. Adopting them would replace part of the existing Compose/Kubernetes/GHCR delivery model and requires an explicit provider, cost, data-residency, secret-management, teardown, and rollback decision.
 - Preserve the platform idea independently of vendor choice: each pull request should eventually receive an isolated database, a deployable preview, automated migration verification, smoke tests, and attached logs/traces. This belongs with the ephemeral-environment and GitOps work already listed above.
@@ -415,14 +415,15 @@ The project can credibly call itself reference-grade when it can demonstrate all
 - Next.js generated route props: <https://nextjs.org/docs/app/api-reference/functions/generate-metadata>
 - Next.js Turbopack filesystem cache: <https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache>
 - Next.js image configuration: <https://nextjs.org/docs/app/api-reference/components/image>
-- Bun 1.4.0 release: <https://bun.sh/blog/bun-v1.4>
+- Bun 1.4.2 release: <https://bun.sh/blog/bun-v1.4>
 - Bun workspaces and catalogs: <https://bun.sh/docs/pm/workspaces>
-- Prisma ORM 7 upgrade guide: <https://docs.prisma.io/docs/guides/upgrade-prisma-orm/v7>
-- Prisma 7 connection pooling: <https://docs.prisma.io/docs/orm/prisma-client/setup-and-configuration/databases-connections/connection-pool>
+- Prisma 8 ORM client: <https://www.prisma.io/docs/orm/reference/orm-client>
+- Prisma 8 transactions and runtime: <https://www.prisma.io/docs/orm/reference/transactions-and-runtime>
+- Prisma 8 migration graph: <https://www.prisma.io/docs/orm/migrations/the-migration-graph>
 - Prisma platform vision: <https://www.prisma.io/blog/building-the-stack-for-the-next-million-products>
 - Prisma 8 overview: <https://www.prisma.io/docs/orm>
 - Prisma Compute deployment and isolated stages: <https://www.prisma.io/docs/prisma-compute/deploy>
-- PostgreSQL 18.4 release notes: <https://www.postgresql.org/docs/release/18.4/>
+- PostgreSQL 18.6 release notes: <https://www.postgresql.org/docs/release/18.4/>
 - Mongoose 9.9.1 documentation: <https://mongoosejs.com/docs/>
 - Mongoose 9 migration guidance: <https://mongoosejs.com/docs/migrating_to_9.html>
 - MongoDB 8.3 release notes: <https://www.mongodb.com/docs/manual/release-notes/8.3/>
@@ -449,7 +450,7 @@ The project can credibly call itself reference-grade when it can demonstrate all
 - Traefik Gateway API provider compatibility: <https://doc.traefik.io/traefik/reference/install-configuration/providers/kubernetes/kubernetes-gateway/>
 - Traefik 3.7.12 release: <https://github.com/traefik/traefik/releases/tag/v3.7.12>
 - Traefik chart 41.4.0: <https://artifacthub.io/packages/helm/traefik/traefik>
-- kube-prometheus-stack 88.5.4: <https://artifacthub.io/packages/helm/prometheus-community/kube-prometheus-stack/>
+- kube-prometheus-stack 89.2.2: <https://artifacthub.io/packages/helm/prometheus-community/kube-prometheus-stack/>
 - Apache Kafka current downloads: <https://kafka.apache.org/community/downloads/>
 - KEDA Kafka scaler: <https://keda.sh/docs/2.20/scalers/apache-kafka/>
 - OpenTelemetry Collector on Kubernetes: <https://opentelemetry.io/docs/collector/install/kubernetes/>

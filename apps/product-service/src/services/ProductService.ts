@@ -4,7 +4,13 @@ import {
   type ProductUpdatedMessage,
   Topics,
 } from "@repo/kafka";
-import { Prisma, type Product, prisma } from "@repo/product-db";
+import {
+  db,
+  or,
+  type Product,
+  type ProductJsonInput,
+  type ProductOutboxEventCreateInput,
+} from "@repo/product-db";
 import type {
   ProductPayload,
   ProductRecord,
@@ -20,11 +26,7 @@ type ProductFilters = {
   limit?: number;
 };
 
-const isNotFoundError = (
-  error: unknown,
-): error is Prisma.PrismaClientKnownRequestError =>
-  error instanceof Prisma.PrismaClientKnownRequestError &&
-  error.code === "P2025";
+import { nowUtc, toUtcISOString } from "@/utils/timestamps";
 
 const toProductRecord = (product: Product): ProductRecord => {
   const images =
@@ -44,12 +46,12 @@ const toProductRecord = (product: Product): ProductRecord => {
     shortDescription: product.shortDescription,
     description: product.description,
     price: product.price,
-    sizes: product.sizes,
-    colors: product.colors,
+    sizes: [...product.sizes],
+    colors: [...product.colors],
     images,
     categorySlug: product.categorySlug,
-    createdAt: product.createdAt.toISOString(),
-    updatedAt: product.updatedAt.toISOString(),
+    createdAt: toUtcISOString(product.createdAt),
+    updatedAt: toUtcISOString(product.updatedAt),
   };
 };
 
@@ -60,12 +62,12 @@ const toProductCreatedMessage = (product: Product): ProductCreatedMessage => ({
   price: product.price,
   categorySlug: product.categorySlug,
   stock: 0,
-  createdAt: product.createdAt.toISOString(),
+  createdAt: toUtcISOString(product.createdAt),
 });
 
 const toProductUpdatedMessage = (product: Product): ProductUpdatedMessage => ({
   ...toProductCreatedMessage(product),
-  updatedAt: product.updatedAt.toISOString(),
+  updatedAt: toUtcISOString(product.updatedAt),
 });
 
 const enqueueProductEvent = <
@@ -77,22 +79,27 @@ const enqueueProductEvent = <
     | ProductDeletedMessage
     | ProductUpdatedMessage,
   options: { key?: string } = {},
-) => ({
+): ProductOutboxEventCreateInput => ({
+  id: crypto.randomUUID(),
   topic,
   eventKey: options.key ?? crypto.randomUUID(),
-  payload: message as unknown as Prisma.InputJsonValue,
+  payload: message as unknown as ProductJsonInput,
+  updatedAt: nowUtc(),
 });
 
 export const ProductService = {
   async createProduct(data: ProductPayload): Promise<ProductRecord> {
-    const product = await prisma.$transaction(async (tx) => {
-      const created = await tx.product.create({ data });
+    const product = await db.transaction(async (tx) => {
+      const created = await tx.orm.public.Product.create({
+        ...data,
+        updatedAt: nowUtc(),
+      });
       const message = toProductCreatedMessage(created);
-      await tx.productOutboxEvent.create({
-        data: enqueueProductEvent(Topics.PRODUCT_CREATED, message, {
+      await tx.orm.public.ProductOutboxEvent.create(
+        enqueueProductEvent(Topics.PRODUCT_CREATED, message, {
           key: message.id,
         }),
-      });
+      );
       return created;
     });
 
@@ -100,7 +107,7 @@ export const ProductService = {
   },
 
   async getProduct(id: number): Promise<ProductRecord | null> {
-    const product = await prisma.product.findUnique({ where: { id } });
+    const product = await db.orm.public.Product.first({ id });
     return product ? toProductRecord(product) : null;
   },
 
@@ -108,89 +115,84 @@ export const ProductService = {
     filters: ProductFilters = {},
   ): Promise<{ items: Array<ProductRecord>; total: number }> {
     const { sort = "newest", category, search, page = 1, limit = 10 } = filters;
-    const where: Prisma.ProductWhereInput = {};
     const skip = (page - 1) * limit;
-
-    if (category) {
-      where.categorySlug = category;
-    }
-
-    if (search) {
-      where.OR = [
-        { name: { contains: search, mode: "insensitive" } },
-        { description: { contains: search, mode: "insensitive" } },
-        { shortDescription: { contains: search, mode: "insensitive" } },
-      ];
-    }
-
-    const orderBy: Prisma.ProductOrderByWithRelationInput =
+    const categoryQuery = category
+      ? db.orm.public.Product.where({ categorySlug: category })
+      : db.orm.public.Product;
+    const filteredQuery = search
+      ? categoryQuery.where((product) => {
+          const pattern = `%${search}%`;
+          return or(
+            product.name.ilike(pattern),
+            product.description.ilike(pattern),
+            product.shortDescription.ilike(pattern),
+          );
+        })
+      : categoryQuery;
+    const orderedQuery =
       sort === "asc"
-        ? { price: Prisma.SortOrder.asc }
+        ? filteredQuery.orderBy((product) => product.price.asc())
         : sort === "desc"
-          ? { price: Prisma.SortOrder.desc }
+          ? filteredQuery.orderBy((product) => product.price.desc())
           : sort === "oldest"
-            ? { createdAt: Prisma.SortOrder.asc }
-            : { createdAt: Prisma.SortOrder.desc };
+            ? filteredQuery.orderBy((product) => product.createdAt.asc())
+            : filteredQuery.orderBy((product) => product.createdAt.desc());
 
-    const [items, total] = await Promise.all([
-      prisma.product.findMany({ where, orderBy, skip, take: limit }),
-      prisma.product.count({ where }),
+    const [items, totals] = await Promise.all([
+      orderedQuery.offset(skip).limit(limit).all(),
+      filteredQuery.aggregate((aggregate) => ({
+        total: aggregate.count(),
+      })),
     ]);
 
-    return { items: items.map(toProductRecord), total };
+    return { items: items.map(toProductRecord), total: totals.total };
   },
 
   async updateProduct(
     id: number,
     updates: ProductUpdatePayload,
   ): Promise<ProductRecord | null> {
-    try {
-      const product = await prisma.$transaction(async (tx) => {
-        const updated = await tx.product.update({
-          where: { id },
-          data: updates,
-        });
-        const message = toProductUpdatedMessage(updated);
-        await tx.productOutboxEvent.create({
-          data: enqueueProductEvent(Topics.PRODUCT_UPDATED, message, {
-            key: message.id,
-          }),
-        });
-        return updated;
+    const product = await db.transaction(async (tx) => {
+      const updated = await tx.orm.public.Product.where({ id }).update({
+        ...updates,
+        updatedAt: nowUtc(),
       });
 
-      return toProductRecord(product);
-    } catch (error) {
-      if (isNotFoundError(error)) {
+      if (!updated) {
         return null;
       }
 
-      throw error;
-    }
+      const message = toProductUpdatedMessage(updated);
+      await tx.orm.public.ProductOutboxEvent.create(
+        enqueueProductEvent(Topics.PRODUCT_UPDATED, message, {
+          key: message.id,
+        }),
+      );
+      return updated;
+    });
+
+    return product ? toProductRecord(product) : null;
   },
 
   async deleteProduct(id: number): Promise<boolean> {
-    try {
-      await prisma.$transaction(async (tx) => {
-        await tx.product.delete({ where: { id } });
-        const message: ProductDeletedMessage = {
-          id: id.toString(),
-          deletedAt: new Date().toISOString(),
-        };
-        await tx.productOutboxEvent.create({
-          data: enqueueProductEvent(Topics.PRODUCT_DELETED, message, {
-            key: message.id,
-          }),
-        });
-      });
-    } catch (error) {
-      if (isNotFoundError(error)) {
+    return db.transaction(async (tx) => {
+      const deleted = await tx.orm.public.Product.where({ id }).delete();
+
+      if (!deleted) {
         return false;
       }
 
-      throw error;
-    }
+      const message: ProductDeletedMessage = {
+        id: id.toString(),
+        deletedAt: new Date().toISOString(),
+      };
+      await tx.orm.public.ProductOutboxEvent.create(
+        enqueueProductEvent(Topics.PRODUCT_DELETED, message, {
+          key: message.id,
+        }),
+      );
 
-    return true;
+      return true;
+    });
   },
 };

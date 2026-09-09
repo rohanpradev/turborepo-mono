@@ -1,89 +1,39 @@
 # @repo/order-db
 
-Shared Mongoose models and MongoDB connection for the order database.
+The order service owns this Mongoose package. Web applications and other services access orders through the order API, never through this database.
 
-## Overview
+## Persisted contract
 
-This package provides centralized Mongoose models and database connection for the MongoDB order database, used by the order-service.
+An order contains `orderId` (the Stripe-backed idempotency key), `userId`, `email`, `amount`, `status` (`success` or `failed`), `products`, and automatic creation/update timestamps. Each product contains `name`, `price`, and `quantity`. Amounts and prices use integer currency minor units; quantities must be positive integers. Orders cannot have an empty product list.
 
-## Technology
+## Index deployment
 
-- **ODM**: Mongoose
-- **Database**: MongoDB
+Production disables automatic index creation. Before starting the order service, set `MONGO_URL` and run:
 
-## Database Schema
-
-### Order Model
-
-```typescript
-{
-  userId: string;              // Clerk user ID
-  items: [{
-    productId: string;
-    name: string;
-    price: number;
-    quantity: number;
-    size?: string;
-    color?: string;
-  }];
-  totalAmount: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  shippingAddress: {
-    street: string;
-    city: string;
-    state: string;
-    zipCode: string;
-    country: string;
-  };
-  createdAt: Date;
-  updatedAt: Date;
-}
+```sh
+bun run --cwd packages/order-db db:deploy
 ```
 
-## Usage
+This adds declared indexes with `createIndexes()` and verifies the unique `orderId` index. It does not drop indexes or delete records. Existing duplicate IDs intentionally fail index creation; resolve those duplicates before retrying deployment.
 
-```typescript
-import { connectOrderDB, Order } from "@repo/order-db";
+Compose runs `order-db-indexes` before `order-service`. Helm runs `jobs.index-order-db` as a pre-install/pre-upgrade hook using the order image and external runtime secret. If the order service is disabled, disable that job too. Development waits for `Order.init()` before verifying indexes. Consumers start only after verification succeeds.
 
-// Connect to database
-await connectOrderDB();
+A partial unique index covers string `orderId` values, allowing legacy records without an ID to coexist. User-order and recent-order indexes support descending creation-time queries. Order writes use validated `$setOnInsert` upserts; replaying a payment leaves the existing order intact.
 
-// Create order
-const order = await Order.create({
-  userId: "user_123",
-  items: [
-    {
-      productId: "prod_456",
-      name: "Product Name",
-      price: 29.99,
-      quantity: 2,
-    },
-  ],
-  totalAmount: 59.98,
-  status: "pending",
-  shippingAddress: {
-    street: "123 Main St",
-    city: "New York",
-    state: "NY",
-    zipCode: "10001",
-    country: "US",
-  },
-});
+## Connection configuration
 
-// Query orders
-const orders = await Order.find({ userId: "user_123" });
-```
+| Variable | Default |
+| --- | --- |
+| `MONGO_URL` | Required |
+| `MONGO_MAX_POOL_SIZE` | 20 |
+| `MONGO_MAX_IDLE_TIME_MS` | 30000 |
+| `MONGO_SERVER_SELECTION_TIMEOUT_MS` | 5000 |
+| `MONGO_WAIT_QUEUE_TIMEOUT_MS` | 5000 |
 
-## Environment Variables
+Numeric values must be positive safe integers. Command buffering is disabled so disconnected requests fail promptly. Size the pool across all replicas against the database's connection budget. Shutdown drains the Kafka consumer before disconnecting Mongoose.
 
-```env
-MONGODB_URI="mongodb://localhost:27017/orders"
-```
+## Verification
 
-## Connection
+`bun run test` checks model validation. `bun run test:integration` deploys indexes to explicitly configured disposable databases and verifies concurrent duplicate delivery and index enforcement. See [quality verification](../../docs/QUALITY_VERIFICATION.md) for setup.
 
-The package exports a `connectOrderDB()` function that establishes a MongoDB connection with proper error handling and connection pooling.
-
-## Models
-
-- **Order** - Main order model with full schema validation
+References: [Mongoose connections](https://mongoosejs.com/docs/connections.html), [schema indexes](https://mongoosejs.com/docs/guide.html#indexes), [validation](https://mongoosejs.com/docs/validation.html).

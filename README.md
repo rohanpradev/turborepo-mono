@@ -85,8 +85,8 @@ For the current expert gap assessment and prioritized roadmap, see [docs/EXPERT_
 | Events | Kafka with typed topics and topic management |
 | Data | PostgreSQL + Prisma, MongoDB + Mongoose |
 | Quality | Biome, Syncpack, Knip, Bun test/coverage, Bun audit, stable TypeScript 7 with TypeScript 6 tooling compatibility |
-| Runtime | Bun 1.4.0, digest-pinned Compose images, Traefik 3.7.12, Docker Hardened Images |
-| Platform | Helm 4.2.4, Kubernetes 1.35-1.36 supported (1.37 experimental), Gateway API 1.6.1 |
+| Runtime | Bun 1.4.2, digest-pinned Compose images, Traefik 3.7.12, Docker Hardened Images |
+| Platform | Helm 4.2.4, Kubernetes 1.35-1.36 supported (1.37 experimental), Gateway API 1.6.2 |
 | CI/CD | GitHub Actions, Helm lint plus kubeconform schema matrix, Docker Buildx, GHCR images, SBOM, provenance |
 
 ## Event Flow
@@ -103,7 +103,7 @@ For the current expert gap assessment and prioritized roadmap, see [docs/EXPERT_
 
 ## Prerequisites
 
-- `Bun >= 1.4.0`
+- `Bun >= 1.4.2`
 - `Node >= 20.19.0`
 - Docker with Compose
 - `mkcert` for locally trusted `*.localhost` TLS certificates
@@ -317,8 +317,8 @@ The Docker path uses the digest-pinned official Bun 1.4 image for application bu
 | --- | --- | --- |
 | `traefik` | `traefik:v3.7.12` | TLS router, API gateway, dashboard |
 | `docker-socket-proxy` | `ghcr.io/tecnativa/docker-socket-proxy:v0.4.2` | Restricted Docker API surface for Traefik discovery |
-| `postgres` | `dhi.io/postgres:18.4-debian13` | Product catalog database |
-| `mongodb` | `dhi.io/mongodb:8.3.7-debian13` | Order read-model database |
+| `postgres` | `dhi.io/postgres:18.6-debian13` | Product catalog database |
+| `mongodb` | `dhi.io/mongodb:8.3.8-debian13` | Order read-model database |
 | `kafka-broker-1..3` | `dhi.io/kafka:4.3.1-debian13-native` | Three-broker Kafka cluster |
 | `kafka-ui` | `ghcr.io/kafbat/kafka-ui:v1.5.0` | Kafka topic, consumer, and message visibility |
 | `product-service` | `docker/Dockerfile.product-service` | Catalog API, Prisma writes, product events |
@@ -326,7 +326,7 @@ The Docker path uses the digest-pinned official Bun 1.4 image for application bu
 | `order-service` | `docker/Dockerfile.order-service` | Order API and MongoDB read model |
 | `client` | `docker/Dockerfile.client` | Customer storefront |
 | `admin` | `docker/Dockerfile.admin` | Admin operations dashboard |
-| `stripe-cli` | `stripe/stripe-cli:v1.50.6` | Local webhook forwarding |
+| `stripe-cli` | `stripe/stripe-cli:v1.50.10` | Local webhook forwarding |
 
 The five application Dockerfiles use Turbo pruning, Bun frozen installs, and hardened Bun runtime images. Frontend images build standalone Next.js output, while service images copy only runtime code, generated clients, shared packages, and production dependencies.
 
@@ -364,7 +364,9 @@ make k8s-test
 
 `make k8s` is the one-command local Kubernetes setup: it installs or upgrades the pinned platform charts, starts Docker-backed dependencies, builds and tags the app images, validates the Helm chart, syncs TLS and runtime secrets, performs an in-place atomic Helm upgrade, waits for rollout, and smoke-tests verified TLS routes. Existing namespaces and unrelated resources are retained. Use `make k8s-reset-local` only when an explicit ecommerce namespace reset is required. `make ks8` is kept as a friendly alias for the common typo, and `make kubernetes` does the same thing as `make k8s`.
 
-The chart lives in `charts/ecommerce`. It can deploy the five application workloads, ClusterIP services, Traefik-backed Ingress routes for the local cluster, optional Gateway API HTTPRoutes for other clusters, readiness/liveness probes, read-only security contexts, PDBs, optional HPAs, optional network policies, and Helm hook jobs for product database migration and optional seeding. Runtime infrastructure such as Postgres, MongoDB, Kafka, Clerk, and Stripe is intentionally externalized through Kubernetes Secrets and values.
+For local Gateway API routing, run `make k8s-gateway` instead of `make k8s`. It installs the pinned Gateway CRDs, enables Traefik's HTTPS Gateway, and deploys HTTPRoutes with app Ingress resources disabled. It exposes the same local browser URLs and monitoring forwards. On OrbStack, start Kubernetes with `orbctl start k8s` first and use the `orbstack` kubectl and Docker contexts. Use `make k8s-up-gateway` to deploy without keeping forwards open, then `make k8s-forward` to reconnect later.
+
+The chart lives in `charts/ecommerce`. It can deploy the five application workloads, ClusterIP services, Traefik-backed Ingress or Gateway API HTTPRoutes, readiness/liveness probes, read-only security contexts, PDBs, optional HPAs, optional network policies, and Helm hook jobs for product database migration and optional seeding. Runtime infrastructure such as Postgres, MongoDB, Kafka, Clerk, and Stripe is intentionally externalized through Kubernetes Secrets and values.
 
 `make k8s-tls-secret` syncs the local mkcert certificate into the target namespace, and `make k8s-runtime-secret` syncs runtime secrets from `.env`. For cluster-native dependencies, set `K8S_DATABASE_URL` and `K8S_MONGO_URL` instead of relying on localhost URLs.
 
@@ -407,3 +409,9 @@ Core API groups:
 - Kafka topics and message payloads are typed in `packages/kafka`.
 - Product mutations go through `product-service` so validation, database writes, and Kafka publication stay consistent.
 - Docker workflows prefer pinned version tags plus optional digest locks for reproducibility.
+
+## Quality and reliability verification
+
+See [the verified improvements and operational guide](docs/QUALITY_VERIFICATION.md) for database index deployment, graceful shutdown, catalog accessibility, and the real-database CI test suite.
+
+See [the latest-package research and implementation review](docs/LATEST_PACKAGE_REVIEW.md) for the dated release audit, shadcn/Next.js changes, outbox concurrency fix, and CI verification scope.

@@ -1,6 +1,7 @@
 import { ArrowRight, PackageCheck, RotateCcw, ShieldCheck } from "lucide-react";
 import Image from "next/image";
 import { Suspense } from "react";
+import CollectionCategories from "@/components/CollectionCategories";
 import ProductList from "@/components/ProductList";
 import ProductListSkeleton from "@/components/ProductListSkeleton";
 import { Badge } from "@/components/ui/badge";
@@ -59,7 +60,7 @@ const Homepage = ({ searchParams }: PageProps<"/">) => {
         className="overflow-hidden rounded-2xl border border-border bg-card"
       >
         <div className="grid lg:grid-cols-[0.88fr_1.12fr]">
-          <div className="flex min-h-[32rem] flex-col justify-between border-b border-border px-6 py-7 sm:px-9 sm:py-9 lg:min-h-[39rem] lg:border-b-0 lg:border-r lg:px-12 lg:py-11">
+          <div className="flex min-h-[27rem] flex-col justify-between border-b border-border px-6 py-7 sm:px-9 sm:py-9 lg:min-h-[34rem] lg:border-b-0 lg:border-r lg:px-12 lg:py-11">
             <div className="flex items-center justify-between gap-4">
               <Badge
                 variant="outline"
@@ -72,14 +73,14 @@ const Homepage = ({ searchParams }: PageProps<"/">) => {
               </span>
             </div>
 
-            <div className="max-w-xl space-y-8 py-14 lg:py-10">
+            <div className="max-w-xl space-y-8 py-10 lg:py-8">
               <div className="space-y-5">
                 <p className="text-[0.6875rem] font-bold uppercase tracking-[0.2em] text-primary">
                   The everyday, edited
                 </p>
                 <h1
                   id="hero-heading"
-                  className="max-w-[9ch] font-serif text-[clamp(3.5rem,7vw,6.75rem)] font-semibold leading-[0.9] tracking-[-0.055em] text-foreground"
+                  className="max-w-[9ch] font-serif text-[clamp(3.25rem,6vw,6rem)] font-semibold leading-[0.9] tracking-[-0.055em] text-foreground"
                 >
                   Good things for real life.
                 </h1>
@@ -111,8 +112,8 @@ const Homepage = ({ searchParams }: PageProps<"/">) => {
             </div>
           </div>
 
-          <div className="relative min-h-[35rem] overflow-hidden bg-[#e9e5de] p-3 sm:p-4 lg:min-h-[39rem]">
-            <div className="grid h-full min-h-[32rem] grid-cols-[1.18fr_0.82fr] grid-rows-[1fr_auto] gap-3 lg:min-h-[36.5rem]">
+          <div className="relative min-h-[23rem] overflow-hidden bg-[#e9e5de] p-3 sm:p-4 lg:min-h-[34rem]">
+            <div className="grid h-full min-h-[23rem] grid-cols-[1.18fr_0.82fr] grid-rows-[1fr_auto] gap-3 lg:min-h-[31.5rem]">
               <figure className="group relative row-span-2 overflow-hidden rounded-xl bg-[#f4f1eb]">
                 <Image
                   src="/products/5o.png"
@@ -153,7 +154,7 @@ const Homepage = ({ searchParams }: PageProps<"/">) => {
                   Less noise. Better choices.
                 </p>
                 <div className="flex items-center gap-2 text-[0.625rem] font-semibold uppercase tracking-[0.12em] text-primary-foreground/70">
-                  Eight current pieces
+                  Made for your everyday
                   <span
                     className="h-px flex-1 bg-primary-foreground/25"
                     aria-hidden="true"
@@ -188,6 +189,8 @@ const Homepage = ({ searchParams }: PageProps<"/">) => {
           </div>
         ))}
       </section>
+
+      <CollectionCategories />
 
       <Suspense fallback={<ProductListSkeleton itemCount={8} />}>
         <HomepageCatalog searchParams={searchParams} />

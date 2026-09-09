@@ -24,7 +24,7 @@ const ProductListSkeleton = ({
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:gap-x-5 sm:gap-y-8 lg:grid-cols-3 2xl:grid-cols-4">
         {Array.from({ length: itemCount }).map((_, index) => (
           <div
             key={index}
@@ -34,14 +34,6 @@ const ProductListSkeleton = ({
             <div className="space-y-4 p-4">
               <div className="h-5 rounded-md bg-muted motion-safe:animate-pulse" />
               <div className="h-4 w-3/4 rounded-md bg-muted motion-safe:animate-pulse" />
-              <div className="grid grid-cols-4 gap-2 border-t border-border pt-4">
-                {Array.from({ length: 4 }).map((_, chipIndex) => (
-                  <div
-                    key={chipIndex}
-                    className="h-8 rounded-full bg-muted motion-safe:animate-pulse"
-                  />
-                ))}
-              </div>
               <div className="h-10 rounded-lg bg-muted motion-safe:animate-pulse" />
             </div>
           </div>

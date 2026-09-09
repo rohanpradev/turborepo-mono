@@ -5,10 +5,13 @@ type CreateOrderInput = Omit<OrderRecord, "_id" | "createdAt" | "updatedAt">;
 type IdempotentOrderInput = CreateOrderInput & { orderId: string };
 
 export const createOrder = async (order: IdempotentOrderInput) => {
+  // Validate the complete insert. Update validators do not validate untouched
+  // fields, and upsert must never persist malformed event payloads.
+  await new Order(order).validate();
   const result = await Order.updateOne(
     { orderId: order.orderId },
     { $setOnInsert: order },
-    { upsert: true },
+    { upsert: true, runValidators: true },
   );
 
   if (result.upsertedCount > 0) {

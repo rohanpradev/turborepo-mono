@@ -45,12 +45,12 @@ K8S_VERSION_TIER ?= supported
 K8S_POD_SECURITY_LEVEL ?= restricted
 K8S_POD_SECURITY_VERSION ?= v1.35
 KUBECONFORM_IMAGE ?= ghcr.io/yannh/kubeconform:v0.8.0@sha256:faffaf43f95aa6425306e1ab8d6fcad72acb9049158f38e574c085ea1ec0f64e
-GATEWAY_API_VERSION ?= 1.6.1
-GATEWAY_API_MANIFEST_SHA256 ?= 24d931f22abd8e40c973264319ead7cfa09d0fb7716b7ab1ee2ff174cb063a73
+GATEWAY_API_VERSION ?= 1.6.2
+GATEWAY_API_MANIFEST_SHA256 ?= faede450fa178126aba41337737b97d351ebe87d93c910237ce1e072d1ca40d9
 TRAEFIK_CHART_VERSION ?= 41.4.0
 TRAEFIK_IMAGE_VERSION ?= v3.7.12
 TRAEFIK_IMAGE_DIGEST ?= sha256:9c2a54d87f76f5c2f5f2682c68394af92fb12c0a2686798d6462a3f84bd78eaf
-OBS_CHART_VERSION ?= 88.5.4
+OBS_CHART_VERSION ?= 89.2.2
 HELM_CHART ?= charts/ecommerce
 HELM_RELEASE ?= ecommerce
 HELM_NAMESPACE ?= ecommerce
@@ -64,6 +64,7 @@ HELM_SET_ARGS ?= --set secrets.name=$(HELM_RUNTIME_SECRET) --set ingress.tls.sec
 OBS_NAMESPACE ?= monitoring
 OBS_RELEASE ?= kube-prometheus-stack
 TRAEFIK_VALUES ?= deploy/environments/local/traefik.values.yaml
+TRAEFIK_SET_ARGS ?=
 OBS_VALUES ?= deploy/environments/local/monitoring.values.yaml
 K8S_OBSERVABILITY_SET_ARGS ?= --set observability.serviceMonitor.enabled=true --set observability.serviceMonitor.labels.release=$(OBS_RELEASE) --set observability.traefik.serviceMonitor.enabled=true --set observability.traefik.serviceMonitor.labels.release=$(OBS_RELEASE) --set observability.prometheusRule.enabled=true --set observability.prometheusRule.labels.release=$(OBS_RELEASE) --set observability.grafanaDashboard.enabled=true
 GRAFANA_PORT ?= 3000
@@ -92,8 +93,8 @@ export K8S_IMAGE_TAG
 K8S_IMAGE_SET_ARGS ?= --set-string services.product.image.tag=$(K8S_IMAGE_TAG) --set-string services.order.image.tag=$(K8S_IMAGE_TAG) --set-string services.payment.image.tag=$(K8S_IMAGE_TAG) --set-string services.client.image.tag=$(K8S_IMAGE_TAG) --set-string services.admin.image.tag=$(K8S_IMAGE_TAG)
 K8S_LOCAL_IMAGES ?= turborepo-monorepo-product-service:$(K8S_IMAGE_TAG) turborepo-monorepo-order-service:$(K8S_IMAGE_TAG) turborepo-monorepo-payment-service:$(K8S_IMAGE_TAG) turborepo-monorepo-client:$(K8S_IMAGE_TAG) turborepo-monorepo-admin:$(K8S_IMAGE_TAG)
 HELM_UPGRADE_ARGS ?= --rollback-on-failure --wait --timeout $(K8S_ROLLOUT_TIMEOUT)
-DHI_CHECK_IMAGES ?= dhi.io/postgres:18.4-debian13@sha256:a807e832c1fc9ded731956abcb53dc98ed003fd82e27275eaef8dcf52fb90236 dhi.io/kafka:4.3.1-debian13-native@sha256:89691f2d47ded5c88186e0e61a68b2fe77e2a19dea29ad2669e5626aff7965ff
-DHI_AMD64_CHECK_IMAGES ?= dhi.io/mongodb:8.3.7-debian13@sha256:c868540fe59312058c7f4d340766f286416cb5932d93d20e02fb5e033a261220
+DHI_CHECK_IMAGES ?= dhi.io/postgres:18.6-debian13@sha256:5f9b5567fdd8bf5034fb46811b42a579760a27eba38c5a0868f9041226fba280 dhi.io/kafka:4.3.1-debian13-native@sha256:89691f2d47ded5c88186e0e61a68b2fe77e2a19dea29ad2669e5626aff7965ff
+DHI_AMD64_CHECK_IMAGES ?= dhi.io/mongodb:8.3.8-debian13@sha256:ffcc5ba6bf973d2bc1ad9d9d3369c71f0ab1a080df7d907d78b75bf25bd33bea
 DOCKER_SMOKE_TIMEOUT ?= 10
 DOCKER_IMAGE_LOCK_FILE ?= docker/compose.images.lock.yml
 LOCAL_TLS_CERT_DIR ?= docker/certs
