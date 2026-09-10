@@ -415,3 +415,7 @@ Core API groups:
 See [the verified improvements and operational guide](docs/QUALITY_VERIFICATION.md) for database index deployment, graceful shutdown, catalog accessibility, and the real-database CI test suite.
 
 See [the latest-package research and implementation review](docs/LATEST_PACKAGE_REVIEW.md) for the dated release audit, shadcn/Next.js changes, outbox concurrency fix, and CI verification scope.
+
+## CI image publishing
+
+Pull requests and development-branch pushes build and validate all five application images without publishing them. Pushes to the default branch, version tags beginning with `v`, and manual CI runs with `publish_images` selected publish multi-platform images to GHCR. Publishing the storefront/admin images requires the deployment-specific `NEXT_PUBLIC_*` repository variables listed in the workflow. Backend images do not require browser configuration. Missing release configuration remains an error; test defaults are never published as configured web images.
