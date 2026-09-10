@@ -19,7 +19,7 @@ env:
   BUN_RUNTIME_IMAGE: oven/bun:1.4.2@sha256:9114c058aeae42162ee16dd5084b95fe9473970bb6bcb5b232ab1630f0546895
   BUILDX_VERSION: v0.37.0
   BUILDKIT_IMAGE: moby/buildkit:v0.33.0@sha256:6c2fa84a6b61ccd72899dde4239f8d5717f05f9a8ca6f3cad185fb1a95a94de3
-  HELM_VERSION: 4.2.4
+  HELM_VERSION: 4.3.0
   KUBECONFORM_IMAGE: ghcr.io/yannh/kubeconform:v0.8.0@sha256:faffaf43f95aa6425306e1ab8d6fcad72acb9049158f38e574c085ea1ec0f64e
   K8S_SUPPORTED_VERSIONS: 1.35.8 1.36.4
   K8S_EXPERIMENTAL_VERSIONS: 1.37.0
@@ -199,7 +199,7 @@ jobs:
           --health-cmd "pg_isready -U postgres -d ecommerce_test"
           --health-interval 5s --health-timeout 5s --health-retries 12
       mongodb:
-        image: mongo:8@sha256:5211c51171f57ae60842b11664bb244628971b3d35325762a97888337b9bb0db
+        image: mongo:8@sha256:81a1c8842a09589fc8d5f285266f3340bf4abdf66700ba22988f14cc9b2b3118
         ports:
           - 27017:27017
         options: >-

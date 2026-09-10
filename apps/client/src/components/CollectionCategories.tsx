@@ -1,79 +1,90 @@
-import { ArrowUpRight } from "lucide-react";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
 const collections = [
   {
-    name: "Outerwear",
-    description: "Layers to live in",
+    name: "The art of layering",
+    label: "Outerwear",
+    description: "An extra layer. A little more you.",
     slug: "outerwear",
     image: "/products/5o.png",
-    color: "bg-[#eee4d8]",
+    color: "bg-[#eae3d9]",
+    number: "01",
   },
   {
-    name: "Denim",
-    description: "Your everyday foundation",
+    name: "Your daily denim",
+    label: "Denim",
+    description: "Your everyday foundation.",
     slug: "denim",
     image: "/products/8b.png",
-    color: "bg-[#e5e9ed]",
+    color: "bg-[#e4e7e7]",
+    number: "02",
   },
   {
-    name: "Shoes",
-    description: "Go a little further",
+    name: "A step in your direction",
+    label: "Footwear",
+    description: "For wherever the day takes you.",
     slug: "shoes",
     image: "/products/7g.png",
-    color: "bg-[#e8e9df]",
+    color: "bg-[#e6e7de]",
+    number: "03",
   },
 ] as const;
 
 export default function CollectionCategories() {
   return (
-    <section aria-labelledby="categories-heading" className="space-y-5">
-      <div className="flex items-end justify-between gap-4">
+    <section aria-labelledby="categories-heading" className="space-y-7">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.16em] text-primary">
-            Find your everyday
+          <p className="text-[0.625rem] font-semibold uppercase tracking-[0.2em] text-primary">
+            The building blocks
           </p>
           <h2
             id="categories-heading"
-            className="mt-2 font-serif text-3xl font-semibold tracking-[-0.04em] sm:text-4xl"
+            className="mt-3 scroll-mt-48 font-serif text-4xl font-normal tracking-[-0.045em] sm:text-5xl"
           >
-            Good from the ground up.
+            Find your kind of everyday.
           </h2>
         </div>
-        <span className="hidden text-xs text-muted-foreground sm:block">
-          Explore by category
-        </span>
+        <Link
+          href="/products"
+          className="flex min-h-11 items-center gap-3 text-xs font-semibold underline-offset-4 hover:underline"
+        >
+          Explore the collection{" "}
+          <ArrowRight className="size-4" aria-hidden="true" />
+        </Link>
       </div>
-      <div className="grid gap-3 sm:grid-cols-3 sm:gap-5">
+      <div className="grid gap-8 sm:grid-cols-3 sm:gap-5">
         {collections.map((collection) => (
           <Link
             key={collection.slug}
             href={`/products?category=${collection.slug}`}
-            className={`group relative isolate flex min-h-40 items-end overflow-hidden rounded-xl p-5 sm:min-h-64 ${collection.color}`}
+            className="group block min-w-0"
           >
-            <div className="absolute inset-y-0 right-0 -z-10 w-1/2 sm:bottom-14 sm:w-3/4">
+            <div
+              className={`relative aspect-[5/4] overflow-hidden sm:aspect-[4/4.4] ${collection.color}`}
+            >
+              <span className="absolute left-5 top-5 z-10 font-mono text-[0.625rem] tracking-widest text-foreground/55">
+                {collection.number} / {collection.label.toUpperCase()}
+              </span>
               <Image
                 src={collection.image}
                 alt=""
                 fill
-                sizes="(min-width: 640px) 25vw, 45vw"
-                className="object-contain p-3 mix-blend-multiply transition-transform duration-500 group-hover:scale-105"
+                sizes="(min-width: 1536px) 456px, (min-width: 640px) 33vw, 100vw"
+                className="object-contain px-10 pb-6 pt-12 mix-blend-multiply transition-transform duration-700 group-hover:scale-105"
               />
-            </div>
-            <div className="flex w-full items-end justify-between gap-2">
-              <div>
-                <h3 className="text-lg font-semibold tracking-tight">
-                  {collection.name}
-                </h3>
-                <p className="mt-1 text-xs text-stone-600">
-                  {collection.description}
-                </p>
-              </div>
-              <span className="grid size-9 shrink-0 place-items-center rounded-full bg-white/80 transition-colors group-hover:bg-white">
+              <span className="absolute bottom-4 right-4 grid size-10 place-items-center rounded-full bg-background/90 transition-colors group-hover:bg-foreground group-hover:text-background">
                 <ArrowUpRight className="size-4" aria-hidden="true" />
               </span>
             </div>
+            <h3 className="mt-4 font-serif text-2xl tracking-[-0.025em]">
+              {collection.name}
+            </h3>
+            <p className="mt-1.5 text-xs leading-6 text-muted-foreground">
+              {collection.description}
+            </p>
           </Link>
         ))}
       </div>

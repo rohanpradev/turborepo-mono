@@ -1,10 +1,17 @@
-import { ArrowRight, PackageCheck, RotateCcw, ShieldCheck } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowRight,
+  PackageCheck,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 import Image from "next/image";
 import { Suspense } from "react";
+import detailsImage from "@/assets/considered-details.webp";
+import campaignImage from "@/assets/everyday-campaign.webp";
 import CollectionCategories from "@/components/CollectionCategories";
 import ProductList from "@/components/ProductList";
 import ProductListSkeleton from "@/components/ProductListSkeleton";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { createStoreMetadata } from "@/lib/metadata";
 import { getSingleSearchParam } from "@/lib/search-params";
@@ -12,182 +19,125 @@ import { getSingleSearchParam } from "@/lib/search-params";
 export const metadata = createStoreMetadata({
   canonical: "/",
   description:
-    "Shop a considered edit of everyday apparel, denim, and footwear with fast dispatch and secure checkout.",
-  title: "Objects for everyday life",
+    "Discover your everyday favorites. A considered collection of apparel, denim, and footwear, with secure checkout and live order updates.",
+  title: "Everyday, a little better",
 });
 
 const servicePromises = [
   {
-    description: "Protected payment with clear order status.",
+    icon: Sparkles,
+    title: "A considered collection",
+    description: "Less searching. More finding your favorites.",
+  },
+  {
     icon: ShieldCheck,
-    title: "Secure checkout",
+    title: "Shop with confidence",
+    description: "Secure payments from bag to checkout.",
   },
   {
-    description: "In-stock pieces leave quickly and reliably.",
     icon: PackageCheck,
-    title: "Fast dispatch",
-  },
-  {
-    description: "A straightforward path when it is not quite right.",
-    icon: RotateCcw,
-    title: "Easy returns",
+    title: "Stay in the loop",
+    description: "Follow your order, every step of the way.",
   },
 ] as const;
 
-const HomepageCatalog = async ({
+async function HomepageCatalog({
   searchParams,
-}: Pick<PageProps<"/">, "searchParams">) => {
-  const resolvedSearchParams = await searchParams;
-  const category = getSingleSearchParam(resolvedSearchParams.category);
-  const search = getSingleSearchParam(resolvedSearchParams.search);
-  const sort = getSingleSearchParam(resolvedSearchParams.sort);
-
+}: Pick<PageProps<"/">, "searchParams">) {
+  const params = await searchParams;
   return (
     <ProductList
-      category={category}
-      search={search}
-      sort={sort}
+      category={getSingleSearchParam(params.category)}
+      search={getSingleSearchParam(params.search)}
+      sort={getSingleSearchParam(params.sort)}
       params="homepage"
     />
   );
-};
+}
 
-const Homepage = ({ searchParams }: PageProps<"/">) => {
+export default function Homepage({ searchParams }: PageProps<"/">) {
   return (
-    <div className="space-y-14 pb-8 sm:space-y-18">
+    <div className="space-y-16 pb-4 sm:space-y-24">
       <section
         aria-labelledby="hero-heading"
-        className="overflow-hidden rounded-2xl border border-border bg-card"
+        className="overflow-hidden bg-[#ece8df]"
       >
-        <div className="grid lg:grid-cols-[0.88fr_1.12fr]">
-          <div className="flex min-h-[27rem] flex-col justify-between border-b border-border px-6 py-7 sm:px-9 sm:py-9 lg:min-h-[34rem] lg:border-b-0 lg:border-r lg:px-12 lg:py-11">
-            <div className="flex items-center justify-between gap-4">
-              <Badge
-                variant="outline"
-                className="bg-background px-3 py-1 text-[0.625rem] uppercase tracking-[0.16em] text-muted-foreground"
+        <div className="grid lg:grid-cols-[0.85fr_1.15fr]">
+          <div className="relative flex flex-col justify-between px-6 py-8 sm:px-10 sm:py-10 lg:px-12 lg:py-12 xl:px-16">
+            <p className="flex items-center gap-3 text-[0.625rem] font-semibold uppercase tracking-[0.2em] text-foreground/70">
+              <span
+                className="size-1.5 rounded-full bg-primary"
+                aria-hidden="true"
+              />
+              The everyday collection · No. 01
+            </p>
+            <div className="py-7 sm:py-14 lg:py-16">
+              <h1
+                id="hero-heading"
+                className="max-w-[9ch] font-serif text-[clamp(3.8rem,6.7vw,7rem)] font-normal leading-[0.94] tracking-[-0.065em]"
               >
-                New collection
-              </Badge>
-              <span className="font-mono text-[0.625rem] uppercase tracking-[0.16em] text-muted-foreground">
-                Edition 01 — 2026
-              </span>
-            </div>
-
-            <div className="max-w-xl space-y-8 py-10 lg:py-8">
-              <div className="space-y-5">
-                <p className="text-[0.6875rem] font-bold uppercase tracking-[0.2em] text-primary">
-                  The everyday, edited
-                </p>
-                <h1
-                  id="hero-heading"
-                  className="max-w-[9ch] font-serif text-[clamp(3.25rem,6vw,6rem)] font-semibold leading-[0.9] tracking-[-0.055em] text-foreground"
-                >
-                  Good things for real life.
-                </h1>
-                <p className="max-w-lg text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
-                  A concise collection of useful, well-made pieces selected for
-                  comfort, character, and repeat wear.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-3">
-                <Button href="/products" size="lg">
-                  Shop the collection
-                  <ArrowRight className="size-4" aria-hidden="true" />
-                </Button>
-                <Button
-                  href="/products?sort=newest"
-                  variant="outline"
-                  size="lg"
-                >
-                  New arrivals
-                </Button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3 border-t border-border pt-5 text-[0.6875rem] text-muted-foreground">
-              <span>01 / Apparel</span>
-              <span>02 / Denim</span>
-              <span>03 / Footwear</span>
-            </div>
-          </div>
-
-          <div className="relative min-h-[23rem] overflow-hidden bg-[#e9e5de] p-3 sm:p-4 lg:min-h-[34rem]">
-            <div className="grid h-full min-h-[23rem] grid-cols-[1.18fr_0.82fr] grid-rows-[1fr_auto] gap-3 lg:min-h-[31.5rem]">
-              <figure className="group relative row-span-2 overflow-hidden rounded-xl bg-[#f4f1eb]">
-                <Image
-                  src="/products/5o.png"
-                  alt="Vibrant orange everyday hoodie"
-                  fill
-                  preload
-                  quality={85}
-                  sizes="(min-width: 1024px) 32vw, 60vw"
-                  className="object-contain p-3 transition-transform duration-700 group-hover:scale-[1.02] sm:p-6"
-                />
-                <figcaption className="absolute inset-x-3 bottom-3 flex items-center justify-between gap-3 rounded-lg border border-white/70 bg-white/88 px-3 py-2.5 text-xs font-semibold text-stone-800 backdrop-blur sm:inset-x-4 sm:bottom-4 sm:px-4">
-                  <span>Essential hoodie / Ember</span>
-                  <span className="font-mono text-[0.625rem] text-stone-500">
-                    01
-                  </span>
-                </figcaption>
-              </figure>
-
-              <figure className="group relative min-h-0 overflow-hidden rounded-xl bg-[#f8f7f4]">
-                <Image
-                  src="/products/7g.png"
-                  alt="Lightweight grey everyday sneaker"
-                  fill
-                  quality={85}
-                  sizes="(min-width: 1024px) 18vw, 35vw"
-                  className="object-contain p-2 transition-transform duration-700 group-hover:scale-[1.03] sm:p-4"
-                />
-                <figcaption className="sr-only">
-                  Everyday footwear in a soft neutral palette
-                </figcaption>
-              </figure>
-
-              <div className="flex min-h-40 flex-col justify-between rounded-xl bg-primary p-4 text-primary-foreground sm:min-h-48 sm:p-5">
-                <span className="font-mono text-[0.625rem] uppercase tracking-[0.16em] text-primary-foreground/60">
-                  Our standard
-                </span>
-                <p className="font-serif text-xl leading-[1.05] tracking-[-0.025em] sm:text-2xl">
-                  Less noise. Better choices.
-                </p>
-                <div className="flex items-center gap-2 text-[0.625rem] font-semibold uppercase tracking-[0.12em] text-primary-foreground/70">
-                  Made for your everyday
-                  <span
-                    className="h-px flex-1 bg-primary-foreground/25"
-                    aria-hidden="true"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section
-        aria-label="Store service promises"
-        className="grid overflow-hidden rounded-xl border border-border bg-card sm:grid-cols-3"
-      >
-        {servicePromises.map((item) => (
-          <div
-            key={item.title}
-            className="flex gap-4 border-b border-border p-5 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0 lg:p-6"
-          >
-            <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-muted text-foreground">
-              <item.icon className="size-4.5" aria-hidden="true" />
-            </span>
-            <div>
-              <h2 className="text-sm font-bold text-foreground">
-                {item.title}
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                {item.description}
+                Everyday,
+                <br />a little{" "}
+                <em className="font-normal text-primary">better.</em>
+              </h1>
+              <p className="mt-7 max-w-[29ch] text-sm leading-7 text-foreground/70 sm:text-base">
+                Easy layers. Favorite fits. Good things to reach for, again and
+                again.
               </p>
+              <Button
+                href="/products"
+                size="lg"
+                className="mt-8 h-12 gap-8 rounded-none px-6"
+              >
+                Find your everyday{" "}
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </Button>
             </div>
+            <a
+              href="#categories-heading"
+              className="hidden min-h-11 w-fit items-center gap-3 sm:flex text-[0.625rem] font-semibold uppercase tracking-[0.17em] text-foreground/65 hover:text-foreground"
+            >
+              <ArrowDown className="size-4" aria-hidden="true" /> A few good
+              places to start
+            </a>
           </div>
-        ))}
+          <figure className="relative min-h-[25rem] sm:min-h-[32rem] lg:min-h-[42rem]">
+            <Image
+              src={campaignImage}
+              alt="Two people in relaxed cream knitwear and olive layers beside sunlit stone architecture"
+              fill
+              preload
+              placeholder="blur"
+              quality={85}
+              sizes="(min-width: 1536px) 810px, (min-width: 1024px) 55vw, 100vw"
+              className="object-cover object-[60%_center]"
+            />
+            <div
+              className="absolute inset-0 bg-linear-to-t from-black/45 via-transparent to-transparent"
+              aria-hidden="true"
+            />
+            <figcaption className="absolute inset-x-6 bottom-6 flex items-end justify-between gap-5 text-white sm:inset-x-8 sm:bottom-8">
+              <div>
+                <p className="text-[0.625rem] font-medium uppercase tracking-[0.2em] text-white/85">
+                  A slower kind of style
+                </p>
+                <p className="mt-2 font-serif text-3xl tracking-tight">
+                  Made for the in-between.
+                </p>
+              </div>
+              <span className="hidden font-mono text-xs text-white/80 sm:block">
+                01 / 2026
+              </span>
+            </figcaption>
+          </figure>
+        </div>
+        <div className="flex flex-wrap justify-between gap-x-8 gap-y-3 border-t border-foreground/10 px-6 py-4 text-[0.625rem] font-semibold uppercase tracking-[0.15em] text-foreground/65 sm:px-10 lg:px-12">
+          <span>Comfort comes naturally.</span>
+          <span>Apparel · Denim · Footwear</span>
+          <span className="hidden lg:block">
+            Common Goods, uncommon everyday.
+          </span>
+        </div>
       </section>
 
       <CollectionCategories />
@@ -195,8 +145,73 @@ const Homepage = ({ searchParams }: PageProps<"/">) => {
       <Suspense fallback={<ProductListSkeleton itemCount={8} />}>
         <HomepageCatalog searchParams={searchParams} />
       </Suspense>
+
+      <section
+        aria-labelledby="philosophy-heading"
+        className="grid overflow-hidden bg-[#e8e9df] md:grid-cols-2"
+      >
+        <div className="relative min-h-80 md:min-h-[34rem]">
+          <Image
+            src={detailsImage}
+            alt="Cream knitwear, indigo denim and canvas sneakers in warm afternoon light"
+            fill
+            placeholder="blur"
+            quality={85}
+            sizes="(min-width: 1536px) 704px, (min-width: 768px) 50vw, 100vw"
+            className="object-cover"
+          />
+        </div>
+        <div className="flex flex-col justify-center px-7 py-12 sm:px-12 lg:px-18">
+          <span className="text-[0.625rem] font-semibold uppercase tracking-[0.2em] text-foreground/65">
+            The Common Goods point of view
+          </span>
+          <h2
+            id="philosophy-heading"
+            className="mt-6 max-w-[12ch] font-serif text-5xl font-normal leading-[1.02] tracking-[-0.05em] lg:text-6xl"
+          >
+            Fewer things.
+            <br />
+            <em className="font-normal">More meaning.</em>
+          </h2>
+          <p className="mt-6 max-w-sm text-sm leading-7 text-foreground/70">
+            The pieces you love most rarely shout. They fit your day, feel like
+            you, and make getting dressed a little easier. That’s the idea
+            behind our edit.
+          </p>
+          <Button
+            href="/products?sort=newest"
+            variant="link"
+            className="mt-7 h-12 w-fit justify-start rounded-none border-b border-foreground/40 px-0"
+          >
+            Discover the latest edit{" "}
+            <ArrowRight className="ml-4 size-4" aria-hidden="true" />
+          </Button>
+        </div>
+      </section>
+
+      <section
+        aria-label="Shopping with Common Goods"
+        className="grid gap-8 border-y border-border py-8 sm:grid-cols-3 sm:gap-6 sm:py-10"
+      >
+        {servicePromises.map((item) => (
+          <div
+            key={item.title}
+            className="flex gap-4 sm:flex-col lg:flex-row lg:gap-5"
+          >
+            <item.icon
+              className="mt-1 size-5 shrink-0 text-primary"
+              strokeWidth={1.5}
+              aria-hidden="true"
+            />
+            <div>
+              <h2 className="text-sm font-semibold">{item.title}</h2>
+              <p className="mt-2 text-xs leading-6 text-muted-foreground">
+                {item.description}
+              </p>
+            </div>
+          </div>
+        ))}
+      </section>
     </div>
   );
-};
-
-export default Homepage;
+}

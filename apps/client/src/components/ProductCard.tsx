@@ -35,12 +35,12 @@ const ProductCard = ({
   const href = `/products/${product.id}` as Route;
 
   return (
-    <article className="group flex h-full min-w-0 flex-col rounded-2xl border border-border/70 bg-card p-2 transition-[border-color,box-shadow] hover:border-foreground/20 hover:shadow-lg sm:p-3">
+    <article className="group flex h-full min-w-0 flex-col">
       <Link
         href={href}
-        className="relative block overflow-hidden rounded-xl bg-[#f0ede7] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45"
+        className="relative block overflow-hidden bg-[#eeece6] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45"
       >
-        <div className="relative aspect-[4/4.6]">
+        <div className="relative aspect-[4/5]">
           <Image
             src={previewImage}
             alt={product.name}
@@ -50,8 +50,8 @@ const ProductCard = ({
             fetchPriority={eager ? "high" : "auto"}
             decoding="async"
             quality={85}
-            className="object-contain p-2 transition-transform duration-700 group-hover:scale-[1.04] sm:p-4"
-            sizes="(min-width: 1536px) 18rem, (min-width: 1024px) 33vw, 50vw"
+            className="object-contain p-2 mix-blend-multiply transition-transform duration-700 group-hover:scale-[1.04] sm:p-4"
+            sizes="(min-width: 1536px) 336px, (min-width: 1280px) 25vw, (min-width: 1024px) 33vw, 50vw"
           />
         </div>
         <span className="absolute bottom-3 right-3 hidden size-9 place-items-center rounded-full bg-card/90 text-foreground transition-transform group-hover:-rotate-12 sm:grid">
@@ -93,7 +93,7 @@ const ProductCard = ({
           <DialogTrigger asChild>
             <Button
               variant="outline"
-              className="mt-auto h-11 w-full gap-1 border-border/70 bg-muted/50 px-2 text-xs sm:text-sm"
+              className="mt-auto h-11 w-full gap-2 rounded-none border-border bg-transparent px-2 text-xs hover:bg-card sm:text-sm"
               aria-label={`Choose options for ${product.name}`}
             >
               <Plus className="size-4" aria-hidden="true" />

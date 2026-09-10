@@ -3,7 +3,7 @@ name: ecommerce
 description: Helm chart for the ecommerce microservices platform
 type: application
 kubeVersion: ">=1.35.0-0 <1.38.0-0"
-version: 0.5.1
+version: 0.5.2
 appVersion: "0.1.0"
 keywords:
   - ecommerce

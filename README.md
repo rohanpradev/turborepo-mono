@@ -85,8 +85,8 @@ For the current expert gap assessment and prioritized roadmap, see [docs/EXPERT_
 | Events | Kafka with typed topics and topic management |
 | Data | PostgreSQL + Prisma, MongoDB + Mongoose |
 | Quality | Biome, Syncpack, Knip, Bun test/coverage, Bun audit, stable TypeScript 7 with TypeScript 6 tooling compatibility |
-| Runtime | Bun 1.4.2, digest-pinned Compose images, Traefik 3.7.12, Docker Hardened Images |
-| Platform | Helm 4.2.4, Kubernetes 1.35-1.36 supported (1.37 experimental), Gateway API 1.6.2 |
+| Runtime | Bun 1.4.2, digest-pinned Compose images, Traefik 3.7.13, Docker Hardened Images |
+| Platform | Helm 4.3.0, Kubernetes 1.35-1.36 supported (1.37 experimental), Gateway API 1.6.2 |
 | CI/CD | GitHub Actions, Helm lint plus kubeconform schema matrix, Docker Buildx, GHCR images, SBOM, provenance |
 
 ## Event Flow
@@ -315,7 +315,7 @@ The Docker path uses the digest-pinned official Bun 1.4 image for application bu
 
 | Compose service | Image / Build | Purpose |
 | --- | --- | --- |
-| `traefik` | `traefik:v3.7.12` | TLS router, API gateway, dashboard |
+| `traefik` | `traefik:v3.7.13` | TLS router, API gateway, dashboard |
 | `docker-socket-proxy` | `ghcr.io/tecnativa/docker-socket-proxy:v0.4.2` | Restricted Docker API surface for Traefik discovery |
 | `postgres` | `dhi.io/postgres:18.6-debian13` | Product catalog database |
 | `mongodb` | `dhi.io/mongodb:8.3.8-debian13` | Order read-model database |

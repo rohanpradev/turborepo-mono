@@ -36,19 +36,19 @@ const ProductsCatalog = async ({
 
 const ProductsPage = ({ searchParams }: PageProps<"/products">) => {
   return (
-    <div className="space-y-8 pb-10 pt-2">
-      <header className="grid gap-6 rounded-2xl border border-border bg-card p-6 sm:p-7 lg:grid-cols-[1fr_auto] lg:items-end lg:p-8">
+    <div className="space-y-7 pb-10 pt-2">
+      <header className="grid gap-5 border-b border-border pb-8 pt-5 sm:pb-10 lg:grid-cols-[1fr_auto] lg:items-end">
         <div>
           <p className="text-[0.6875rem] font-bold uppercase tracking-[0.18em] text-primary">
             Collection / 2026
           </p>
-          <h1 className="mt-4 max-w-3xl font-serif text-5xl font-semibold leading-[0.9] tracking-[-0.05em] text-foreground sm:text-6xl">
+          <h1 className="mt-4 max-w-3xl font-serif text-5xl font-normal leading-[0.9] tracking-[-0.05em] text-foreground sm:text-6xl">
             The complete edit.
           </h1>
         </div>
         <p className="max-w-md text-sm leading-6 text-muted-foreground sm:text-base">
-          Search, sort, and filter current apparel, denim, and footwear. Each
-          piece is selected for regular use and easy pairing.
+          A few good pieces go a long way. Discover easy layers, daily denim,
+          and footwear to make your own.
         </p>
       </header>
       <Suspense fallback={<ProductListSkeleton itemCount={12} />}>

@@ -423,13 +423,14 @@ k8s-smoke: runtime-dir ## Smoke-test local Kubernetes web routes over HTTPS
 			--data-urlencode "w=64" \
 			--data-urlencode "q=75" >/dev/null && \
 		curl -4 -sSf --cacert "$(LOCAL_TLS_CERT_FILE)" --max-time $(K8S_SMOKE_TIMEOUT) $$resolve_args "https://shop.localhost:$$smoke_port/" >/dev/null && \
+		curl -4 -sSf --cacert "$(LOCAL_TLS_CERT_FILE)" --max-time $(K8S_SMOKE_TIMEOUT) $$resolve_args \
+			-H 'content-type: application/json' --data '{"json":{"limit":1}}' \
+			"https://api.localhost:$$smoke_port/rpc/product/product/list" >/dev/null && \
 		status="$$(curl -4 -sS --cacert "$(LOCAL_TLS_CERT_FILE)" -o /dev/null -w '%{http_code}' --max-time $(K8S_SMOKE_TIMEOUT) $$resolve_args -X POST "https://api.localhost:$$smoke_port/api/webhooks/stripe")"; \
 		test "$$status" = "400" || { echo "$(RED)Expected unsigned Stripe webhook to reach payment-service and return 400; received $$status.$(NC)"; exit 1; }
 	@echo "$(GREEN)Kubernetes smoke tests passed$(NC)"
 
-k8s-smoke-full: k8s-smoke ## Smoke-test full Kubernetes API routes
-	@echo "$(BLUE)Smoke-testing Kubernetes API ingress...$(NC)"
-	@curl -4 -sSf --cacert "$(LOCAL_TLS_CERT_FILE)" --max-time $(K8S_SMOKE_TIMEOUT) -H 'content-type: application/json' --data '{"json":{"limit":1}}' https://api.localhost/rpc/product/product/list >/dev/null
+k8s-smoke-full: k8s-smoke ## Smoke-test full Kubernetes web and API routes through the configured local port
 	@echo "$(GREEN)Full Kubernetes smoke tests passed$(NC)"
 
 k8s-test: ## Run Helm tests for the deployed ecommerce release

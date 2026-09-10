@@ -24,14 +24,11 @@ const ProductListSkeleton = ({
         </div>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:gap-x-5 sm:gap-y-8 lg:grid-cols-3 2xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:gap-x-5 sm:gap-y-8 lg:grid-cols-3 xl:grid-cols-4">
         {Array.from({ length: itemCount }).map((_, index) => (
-          <div
-            key={index}
-            className="overflow-hidden rounded-xl border border-border bg-card"
-          >
-            <div className="aspect-[4/4.6] bg-muted motion-safe:animate-pulse" />
-            <div className="space-y-4 p-4">
+          <div key={index} className="overflow-hidden">
+            <div className="aspect-[4/5] bg-muted motion-safe:animate-pulse" />
+            <div className="space-y-4 py-4">
               <div className="h-5 rounded-md bg-muted motion-safe:animate-pulse" />
               <div className="h-4 w-3/4 rounded-md bg-muted motion-safe:animate-pulse" />
               <div className="h-10 rounded-lg bg-muted motion-safe:animate-pulse" />

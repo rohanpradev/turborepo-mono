@@ -70,12 +70,12 @@ export default function RootLayout({
       >
         Skip to main content
       </a>
-      <div className="mx-auto flex min-h-screen w-full max-w-[94rem] flex-col px-3 py-3 sm:px-5 sm:py-4 lg:px-8">
+      <div className="mx-auto flex min-h-screen w-full max-w-[94rem] flex-col px-4 pb-6 sm:px-7 lg:px-10">
         <Suspense
           fallback={
             <div
               aria-hidden="true"
-              className="mb-8 min-h-24 rounded-xl border border-border/90 bg-card shadow-[0_12px_35px_-26px_rgba(28,25,23,0.55)]"
+              className="mb-6 min-h-28 border-b border-border bg-background"
             />
           }
         >
@@ -90,7 +90,7 @@ export default function RootLayout({
   );
 
   return (
-    <html lang="en">
+    <html lang="en" data-scroll-behavior="smooth">
       <body className="antialiased">
         {isClerkConfigured ? (
           <Suspense

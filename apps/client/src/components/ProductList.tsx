@@ -135,7 +135,7 @@ const ProductList = async ({
             id={`catalog-heading-${params}`}
             className={
               params === "homepage"
-                ? "max-w-2xl font-serif text-4xl font-semibold tracking-[-0.04em] sm:text-5xl"
+                ? "max-w-2xl font-serif text-4xl font-normal tracking-[-0.04em] sm:text-5xl"
                 : "sr-only"
             }
           >
@@ -232,7 +232,7 @@ const ProductList = async ({
           <RefreshButton label="Try again" />
         </div>
       ) : products.length > 0 ? (
-        <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:gap-x-5 sm:gap-y-8 lg:grid-cols-3 2xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:gap-x-5 sm:gap-y-8 lg:grid-cols-3 xl:grid-cols-4">
           {products.map((product, index) => (
             <ProductCard
               key={product.id}

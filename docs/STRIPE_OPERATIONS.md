@@ -63,7 +63,7 @@ make k8s-smoke
 
 ## End-to-End Test
 
-1. Sign in at `https://shop.localhost` and add a synced product to the cart.
+1. Sign in at `https://shop.localhost:9443` and add a synced product to the cart.
 2. Open checkout. A same-origin `/api/checkout` route resolves the Clerk session and calls the payment service with a bearer token.
 3. Complete a Stripe test payment.
 4. Confirm the return page polls same-origin `/api/checkout/{sessionId}` and reaches `paid`.
