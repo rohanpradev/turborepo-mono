@@ -17,6 +17,9 @@
       "!**/dist",
       "!**/out",
       "!**/generated",
+      "!**/migrations",
+      "!**/contract.d.ts",
+      "!**/contract.json",
       "!**/node_modules",
       "!**/*.tsbuildinfo",
       "!**/*.min.js"

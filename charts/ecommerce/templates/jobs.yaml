@@ -19,7 +19,7 @@ metadata:
     "helm.sh/hook-weight": {{ $job.hookWeight | quote }}
     "helm.sh/hook-delete-policy": {{ $job.deletePolicy | quote }}
 spec:
-  backoffLimit: {{ default 3 $job.backoffLimit }}
+  backoffLimit: {{ dig "backoffLimit" 3 $job }}
   {{- with $job.activeDeadlineSeconds }}
   activeDeadlineSeconds: {{ . }}
   {{- end }}
@@ -31,6 +31,7 @@ spec:
       labels:
         {{- include "ecommerce.selectorLabels" (dict "root" $ "service" $service) | nindent 8 }}
         app.kubernetes.io/job-name: {{ $name | quote }}
+        app.kubernetes.io/workload-type: job
     spec:
       os:
         name: linux

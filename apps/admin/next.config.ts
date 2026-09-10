@@ -6,6 +6,7 @@ type RemoteImagePattern = {
   pathname: "/**";
   port?: string;
   protocol: "http" | "https";
+  search: "";
 };
 
 const toRemoteImagePattern = (value: string): RemoteImagePattern | null => {
@@ -18,6 +19,7 @@ const toRemoteImagePattern = (value: string): RemoteImagePattern | null => {
       hostname: value,
       pathname: "/**",
       protocol: "https",
+      search: "",
     };
   }
 
@@ -33,6 +35,7 @@ const toRemoteImagePattern = (value: string): RemoteImagePattern | null => {
       pathname: "/**",
       port: url.port,
       protocol: url.protocol.slice(0, -1) as "http" | "https",
+      search: "",
     };
   } catch {
     return null;
@@ -45,7 +48,9 @@ const remoteImagePatterns = Array.from(
       process.env.NEXT_IMAGE_STOREFRONT_ORIGIN,
       process.env.NEXT_PUBLIC_CLIENT_APP_URL,
       process.env.CLIENT_APP_URL,
-      "http://localhost:3002",
+      ...(process.env.NODE_ENV === "production"
+        ? []
+        : ["http://localhost:3002"]),
       ...(process.env.NEXT_PUBLIC_IMAGE_REMOTE_HOSTS ?? "")
         .split(",")
         .map((hostname) => hostname.trim())
@@ -78,7 +83,6 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     turbopackFileSystemCacheForBuild: true,
-    turbopackPluginRuntimeStrategy: "workerThreads",
     useTypeScriptCli: true,
   },
   async headers() {
@@ -115,6 +119,7 @@ const nextConfig: NextConfig = {
       process.env.NEXT_IMAGE_ALLOW_LOCAL_IP === "true" ||
       process.env.NODE_ENV !== "production",
     formats: ["image/avif", "image/webp"],
+    localPatterns: [{ pathname: "/**", search: "" }],
     maximumResponseBody: 5_000_000,
     maximumRedirects: 3,
     qualities: [75],

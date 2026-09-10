@@ -2,11 +2,30 @@ import mongoose from "mongoose";
 
 mongoose.set("bufferCommands", false);
 
+// Listen beyond initial connection: a disconnect does not always emit an error.
+// Keep event output free of connection URLs and driver error payloads.
+mongoose.connection.on("error", () => {
+  console.error(
+    "Order database connection error; check database availability.",
+  );
+});
+mongoose.connection.on("disconnected", () => {
+  console.info("Order database disconnected.");
+});
+mongoose.connection.on("reconnected", () => {
+  console.info("Order database reconnected.");
+});
+
 let connectPromise: Promise<typeof mongoose> | null = null;
 
 const readPositiveInt = (name: string, fallback: number) => {
-  const value = Number.parseInt(process.env[name] ?? "", 10);
-  return Number.isFinite(value) && value > 0 ? value : fallback;
+  const value = process.env[name];
+  if (value === undefined || value === "") return fallback;
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+    throw new Error(`${name} must be a positive integer.`);
+  }
+  return parsed;
 };
 
 const getMongoUrl = () => {

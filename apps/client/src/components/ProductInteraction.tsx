@@ -46,24 +46,38 @@ const ProductInteraction = ({
   };
 
   const handleAddToCart = () => {
-    addToCart({
+    const added = addToCart({
       ...product,
       quantity,
       selectedColor,
       selectedSize,
     });
+    if (!added) {
+      toast.error("Your bag has reached its limit", {
+        description:
+          "Reduce the quantity or remove a piece from your bag before adding more.",
+      });
+      return;
+    }
     toast.success(`${product.name} added to your bag`, {
       description: `${selectedColor} · ${selectedSize.toUpperCase()}`,
     });
   };
 
   const handleBuyNow = () => {
-    addToCart({
+    const added = addToCart({
       ...product,
       quantity,
       selectedColor,
       selectedSize,
     });
+    if (!added) {
+      toast.error("Your bag has reached its limit", {
+        description:
+          "Reduce the quantity or remove a piece from your bag before adding more.",
+      });
+      return;
+    }
     router.push("/cart?step=2" as Route);
   };
 

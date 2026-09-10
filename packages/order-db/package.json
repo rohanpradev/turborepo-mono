@@ -4,7 +4,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "db:deploy": "bun run src/deploy-indexes.ts"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

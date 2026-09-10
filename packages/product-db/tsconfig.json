@@ -1,11 +1,7 @@
 {
   "extends": "@repo/typescript-config/internal-package.json",
   "compilerOptions": {
-    "types": ["bun"],
-    "paths": {
-      "@prisma/*": ["./generated/prisma/*"]
-    }
+    "types": ["bun"]
   },
-  "include": ["src/**/*", "generated/prisma8/**/*.d.ts"],
-  "exclude": ["generated/prisma/**/*"]
+  "include": ["src/**/*"]
 }

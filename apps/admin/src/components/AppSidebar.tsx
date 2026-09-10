@@ -93,7 +93,7 @@ const AppSidebar = (_props: AppSidebarProps) => {
       <SidebarContent className="px-1">
         <SidebarGroup>
           <SidebarGroupLabel className="text-[0.625rem] font-bold uppercase tracking-[0.16em] text-sidebar-foreground/45">
-            Control room
+            Workspace
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1.5">
@@ -106,7 +106,7 @@ const AppSidebar = (_props: AppSidebarProps) => {
                       asChild
                       isActive={active}
                       tooltip={item.label}
-                      className="h-10 rounded-xl px-3 data-[active=true]:shadow-sm"
+                      className="h-11 rounded-lg px-3 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground data-[active=true]:shadow-sm"
                     >
                       <Link
                         href={item.href}
@@ -125,7 +125,7 @@ const AppSidebar = (_props: AppSidebarProps) => {
 
         <SidebarGroup>
           <SidebarGroupLabel className="text-[0.625rem] font-bold uppercase tracking-[0.16em] text-sidebar-foreground/45">
-            Live tools
+            Shortcuts
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1.5">
@@ -168,7 +168,7 @@ const AppSidebar = (_props: AppSidebarProps) => {
             Protected workspace
           </div>
           <p className="mt-1.5 leading-5">
-            Admin access and mutations are session-gated.
+            Manage your store in a secure, admin-only workspace.
           </p>
         </div>
       </SidebarFooter>

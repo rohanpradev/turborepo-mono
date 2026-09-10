@@ -1,9 +1,10 @@
-import { ArrowRight, Search } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import type { Route } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import AuthControls from "@/components/AuthControls";
 import BrandMark from "@/components/BrandMark";
+import MobileNavigation from "@/components/MobileNavigation";
 import SearchBar from "@/components/SearchBar";
 import ShoppingCartIcon from "@/components/ShoppingCartIcon";
 import { Button } from "@/components/ui/button";
@@ -23,15 +24,15 @@ const catalogLinks = [
 
 const Navbar = () => {
   return (
-    <header className="sticky top-2 z-40 mb-8 overflow-hidden rounded-xl border border-border/90 bg-card shadow-[0_12px_35px_-26px_rgba(28,25,23,0.55)] sm:top-3">
+    <header className="sticky top-0 z-40 mb-6 border-b border-border bg-background/95 backdrop-blur-xl">
       <Link
         href="/products?sort=newest"
-        className="group flex min-h-8 items-center justify-center gap-2 bg-foreground px-4 py-1.5 text-center text-[0.6875rem] font-semibold tracking-[0.04em] text-background/80 transition-colors hover:text-background"
+        className="group flex min-h-8 items-center justify-center gap-2 bg-primary px-4 py-1.5 text-center text-[0.6875rem] font-semibold tracking-[0.04em] text-background/80 transition-colors hover:text-background"
       >
-        <span>New season edit</span>
+        <span>Everyday essentials, thoughtfully chosen</span>
         <span className="hidden text-background/35 sm:inline">/</span>
         <span className="hidden text-background/60 sm:inline">
-          Complimentary delivery over $75
+          Explore the latest edit
         </span>
         <ArrowRight
           className="size-3.5 transition-transform group-hover:translate-x-0.5"
@@ -41,7 +42,7 @@ const Navbar = () => {
 
       <nav
         aria-label="Primary navigation"
-        className="flex min-h-16 items-center gap-4 px-3 py-2.5 sm:px-4 lg:px-5"
+        className="flex min-h-20 items-center gap-2 px-0 py-3"
       >
         <Link
           href="/"
@@ -49,17 +50,17 @@ const Navbar = () => {
           className="group flex shrink-0 items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30"
         >
           <BrandMark className="size-9 shrink-0 transition-transform group-hover:-rotate-2" />
-          <span className="hidden sm:block">
-            <span className="block font-serif text-lg font-semibold leading-none tracking-[-0.025em] text-foreground">
+          <span>
+            <span className="block font-serif text-xl font-semibold leading-none tracking-[-0.025em] text-foreground">
               Common Goods
             </span>
             <span className="mt-1 block text-[0.5625rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Everyday objects
+              Good things, every day
             </span>
           </span>
         </Link>
 
-        <div className="hidden items-center gap-0.5 xl:flex">
+        <div className="ml-6 hidden items-center gap-0.5 xl:flex">
           {catalogLinks.map((item) => (
             <Link
               key={item.href}
@@ -77,17 +78,11 @@ const Navbar = () => {
               <div className="hidden h-10 w-[min(30vw,22rem)] animate-pulse rounded-lg bg-muted lg:block" />
             }
           >
-            <SearchBar />
+            <SearchBar className="hidden min-w-0 lg:block lg:w-[min(27vw,22rem)]" />
           </Suspense>
 
-          <Link
-            href={"/products" as Route}
-            aria-label="Search and browse products"
-            className="inline-flex size-10 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30 lg:hidden"
-          >
-            <Search className="size-4" aria-hidden="true" />
-          </Link>
           <ShoppingCartIcon />
+          <MobileNavigation links={catalogLinks} />
           {isClerkConfigured ? (
             <AuthControls />
           ) : (
@@ -102,6 +97,13 @@ const Navbar = () => {
           )}
         </div>
       </nav>
+      <div className="border-t border-border px-3 py-2.5 lg:hidden">
+        <Suspense
+          fallback={<div className="h-10 animate-pulse rounded-lg bg-muted" />}
+        >
+          <SearchBar className="w-full" />
+        </Suspense>
+      </div>
     </header>
   );
 };

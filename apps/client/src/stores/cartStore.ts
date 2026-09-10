@@ -28,43 +28,30 @@ const useCartStore = create<CartStoreStateType & CartStoreActionsType>()(
     (set) => ({
       cart: [],
       hasHydrated: false,
-      addToCart: (product) =>
+      addToCart: (product) => {
+        if (!cartItemSchema.safeParse(product).success) return false;
+        let added = false;
         set((state) => {
           const existingIndex = state.cart.findIndex((item) =>
             isSameCartItem(item, product),
           );
-
-          if (existingIndex !== -1) {
+          const existing = state.cart[existingIndex];
+          if (existing) {
+            const quantity = existing.quantity + product.quantity;
+            if (quantity > MAX_CART_ITEM_QUANTITY) return state;
+            added = true;
             return {
               cart: state.cart.map((item, index) =>
-                index === existingIndex
-                  ? {
-                      ...item,
-                      quantity: clampQuantity(
-                        item.quantity + clampQuantity(product.quantity),
-                      ),
-                    }
-                  : item,
+                index === existingIndex ? { ...item, quantity } : item,
               ),
             };
           }
-
-          if (state.cart.length >= MAX_CHECKOUT_LINE_ITEMS) {
-            return state;
-          }
-
-          return {
-            cart: [
-              ...state.cart,
-              {
-                ...product,
-                quantity: clampQuantity(product.quantity),
-                selectedSize: product.selectedSize,
-                selectedColor: product.selectedColor,
-              },
-            ],
-          };
-        }),
+          if (state.cart.length >= MAX_CHECKOUT_LINE_ITEMS) return state;
+          added = true;
+          return { cart: [...state.cart, { ...product }] };
+        });
+        return added;
+      },
       removeFromCart: (product) =>
         set((state) => ({
           cart: state.cart.filter((item) => !isSameCartItem(item, product)),
@@ -88,8 +75,9 @@ const useCartStore = create<CartStoreStateType & CartStoreActionsType>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({ cart: state.cart }),
       merge: (persistedState, currentState) => {
-        const persistedCart = (persistedState as Partial<CartStoreStateType>)
-          .cart;
+        const persistedCart = (
+          persistedState as Partial<CartStoreStateType> | null
+        )?.cart;
         const parsedCart = persistedCartSchema.safeParse(persistedCart);
 
         return {

@@ -32,7 +32,7 @@ services:
 
   kafka-broker-1:
     <<: *runtime-security
-    image: dhi.io/kafka:4.3.1-debian13-native@sha256:89691f2d47ded5c88186e0e61a68b2fe77e2a19dea29ad2669e5626aff7965ff
+    image: dhi.io/kafka:4.3.1-debian13-native@sha256:3b1c8546d66d4bb8e99bfa079f18b9ca5fbad6482749e8484fc44e4ec177e4af
     environment:
       <<: *kafka-broker-env
       KAFKA_NODE_ID: 1
@@ -56,7 +56,7 @@ services:
 
   kafka-broker-2:
     <<: *runtime-security
-    image: dhi.io/kafka:4.3.1-debian13-native@sha256:89691f2d47ded5c88186e0e61a68b2fe77e2a19dea29ad2669e5626aff7965ff
+    image: dhi.io/kafka:4.3.1-debian13-native@sha256:3b1c8546d66d4bb8e99bfa079f18b9ca5fbad6482749e8484fc44e4ec177e4af
     environment:
       <<: *kafka-broker-env
       KAFKA_NODE_ID: 2
@@ -80,7 +80,7 @@ services:
 
   kafka-broker-3:
     <<: *runtime-security
-    image: dhi.io/kafka:4.3.1-debian13-native@sha256:89691f2d47ded5c88186e0e61a68b2fe77e2a19dea29ad2669e5626aff7965ff
+    image: dhi.io/kafka:4.3.1-debian13-native@sha256:3b1c8546d66d4bb8e99bfa079f18b9ca5fbad6482749e8484fc44e4ec177e4af
     environment:
       <<: *kafka-broker-env
       KAFKA_NODE_ID: 3

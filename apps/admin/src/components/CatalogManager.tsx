@@ -9,11 +9,7 @@ import {
   updateCategory,
   updateProduct,
 } from "@repo/api-client";
-import type {
-  CategoryRecord,
-  ProductPayload,
-  ProductRecord,
-} from "@repo/types";
+import type { CategoryRecord, ProductRecord } from "@repo/types";
 import { formatUsdFromCents } from "@repo/types";
 import {
   Edit,
@@ -24,7 +20,15 @@ import {
   Tags,
   Trash2,
 } from "lucide-react";
-import { type FormEvent, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  type FormEvent,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,23 +39,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { parseProductImageInput } from "@/lib/product-image-input";
+import { buildProductPayload, type ProductFormState } from "@/lib/product-form";
 
 type CatalogManagerProps = {
+  children?: ReactNode;
   initialCategories: Array<CategoryRecord>;
   initialProducts: Array<ProductRecord>;
   productServiceUrl: string;
-};
-
-type ProductFormState = {
-  categorySlug: string;
-  colors: string;
-  description: string;
-  images: string;
-  name: string;
-  price: string;
-  shortDescription: string;
-  sizes: string;
 };
 
 type CategoryFormState = {
@@ -90,46 +84,12 @@ const productToForm = (product: ProductRecord): ProductFormState => ({
   sizes: toCsv(product.sizes),
 });
 
-const parseCsv = (value: string) =>
-  value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-
 const createSlug = (value: string) =>
   value
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
-
-const buildProductPayload = (form: ProductFormState): ProductPayload => {
-  const colors = parseCsv(form.colors);
-  const sizes = parseCsv(form.sizes);
-  const images = parseProductImageInput(form.images, colors);
-  const price = Math.round(Number(form.price) * 100);
-
-  if (!Number.isFinite(price) || price < 0) {
-    throw new Error("Enter a valid product price.");
-  }
-
-  for (const color of colors) {
-    if (!images[color]) {
-      throw new Error(`Add an image for ${color}.`);
-    }
-  }
-
-  return {
-    categorySlug: form.categorySlug.trim(),
-    colors,
-    description: form.description.trim(),
-    images,
-    name: form.name.trim(),
-    price,
-    shortDescription: form.shortDescription.trim(),
-    sizes,
-  };
-};
 
 const fieldLabelClass = "text-sm font-medium text-foreground";
 const fieldHintClass = "text-xs leading-5 text-muted-foreground";
@@ -139,11 +99,14 @@ const selectClass =
   "h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50";
 
 const CatalogManager = ({
+  children,
   initialCategories,
   initialProducts,
   productServiceUrl,
 }: CatalogManagerProps) => {
   const { getToken, isLoaded, isSignedIn } = useAuth();
+  const router = useRouter();
+  const mutationInFlight = useRef(false);
   const [categories, setCategories] = useState(initialCategories);
   const [products, setProducts] = useState(initialProducts);
   const [productForm, setProductForm] = useState<ProductFormState>(() => ({
@@ -161,6 +124,13 @@ const CatalogManager = ({
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const isReady = isLoaded && isSignedIn;
+
+  useEffect(() => {
+    setProducts(initialProducts);
+  }, [initialProducts]);
+  useEffect(() => {
+    setCategories(initialCategories);
+  }, [initialCategories]);
 
   const categoryOptions = useMemo(
     () =>
@@ -213,6 +183,8 @@ const CatalogManager = ({
 
   const handleProductSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (mutationInFlight.current) return;
+    mutationInFlight.current = true;
     setIsSaving(true);
     setError(null);
     setMessage(null);
@@ -236,10 +208,11 @@ const CatalogManager = ({
       });
       resetProductForm();
       setIsProductSheetOpen(false);
+      router.refresh();
       setMessage(
         editingProductId
           ? "Product updated successfully."
-          : "Product created successfully. Product-service published the catalog event.",
+          : "Product created successfully.",
       );
     } catch (caughtError) {
       setError(
@@ -248,6 +221,7 @@ const CatalogManager = ({
           : "Unable to save product.",
       );
     } finally {
+      mutationInFlight.current = false;
       setIsSaving(false);
     }
   };
@@ -257,6 +231,8 @@ const CatalogManager = ({
       return;
     }
 
+    if (mutationInFlight.current) return;
+    mutationInFlight.current = true;
     setIsSaving(true);
     setError(null);
     setMessage(null);
@@ -268,6 +244,7 @@ const CatalogManager = ({
       setProducts((current) =>
         current.filter((currentProduct) => currentProduct.id !== product.id),
       );
+      router.refresh();
       setMessage("Product deleted successfully.");
     } catch (caughtError) {
       setError(
@@ -276,12 +253,15 @@ const CatalogManager = ({
           : "Unable to delete product.",
       );
     } finally {
+      mutationInFlight.current = false;
       setIsSaving(false);
     }
   };
 
   const handleCategorySubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (mutationInFlight.current) return;
+    mutationInFlight.current = true;
     setIsSaving(true);
     setError(null);
     setMessage(null);
@@ -292,6 +272,8 @@ const CatalogManager = ({
     };
 
     try {
+      if (!payload.name || !payload.slug)
+        throw new Error("Enter a category name and a URL-friendly slug.");
       const response = await runAdminMutation((token) =>
         editingCategorySlug
           ? updateCategory(
@@ -314,6 +296,7 @@ const CatalogManager = ({
       );
       setCategoryForm(emptyCategoryForm);
       setEditingCategorySlug(null);
+      router.refresh();
       setMessage(
         editingCategorySlug
           ? "Category updated successfully."
@@ -326,6 +309,7 @@ const CatalogManager = ({
           : "Unable to save category.",
       );
     } finally {
+      mutationInFlight.current = false;
       setIsSaving(false);
     }
   };
@@ -335,6 +319,8 @@ const CatalogManager = ({
       return;
     }
 
+    if (mutationInFlight.current) return;
+    mutationInFlight.current = true;
     setIsSaving(true);
     setError(null);
     setMessage(null);
@@ -346,6 +332,7 @@ const CatalogManager = ({
       setCategories((current) =>
         current.filter((item) => item.slug !== category.slug),
       );
+      router.refresh();
       setMessage("Category deleted successfully.");
     } catch (caughtError) {
       setError(
@@ -354,6 +341,7 @@ const CatalogManager = ({
           : "Unable to delete category. Remove or move its products first.",
       );
     } finally {
+      mutationInFlight.current = false;
       setIsSaving(false);
     }
   };
@@ -373,16 +361,15 @@ const CatalogManager = ({
               Manage products and categories
             </h2>
             <p className="text-sm leading-6 text-muted-foreground">
-              These controls call product-service directly. Creates, edits, and
-              deletes still run through Clerk authorization, Prisma validation,
-              and Kafka catalog events.
+              Update the details customers see, add something new, or organize
+              your products into easy-to-browse categories.
             </p>
           </div>
 
           <Button
             type="button"
             className="w-full sm:w-auto"
-            disabled={!isReady}
+            disabled={isSaving || !isReady}
             onClick={openCreateProduct}
           >
             <PackagePlus className="size-4" />
@@ -391,16 +378,115 @@ const CatalogManager = ({
         </div>
 
         {message ? (
-          <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <div
+            role="status"
+            className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+          >
             {message}
           </div>
         ) : null}
-        {error ? (
-          <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        {error && !isProductSheetOpen ? (
+          <div
+            role="alert"
+            className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+          >
             {error}
           </div>
         ) : null}
       </div>
+
+      <section className="rounded-xl border bg-card p-5 shadow-sm">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h3 className="text-lg font-semibold">Products</h3>
+            <p className="text-sm text-muted-foreground">
+              {products.length} products on this page. Select a product to edit
+              its details.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full sm:w-auto"
+            disabled={isSaving || !isReady}
+            onClick={openCreateProduct}
+          >
+            <Plus className="size-4" />
+            New product
+          </Button>
+        </div>
+
+        <div className="overflow-hidden rounded-lg border">
+          <div className="grid grid-cols-[minmax(0,1fr)_9rem_7rem] gap-4 border-b bg-muted/40 px-4 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground max-md:hidden">
+            <span>Product</span>
+            <span>Price</span>
+            <span className="text-right">Actions</span>
+          </div>
+          {products.length === 0 ? (
+            <div role="status" className="px-5 py-12 text-center">
+              <PackagePlus
+                className="mx-auto mb-3 size-8 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <h3 className="font-semibold">No products to show</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Adjust your filters, or add your first product to get started.
+              </p>
+            </div>
+          ) : null}
+          <div className="divide-y">
+            {products.map((product) => (
+              <article
+                key={product.id}
+                className="grid gap-3 bg-background px-4 py-4 md:grid-cols-[minmax(0,1fr)_9rem_7rem] md:items-center"
+              >
+                <div className="min-w-0 space-y-2">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <p className="truncate font-medium">{product.name}</p>
+                    <Badge variant="outline">{product.categorySlug}</Badge>
+                  </div>
+                  <p className="line-clamp-2 text-sm leading-6 text-muted-foreground">
+                    {product.shortDescription}
+                  </p>
+                  <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    <span>{product.colors.length} colors</span>
+                    <span>{product.sizes.length} sizes</span>
+                  </div>
+                </div>
+
+                <div className="text-sm font-medium md:text-base">
+                  {formatUsdFromCents(product.price)}
+                </div>
+
+                <div className="flex justify-start gap-2 md:justify-end">
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    disabled={isSaving || !isReady}
+                    onClick={() => openEditProduct(product)}
+                  >
+                    <Edit className="size-4" />
+                    <span className="sr-only">Edit {product.name}</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    disabled={isSaving || !isReady}
+                    onClick={() => void handleProductDelete(product)}
+                  >
+                    <Trash2 className="size-4" />
+                    <span className="sr-only">Delete {product.name}</span>
+                  </Button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {children}
 
       <div className="grid gap-5 xl:grid-cols-[420px_minmax(0,1fr)]">
         <section className="rounded-xl border bg-card p-5 shadow-sm">
@@ -419,65 +505,69 @@ const CatalogManager = ({
             </div>
           </div>
 
-          <form className="mt-5 space-y-4" onSubmit={handleCategorySubmit}>
-            <div className="space-y-2">
-              <label className={fieldLabelClass} htmlFor="category-name">
-                Name
-              </label>
-              <Input
-                id="category-name"
-                required
-                placeholder="Accessories"
-                value={categoryForm.name}
-                onChange={(event) =>
-                  setCategoryForm((current) => ({
-                    ...current,
-                    name: event.target.value,
-                    slug: current.slug || createSlug(event.target.value),
-                  }))
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <label className={fieldLabelClass} htmlFor="category-slug">
-                Slug
-              </label>
-              <Input
-                id="category-slug"
-                required
-                placeholder="accessories"
-                value={categoryForm.slug}
-                onChange={(event) =>
-                  setCategoryForm((current) => ({
-                    ...current,
-                    slug: createSlug(event.target.value),
-                  }))
-                }
-              />
-            </div>
-            <div className="flex flex-wrap gap-2 pt-1">
-              <Button type="submit" disabled={isSaving || !isReady}>
-                {editingCategorySlug ? (
-                  <Save className="size-4" />
-                ) : (
-                  <Plus className="size-4" />
-                )}
-                {editingCategorySlug ? "Save category" : "Add category"}
-              </Button>
-              {editingCategorySlug ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setEditingCategorySlug(null);
-                    setCategoryForm(emptyCategoryForm);
-                  }}
-                >
-                  <RotateCcw className="size-4" />
-                  Cancel
+          <form
+            aria-busy={isSaving}
+            className="mt-5 space-y-4"
+            onSubmit={handleCategorySubmit}
+          >
+            <fieldset disabled={isSaving} className="space-y-4">
+              <div className="space-y-2">
+                <label className={fieldLabelClass} htmlFor="category-name">
+                  Name
+                </label>
+                <Input
+                  id="category-name"
+                  required
+                  placeholder="Accessories"
+                  value={categoryForm.name}
+                  onChange={(event) =>
+                    setCategoryForm((current) => ({
+                      ...current,
+                      name: event.target.value,
+                    }))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <label className={fieldLabelClass} htmlFor="category-slug">
+                  Slug
+                </label>
+                <Input
+                  id="category-slug"
+                  placeholder={createSlug(categoryForm.name) || "accessories"}
+                  value={categoryForm.slug}
+                  onChange={(event) =>
+                    setCategoryForm((current) => ({
+                      ...current,
+                      slug: createSlug(event.target.value),
+                    }))
+                  }
+                />
+              </div>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <Button type="submit" disabled={isSaving || !isReady}>
+                  {editingCategorySlug ? (
+                    <Save className="size-4" />
+                  ) : (
+                    <Plus className="size-4" />
+                  )}
+                  {editingCategorySlug ? "Save category" : "Add category"}
                 </Button>
-              ) : null}
-            </div>
+                {editingCategorySlug ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setEditingCategorySlug(null);
+                      setCategoryForm(emptyCategoryForm);
+                    }}
+                  >
+                    <RotateCcw className="size-4" />
+                    Cancel
+                  </Button>
+                ) : null}
+              </div>
+            </fieldset>
           </form>
         </section>
 
@@ -514,7 +604,10 @@ const CatalogManager = ({
                     type="button"
                     size="icon"
                     variant="outline"
+                    disabled={isSaving || !isReady}
                     onClick={() => {
+                      setError(null);
+                      setMessage(null);
                       setEditingCategorySlug(category.slug);
                       setCategoryForm({
                         name: category.name,
@@ -523,16 +616,17 @@ const CatalogManager = ({
                     }}
                   >
                     <Edit className="size-4" />
-                    <span className="sr-only">Edit category</span>
+                    <span className="sr-only">Edit {category.name}</span>
                   </Button>
                   <Button
                     type="button"
                     size="icon"
                     variant="outline"
+                    disabled={isSaving || !isReady}
                     onClick={() => void handleCategoryDelete(category)}
                   >
                     <Trash2 className="size-4" />
-                    <span className="sr-only">Delete category</span>
+                    <span className="sr-only">Delete {category.name}</span>
                   </Button>
                 </div>
               </article>
@@ -540,86 +634,10 @@ const CatalogManager = ({
           </div>
         </section>
       </div>
-
-      <section className="rounded-xl border bg-card p-5 shadow-sm">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h3 className="text-lg font-semibold">Editable Products</h3>
-            <p className="text-sm text-muted-foreground">
-              {products.length} products loaded from the live catalog snapshot.
-            </p>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full sm:w-auto"
-            disabled={!isReady}
-            onClick={openCreateProduct}
-          >
-            <Plus className="size-4" />
-            New product
-          </Button>
-        </div>
-
-        <div className="overflow-hidden rounded-lg border">
-          <div className="grid grid-cols-[minmax(0,1fr)_9rem_7rem] gap-4 border-b bg-muted/40 px-4 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground max-md:hidden">
-            <span>Product</span>
-            <span>Price</span>
-            <span className="text-right">Actions</span>
-          </div>
-          <div className="divide-y">
-            {products.map((product) => (
-              <article
-                key={product.id}
-                className="grid gap-3 bg-background px-4 py-4 md:grid-cols-[minmax(0,1fr)_9rem_7rem] md:items-center"
-              >
-                <div className="min-w-0 space-y-2">
-                  <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    <p className="truncate font-medium">{product.name}</p>
-                    <Badge variant="outline">{product.categorySlug}</Badge>
-                  </div>
-                  <p className="line-clamp-2 text-sm leading-6 text-muted-foreground">
-                    {product.shortDescription}
-                  </p>
-                  <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                    <span>{product.colors.length} colors</span>
-                    <span>{product.sizes.length} sizes</span>
-                  </div>
-                </div>
-
-                <div className="text-sm font-medium md:text-base">
-                  {formatUsdFromCents(product.price)}
-                </div>
-
-                <div className="flex justify-start gap-2 md:justify-end">
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="outline"
-                    onClick={() => openEditProduct(product)}
-                  >
-                    <Edit className="size-4" />
-                    <span className="sr-only">Edit product</span>
-                  </Button>
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="outline"
-                    onClick={() => void handleProductDelete(product)}
-                  >
-                    <Trash2 className="size-4" />
-                    <span className="sr-only">Delete product</span>
-                  </Button>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
       <Sheet
         open={isProductSheetOpen}
         onOpenChange={(open) => {
+          if (isSaving) return;
           setIsProductSheetOpen(open);
           if (!open) {
             resetProductForm();
@@ -637,180 +655,197 @@ const CatalogManager = ({
             </SheetDescription>
           </SheetHeader>
 
-          <form className="space-y-6 px-6 py-5" onSubmit={handleProductSubmit}>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <label className={fieldLabelClass} htmlFor="product-name">
-                  Name
-                </label>
-                <Input
-                  id="product-name"
-                  required
-                  placeholder="Transit Zip Hoodie"
-                  value={productForm.name}
-                  onChange={(event) =>
-                    setProductForm((current) => ({
-                      ...current,
-                      name: event.target.value,
-                    }))
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <label className={fieldLabelClass} htmlFor="product-price">
-                  Price
-                </label>
-                <Input
-                  id="product-price"
-                  required
-                  min="0"
-                  step="0.01"
-                  type="number"
-                  placeholder="74.90"
-                  value={productForm.price}
-                  onChange={(event) =>
-                    setProductForm((current) => ({
-                      ...current,
-                      price: event.target.value,
-                    }))
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label
-                className={fieldLabelClass}
-                htmlFor="product-short-description"
+          <form
+            aria-busy={isSaving}
+            className="space-y-6 px-6 py-5"
+            onSubmit={handleProductSubmit}
+          >
+            {error ? (
+              <div
+                role="alert"
+                className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive"
               >
-                Short description
-              </label>
-              <Input
-                id="product-short-description"
-                required
-                maxLength={60}
-                placeholder="Structured hoodie for layered daily wear."
-                value={productForm.shortDescription}
-                onChange={(event) =>
-                  setProductForm((current) => ({
-                    ...current,
-                    shortDescription: event.target.value,
-                  }))
-                }
-              />
-              <p className={fieldHintClass}>Maximum 60 characters.</p>
-            </div>
+                {error}
+              </div>
+            ) : null}
+            <fieldset disabled={isSaving} className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <label className={fieldLabelClass} htmlFor="product-name">
+                    Name
+                  </label>
+                  <Input
+                    id="product-name"
+                    required
+                    placeholder="Transit Zip Hoodie"
+                    value={productForm.name}
+                    onChange={(event) =>
+                      setProductForm((current) => ({
+                        ...current,
+                        name: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className={fieldLabelClass} htmlFor="product-price">
+                    Price
+                  </label>
+                  <Input
+                    id="product-price"
+                    required
+                    min="0"
+                    step="0.01"
+                    type="number"
+                    placeholder="74.90"
+                    value={productForm.price}
+                    onChange={(event) =>
+                      setProductForm((current) => ({
+                        ...current,
+                        price: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+              </div>
 
-            <div className="space-y-2">
-              <label className={fieldLabelClass} htmlFor="product-description">
-                Description
-              </label>
-              <textarea
-                id="product-description"
-                required
-                rows={5}
-                className={textareaClass}
-                value={productForm.description}
-                onChange={(event) =>
-                  setProductForm((current) => ({
-                    ...current,
-                    description: event.target.value,
-                  }))
-                }
-              />
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-3">
               <div className="space-y-2">
-                <label className={fieldLabelClass} htmlFor="product-category">
-                  Category
-                </label>
-                <select
-                  id="product-category"
-                  required
-                  className={selectClass}
-                  value={productForm.categorySlug}
-                  onChange={(event) =>
-                    setProductForm((current) => ({
-                      ...current,
-                      categorySlug: event.target.value,
-                    }))
-                  }
+                <label
+                  className={fieldLabelClass}
+                  htmlFor="product-short-description"
                 >
-                  <option value="" disabled>
-                    Select category
-                  </option>
-                  {categoryOptions}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className={fieldLabelClass} htmlFor="product-sizes">
-                  Sizes
+                  Short description
                 </label>
                 <Input
-                  id="product-sizes"
+                  id="product-short-description"
                   required
-                  value={productForm.sizes}
+                  maxLength={60}
+                  placeholder="Structured hoodie for layered daily wear."
+                  value={productForm.shortDescription}
                   onChange={(event) =>
                     setProductForm((current) => ({
                       ...current,
-                      sizes: event.target.value,
+                      shortDescription: event.target.value,
                     }))
                   }
                 />
-                <p className={fieldHintClass}>Comma separated.</p>
+                <p className={fieldHintClass}>Maximum 60 characters.</p>
               </div>
+
               <div className="space-y-2">
-                <label className={fieldLabelClass} htmlFor="product-colors">
-                  Colors
+                <label
+                  className={fieldLabelClass}
+                  htmlFor="product-description"
+                >
+                  Description
                 </label>
-                <Input
-                  id="product-colors"
+                <textarea
+                  id="product-description"
                   required
-                  value={productForm.colors}
+                  rows={5}
+                  className={textareaClass}
+                  value={productForm.description}
                   onChange={(event) =>
                     setProductForm((current) => ({
                       ...current,
-                      colors: event.target.value,
+                      description: event.target.value,
                     }))
                   }
                 />
-                <p className={fieldHintClass}>Must match image keys.</p>
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <label className={fieldLabelClass} htmlFor="product-images">
-                Images by color
-              </label>
-              <textarea
-                id="product-images"
-                required
-                rows={5}
-                className={`${textareaClass} font-mono text-xs`}
-                placeholder={
-                  "https://cdn.example.com/product.webp\n\nor\nblack=/products/product-black.png"
-                }
-                value={productForm.images}
-                onChange={(event) =>
-                  setProductForm((current) => ({
-                    ...current,
-                    images: event.target.value,
-                  }))
-                }
-              />
-              <p className={fieldHintClass}>
-                Accepts one HTTP(S) URL or root-relative path for all colors;
-                one URL per color in order; `color=URL`; `color: URL`; or a JSON
-                object. Common web formats include PNG, JPG/JPEG, WebP, AVIF,
-                and GIF.
-              </p>
-            </div>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-2">
+                  <label className={fieldLabelClass} htmlFor="product-category">
+                    Category
+                  </label>
+                  <select
+                    id="product-category"
+                    required
+                    className={selectClass}
+                    value={productForm.categorySlug}
+                    onChange={(event) =>
+                      setProductForm((current) => ({
+                        ...current,
+                        categorySlug: event.target.value,
+                      }))
+                    }
+                  >
+                    <option value="" disabled>
+                      Select category
+                    </option>
+                    {categoryOptions}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className={fieldLabelClass} htmlFor="product-sizes">
+                    Sizes
+                  </label>
+                  <Input
+                    id="product-sizes"
+                    required
+                    value={productForm.sizes}
+                    onChange={(event) =>
+                      setProductForm((current) => ({
+                        ...current,
+                        sizes: event.target.value,
+                      }))
+                    }
+                  />
+                  <p className={fieldHintClass}>Comma separated.</p>
+                </div>
+                <div className="space-y-2">
+                  <label className={fieldLabelClass} htmlFor="product-colors">
+                    Colors
+                  </label>
+                  <Input
+                    id="product-colors"
+                    required
+                    value={productForm.colors}
+                    onChange={(event) =>
+                      setProductForm((current) => ({
+                        ...current,
+                        colors: event.target.value,
+                      }))
+                    }
+                  />
+                  <p className={fieldHintClass}>Must match image keys.</p>
+                </div>
+              </div>
 
+              <div className="space-y-2">
+                <label className={fieldLabelClass} htmlFor="product-images">
+                  Images by color
+                </label>
+                <textarea
+                  id="product-images"
+                  required
+                  rows={5}
+                  className={`${textareaClass} font-mono text-xs`}
+                  placeholder={
+                    "https://cdn.example.com/product.webp\n\nor\nblack=/products/product-black.png"
+                  }
+                  value={productForm.images}
+                  onChange={(event) =>
+                    setProductForm((current) => ({
+                      ...current,
+                      images: event.target.value,
+                    }))
+                  }
+                />
+                <p className={fieldHintClass}>
+                  Accepts one HTTP(S) URL or root-relative path for all colors;
+                  one URL per color in order; `color=URL`; `color: URL`; or a
+                  JSON object. Common web formats include PNG, JPG/JPEG, WebP,
+                  AVIF, and GIF.
+                </p>
+              </div>
+            </fieldset>
             <div className="sticky bottom-0 -mx-6 flex flex-col gap-2 border-t bg-background/95 px-6 py-4 backdrop-blur sm:flex-row sm:justify-end">
               <Button
                 type="button"
                 variant="outline"
+                disabled={isSaving}
                 onClick={() => setIsProductSheetOpen(false)}
               >
                 Cancel
@@ -821,7 +856,11 @@ const CatalogManager = ({
                 ) : (
                   <Plus className="size-4" />
                 )}
-                {editingProductId ? "Save product" : "Add product"}
+                {isSaving
+                  ? "Saving…"
+                  : editingProductId
+                    ? "Save product"
+                    : "Add product"}
               </Button>
             </div>
           </form>

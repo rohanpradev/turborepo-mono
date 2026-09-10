@@ -35,8 +35,9 @@ const useCheckoutStore = create<CheckoutState>()(
       storage: createJSONStorage(getCheckoutSessionStorage),
       partialize: (state) => ({ shippingForm: state.shippingForm }),
       merge: (persistedState, currentState) => {
-        const persistedShippingForm = (persistedState as Partial<CheckoutState>)
-          .shippingForm;
+        const persistedShippingForm = (
+          persistedState as Partial<CheckoutState> | null
+        )?.shippingForm;
         const parsedShippingForm = shippingFormSchema.safeParse(
           persistedShippingForm,
         );

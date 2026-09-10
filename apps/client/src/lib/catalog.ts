@@ -1,4 +1,8 @@
-import type { ProductRecord, ProductSort } from "@repo/types";
+import {
+  catalogQueryString,
+  type ProductRecord,
+  type ProductSort,
+} from "@repo/types";
 import type { Route } from "next";
 import type { CSSProperties } from "react";
 
@@ -64,23 +68,6 @@ export const buildCatalogHref = ({
   search?: string;
   sort?: ProductSort;
 }): Route => {
-  const params = new URLSearchParams();
-
-  if (category && category !== "all") {
-    params.set("category", category);
-  }
-
-  if (search) {
-    params.set("search", search);
-  }
-
-  if (sort && sort !== "newest") {
-    params.set("sort", sort);
-  }
-
-  if (page && page > 1) {
-    params.set("page", String(page));
-  }
-
-  return params.size ? (`${path}?${params.toString()}` as Route) : path;
+  const query = catalogQueryString({ category, page, search, sort });
+  return query ? (`${path}?${query}` as Route) : path;
 };

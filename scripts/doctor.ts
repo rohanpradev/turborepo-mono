@@ -275,7 +275,7 @@ const main = async () => {
       [
         "docker",
         "pull",
-        "oven/bun:1.4.0@sha256:5ff609364c049b54eb0ff560ec96319729a972078ef2c755d758f0c6ef89c2d6",
+        "oven/bun:1.4.2@sha256:9114c058aeae42162ee16dd5084b95fe9473970bb6bcb5b232ab1630f0546895",
       ],
       "Bun 1.4 runtime image can be pulled.",
       (output) =>

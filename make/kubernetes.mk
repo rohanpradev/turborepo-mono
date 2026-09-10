@@ -26,7 +26,8 @@ helm-lint-experimental: ## Render-lint every chart profile against experimental 
 	@$(MAKE) --no-print-directory helm-lint-supported K8S_SUPPORTED_VERSIONS="$(K8S_EXPERIMENTAL_VERSIONS)" K8S_VERSION_TIER=experimental
 
 helm-validate-supported: helm-lint-supported ## Schema-validate every real profile against supported Kubernetes minors
-	@for kubernetes_version in $(K8S_SUPPORTED_VERSIONS); do \
+	@rendered_manifest="$$(mktemp)"; trap 'rm -f "$$rendered_manifest"' EXIT HUP INT TERM; \
+	for kubernetes_version in $(K8S_SUPPORTED_VERSIONS); do \
 		for profile in ingress gateway local local-full; do \
 			echo "$(BLUE)Validating $$profile for $(K8S_VERSION_TIER) Kubernetes $$kubernetes_version...$(NC)"; \
 			case "$$profile" in \
@@ -35,8 +36,8 @@ helm-validate-supported: helm-lint-supported ## Schema-validate every real profi
 				local) profile_args="--values $(HELM_VALUES)" ;; \
 				local-full) profile_args="--values $(HELM_FULL_VALUES)" ;; \
 			esac; \
-			$(HELM) template $(HELM_RELEASE) $(HELM_CHART) --namespace $(HELM_NAMESPACE) --kube-version "$$kubernetes_version" $$profile_args \
-				| docker run --rm -i $(KUBECONFORM_IMAGE) -strict -summary -ignore-missing-schemas -kubernetes-version "$$kubernetes_version" - || exit 1; \
+			$(HELM) template $(HELM_RELEASE) $(HELM_CHART) --namespace $(HELM_NAMESPACE) --kube-version "$$kubernetes_version" $$profile_args > "$$rendered_manifest" || exit 1; \
+			docker run --rm -i $(KUBECONFORM_IMAGE) -strict -summary -ignore-missing-schemas -kubernetes-version "$$kubernetes_version" - < "$$rendered_manifest" || exit 1; \
 		done; \
 	done
 	@echo "$(GREEN)All $(K8S_VERSION_TIER) Helm profiles passed kubeconform validation$(NC)"
@@ -130,6 +131,7 @@ k8s-traefik: ## Install or upgrade the pinned Traefik ingress chart
 		--set image.digest=$(TRAEFIK_IMAGE_DIGEST) \
 		--set versionOverride=$(TRAEFIK_IMAGE_VERSION) \
 		--values $(TRAEFIK_VALUES) \
+		$(TRAEFIK_SET_ARGS) \
 		--namespace $(TRAEFIK_NAMESPACE) \
 		--create-namespace \
 		--skip-crds \
@@ -348,6 +350,18 @@ k8s-up-full: ## Prepare data, build images, deploy the full app, and smoke-test 
 	@$(MAKE) k8s-smoke-full
 	@echo "$(GREEN)Full Kubernetes stack is ready$(NC)"
 
+.PHONY: k8s-gateway k8s-up-gateway
+
+k8s-up-gateway: ## Build and deploy the observed local stack using Gateway API HTTPRoutes
+	@$(MAKE) k8s-gateway-api
+	@$(MAKE) k8s-up-observed \
+		TRAEFIK_SET_ARGS='$(TRAEFIK_SET_ARGS) --values deploy/environments/local/traefik-gateway.values.yaml --set gateway.listeners.websecure.certificateRefs[0].name=$(TRAEFIK_GATEWAY_TLS_SECRET)' \
+		HELM_SET_ARGS='$(HELM_SET_ARGS) --set ingress.enabled=false --set gateway.enabled=true'
+	@$(KUBECTL) -n $(TRAEFIK_NAMESPACE) wait gateway/traefik-gateway --for=condition=Programmed --timeout=$(K8S_ROLLOUT_TIMEOUT)
+
+k8s-gateway: k8s-up-gateway ## Start local Kubernetes in Gateway API mode and keep browser URLs available
+	@$(MAKE) k8s-forward
+
 k8s: k8s-up-observed ## One-command local Kubernetes setup with Prometheus, Grafana, and Docker-backed Postgres, MongoDB, and Kafka
 	@$(MAKE) k8s-forward
 
@@ -409,13 +423,14 @@ k8s-smoke: runtime-dir ## Smoke-test local Kubernetes web routes over HTTPS
 			--data-urlencode "w=64" \
 			--data-urlencode "q=75" >/dev/null && \
 		curl -4 -sSf --cacert "$(LOCAL_TLS_CERT_FILE)" --max-time $(K8S_SMOKE_TIMEOUT) $$resolve_args "https://shop.localhost:$$smoke_port/" >/dev/null && \
+		curl -4 -sSf --cacert "$(LOCAL_TLS_CERT_FILE)" --max-time $(K8S_SMOKE_TIMEOUT) $$resolve_args \
+			-H 'content-type: application/json' --data '{"json":{"limit":1}}' \
+			"https://api.localhost:$$smoke_port/rpc/product/product/list" >/dev/null && \
 		status="$$(curl -4 -sS --cacert "$(LOCAL_TLS_CERT_FILE)" -o /dev/null -w '%{http_code}' --max-time $(K8S_SMOKE_TIMEOUT) $$resolve_args -X POST "https://api.localhost:$$smoke_port/api/webhooks/stripe")"; \
 		test "$$status" = "400" || { echo "$(RED)Expected unsigned Stripe webhook to reach payment-service and return 400; received $$status.$(NC)"; exit 1; }
 	@echo "$(GREEN)Kubernetes smoke tests passed$(NC)"
 
-k8s-smoke-full: k8s-smoke ## Smoke-test full Kubernetes API routes
-	@echo "$(BLUE)Smoke-testing Kubernetes API ingress...$(NC)"
-	@curl -4 -sSf --cacert "$(LOCAL_TLS_CERT_FILE)" --max-time $(K8S_SMOKE_TIMEOUT) -H 'content-type: application/json' --data '{"json":{"limit":1}}' https://api.localhost/rpc/product/product/list >/dev/null
+k8s-smoke-full: k8s-smoke ## Smoke-test full Kubernetes web and API routes through the configured local port
 	@echo "$(GREEN)Full Kubernetes smoke tests passed$(NC)"
 
 k8s-test: ## Run Helm tests for the deployed ecommerce release
