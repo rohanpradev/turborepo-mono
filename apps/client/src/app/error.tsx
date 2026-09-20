@@ -1,6 +1,7 @@
 "use client";
 
-import { RotateCcw } from "lucide-react";
+import { useEffect } from "react";
+import RefreshButton from "@/components/RefreshButton";
 import { Button } from "@/components/ui/button";
 
 export default function ErrorBoundary({
@@ -10,7 +11,9 @@ export default function ErrorBoundary({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  console.error("Storefront route rendering failed", error);
+  useEffect(() => {
+    console.error("Storefront route rendering failed", error);
+  }, [error]);
 
   return (
     <section className="mx-auto flex min-h-[50vh] max-w-2xl flex-col items-center justify-center gap-4 py-12 text-center">
@@ -22,15 +25,12 @@ export default function ErrorBoundary({
           Something interrupted this page.
         </h1>
         <p className="text-sm text-muted-foreground">
-          We could not load this view just now. Your bag and checkout details
-          are still safe—please try again or return to the collection.
+          We could not load this view just now. Please try again or return to
+          the collection.
         </p>
       </div>
       <div className="flex flex-wrap justify-center gap-3">
-        <Button type="button" onClick={reset}>
-          <RotateCcw className="h-4 w-4" />
-          Try again
-        </Button>
+        <RefreshButton label="Try again" onRefresh={reset} />
         <Button href="/products" variant="outline">
           Browse products
         </Button>

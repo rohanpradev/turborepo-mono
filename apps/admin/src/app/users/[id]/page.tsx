@@ -6,6 +6,7 @@ import {
   buildPaymentActivities,
   formatCustomerLabel,
   formatTimestamp,
+  loadOptionalAdminOrders,
   loadPaymentEvents,
 } from "@/lib/admin-data";
 import { requireAdminAccess } from "@/lib/auth";
@@ -15,13 +16,20 @@ export const dynamic = "force-dynamic";
 const UserDetailsPage = async ({ params }: PageProps<"/users/[id]">) => {
   await requireAdminAccess();
   const { id } = await params;
-  const events = await loadPaymentEvents();
+  const [events, orders] = await Promise.all([
+    loadPaymentEvents(),
+    loadOptionalAdminOrders(),
+  ]);
+  const customerOrders = (orders ?? []).filter((order) => order.userId === id);
 
   const activities = buildPaymentActivities(events);
   const customerActivities = activities.filter(
     (activity) => activity.userId === id,
   );
-  const customer = buildCustomerSummaries(customerActivities, [])[0];
+  const customer = buildCustomerSummaries(
+    customerActivities,
+    customerOrders,
+  )[0];
 
   if (!customer) {
     notFound();
@@ -85,6 +93,69 @@ const UserDetailsPage = async ({ params }: PageProps<"/users/[id]">) => {
         </article>
       </div>
 
+      <section className="rounded-2xl border bg-card p-5 shadow-sm">
+        <h2 className="text-lg font-semibold">Placed orders</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Confirmed order records with the products and totals captured at
+          checkout.
+        </p>
+        {orders === null ? (
+          <p className="mt-4 text-sm text-muted-foreground" role="status">
+            Order details are temporarily unavailable. Please try again shortly.
+          </p>
+        ) : customerOrders.length === 0 ? (
+          <p className="mt-4 text-sm text-muted-foreground">
+            No placed orders yet. A confirmed payment may take a moment to
+            appear.
+          </p>
+        ) : (
+          <div className="mt-4 space-y-4">
+            {customerOrders.map((order) => (
+              <article key={order._id} className="rounded-xl border p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold">Order</h3>
+                    <p className="mt-1 break-all font-mono text-xs">
+                      {order.orderId ?? order._id}
+                    </p>
+                    {order.createdAt && (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {formatTimestamp(order.createdAt)}
+                      </p>
+                    )}
+                  </div>
+                  <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium">
+                    {order.status === "success" ? "Confirmed" : "Failed"}
+                  </span>
+                </div>
+                <ul className="mt-4 divide-y">
+                  {order.products.map((product, index) => (
+                    <li
+                      key={`${order._id}-${index}`}
+                      className="flex items-start justify-between gap-4 py-3 text-sm"
+                    >
+                      <div>
+                        <p className="font-medium">{product.name}</p>
+                        <p className="mt-1 text-muted-foreground">
+                          {product.quantity} ×{" "}
+                          {formatUsdFromCents(product.price)}
+                        </p>
+                      </div>
+                      <p className="shrink-0 font-medium">
+                        {formatUsdFromCents(product.price * product.quantity)}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+                <p className="border-t pt-3 text-right text-sm font-semibold">
+                  Order total: {formatUsdFromCents(order.amount)}
+                </p>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
       <div className="grid gap-4 xl:grid-cols-[1fr]">
         <section className="rounded-2xl border bg-card p-5 shadow-sm">
           <div className="mb-4">
@@ -95,6 +166,11 @@ const UserDetailsPage = async ({ params }: PageProps<"/users/[id]">) => {
             </p>
           </div>
           <div className="space-y-3">
+            {customerActivities.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No recent checkout events. Placed orders remain available above.
+              </p>
+            )}
             {customerActivities.map((activity) => (
               <article
                 key={activity.sessionId}

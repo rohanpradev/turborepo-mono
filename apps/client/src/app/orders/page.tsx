@@ -13,69 +13,51 @@ const isClerkConfigured = Boolean(
 );
 
 const OrdersContent = () => {
-  const { getToken, isLoaded, userId } = useAuth();
+  const { getToken } = useAuth();
   const [orders, setOrders] = useState<Array<OrderRecord>>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    const controller = new AbortController();
     const loadOrders = async () => {
       try {
-        if (!userId) {
-          setOrders([]);
-          setError(null);
-          return;
-        }
-
         const token = await getToken();
+        if (controller.signal.aborted) return;
 
         if (!token) {
           throw new Error("Authentication token unavailable.");
         }
 
-        const response = await listUserOrders(getOrderServiceUrl(), { token });
+        const response = await listUserOrders(getOrderServiceUrl(), {
+          token,
+          fetchOptions: { signal: controller.signal, cache: "no-store" },
+        });
+        if (controller.signal.aborted) return;
         setOrders(response.data);
         setError(null);
       } catch (caughtError) {
+        if (controller.signal.aborted) return;
         setError(
           caughtError instanceof Error
             ? caughtError.message
             : "Unable to load orders right now.",
         );
       } finally {
-        setIsLoading(false);
+        if (!controller.signal.aborted) setIsLoading(false);
       }
     };
 
-    if (!isLoaded) {
-      return;
-    }
-
     setIsLoading(true);
     void loadOrders();
-  }, [getToken, isLoaded, userId]);
+    return () => controller.abort();
+  }, [getToken]);
 
-  if (!isLoaded || isLoading) {
+  if (isLoading) {
     return (
       <div className="mt-12 flex min-h-[40vh] items-center justify-center">
         <div className="size-10 animate-spin rounded-full border-2 border-border border-t-foreground" />
       </div>
-    );
-  }
-
-  if (!userId) {
-    return (
-      <section className="mx-auto max-w-3xl space-y-4 py-8">
-        <h1 className="font-serif text-4xl font-semibold tracking-[-0.035em]">
-          Your orders.
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Sign in to see your order history.
-        </p>
-        <SignInButton mode="modal">
-          <Button type="button">Sign in</Button>
-        </SignInButton>
-      </section>
     );
   }
 
@@ -158,6 +140,34 @@ const OrdersContent = () => {
   );
 };
 
+function AuthenticatedOrders() {
+  const { isLoaded, userId } = useAuth();
+  if (!isLoaded) {
+    return (
+      <p role="status" className="py-12">
+        Loading your account…
+      </p>
+    );
+  }
+  if (!userId) {
+    return (
+      <section className="mx-auto max-w-3xl space-y-4 py-8">
+        <h1 className="font-serif text-4xl font-semibold tracking-[-0.035em]">
+          Your orders.
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Sign in to see your order history.
+        </p>
+        <SignInButton mode="modal">
+          <Button type="button">Sign in</Button>
+        </SignInButton>
+      </section>
+    );
+  }
+  // Account changes immediately discard the previous account's state and effects.
+  return <OrdersContent key={userId} />;
+}
+
 export default function OrdersPage() {
   if (!isClerkConfigured) {
     return (
@@ -173,5 +183,5 @@ export default function OrdersPage() {
     );
   }
 
-  return <OrdersContent />;
+  return <AuthenticatedOrders />;
 }

@@ -50,7 +50,8 @@ Status: foundation implemented. `bun run turbo:inspect` now generates summaries,
 Recommended first steps:
 
 - Add a `make turbo-report` or `bun run turbo:report` command that runs:
-  - `bunx turbo run build check-types --summarize`
+  - `bunx turbo run check-types --summarize`
+  - `bunx turbo run build --concurrency=1 --summarize`
   - `bunx turbo run build check-types --graph=docs/task-graph.mermaid`
   - a small script that records cold build time, warm build time, cache hit rate, and selected task count.
 - Upload `.turbo/runs/*.json` and the task graph as CI artifacts.
@@ -65,11 +66,12 @@ Done when:
 
 The current CI uses `actions/cache` for `.turbo`, which helps, but a true shared remote cache is what makes Turborepo feel magical across developers and CI.
 
-Status: integrity config implemented. `remoteCache.signature` and `futureFlags.longerSignatureKey` are enabled; CI now accepts `TURBO_TEAM`, `TURBO_TOKEN`, and `TURBO_REMOTE_CACHE_SIGNATURE_KEY`. Next step is to provision the actual remote cache secrets.
+Status: integrity config implemented. `remoteCache.signature` and `futureFlags.longerSignatureKey` are enabled; CI accepts `TURBO_TEAM`, `TURBO_TOKEN`, and `TURBO_REMOTE_CACHE_SIGNATURE_KEY`. The current PAT flow remains compatible, while the latest Turborepo guidance prefers short-lived OIDC credentials once a Vercel team policy has been provisioned.
 
 Recommended first steps:
 
-- Add `TURBO_TOKEN` and `TURBO_TEAM` to CI jobs that run Turbo.
+- Prefer Vercel's `setup-turborepo-remote-cache-action` with GitHub OIDC and least-privilege `id-token: write` after the matching Vercel team policy exists.
+- Keep the existing `TURBO_TOKEN` and `TURBO_TEAM` PAT flow as the fallback when OIDC is not available.
 - Add `remoteCache.signature: true` to `turbo.json`.
 - Store `TURBO_REMOTE_CACHE_SIGNATURE_KEY` as a CI secret and document local setup.
 - Keep `actions/cache` for Bun, Next, and fallback `.turbo` cache, but treat remote cache as the primary path.
@@ -82,12 +84,12 @@ Done when:
 
 ### 3. Audit Environment Hashing
 
-Strict mode is already enabled, but many variables are currently listed in `globalPassThroughEnv`. Pass-through variables are available at runtime without changing task hashes, so the repo should separate "needed to execute" from "changes output".
+Status: implemented for the current task graph. Strict mode remains enabled, runtime variables are scoped to the tasks that consume them, and build-time values are hashed by each Next.js app.
 
 Recommended first steps:
 
-- Keep secrets and runtime-only values in `globalPassThroughEnv`.
-- Move values that affect build output into task-level `env`, especially for Next.js and any service build steps that embed configuration.
+- Keep secrets and runtime-only values in task-level `passThroughEnv` rather than exposing them to every Turbo task.
+- Keep values that affect build output in task-level `env`, especially for Next.js and any future service build steps that embed configuration.
 - Keep app-local `.env*` files in task `inputs` where used.
 - Gradually reduce reliance on a root `.env` for app-specific values and prefer per-app env files where possible.
 - Add a short checklist to PR review: "Does this env var affect build output, runtime only, or both?"
@@ -129,7 +131,7 @@ Recommended first steps:
 - Keep root integration tests for cross-service behavior.
 - Add package-local `test` scripts for shared packages with meaningful unit tests.
 - Add a root `test` Turbo task with outputs for coverage where applicable.
-- Use `turbo run test check-types build --affected` for PR fast paths, with a scheduled or protected-branch full run.
+- Use `turbo run test check-types --affected`, followed by `turbo run build --affected --concurrency=1`, for PR fast paths, with a scheduled or protected-branch full run. Keeping Next builds serial avoids concurrent Turbopack plugin workers competing inside the same monorepo checkout.
 - Keep coverage reports as artifacts, but avoid treating massive coverage folders as remote-cache outputs unless they are worth restoring.
 
 Done when:

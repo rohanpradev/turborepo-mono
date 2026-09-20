@@ -1,0 +1,19 @@
+# Applied after traefik.values.yaml by make k8s-gateway, once Gateway CRDs exist.
+providers:
+  kubernetesGateway:
+    enabled: true
+
+gateway:
+  name: traefik-gateway
+  listeners:
+    web: null
+    websecure:
+      port: 8443
+      protocol: HTTPS
+      hostname: "*.localhost"
+      namespacePolicy:
+        from: All
+      mode: Terminate
+      certificateRefs:
+        - kind: Secret
+          name: local-selfsigned-tls

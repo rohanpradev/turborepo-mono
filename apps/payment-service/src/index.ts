@@ -1,3 +1,7 @@
+import {
+  createShutdownHandler,
+  getServerIdleTimeoutSeconds,
+} from "@repo/hono-utils";
 import { app } from "@/app";
 import { recordIntegrationEvent } from "@/observability/integrationEvents";
 import { STRIPE_WEBHOOK_MAX_BODY_SIZE_BYTES } from "@/routes/webhookRoutes";
@@ -13,6 +17,7 @@ import { runKafkaSubscriptions } from "@/utils/subscriptions";
 const port = +(process.env.PORT ?? 8002);
 const DEPENDENCY_RETRY_MAX_MS = 30_000;
 let isShuttingDown = false;
+let kafkaBootstrapPromise: Promise<void> = Promise.resolve();
 let kafkaRetryTimer: ReturnType<typeof setTimeout> | undefined;
 let stripeRetryTimer: ReturnType<typeof setTimeout> | undefined;
 let webhookSecretTimer: ReturnType<typeof setInterval> | undefined;
@@ -27,6 +32,7 @@ const connectKafka = async (attempt = 0): Promise<void> => {
 
   try {
     await ensurePaymentKafkaTopics();
+    if (isShuttingDown) return;
     await producer.start();
     paymentServiceRuntime.markReady("kafka.producer");
     recordIntegrationEvent({
@@ -55,6 +61,7 @@ const connectKafka = async (attempt = 0): Promise<void> => {
   }
 
   try {
+    if (isShuttingDown) return;
     await runKafkaSubscriptions();
     paymentServiceRuntime.markReady("kafka.consumer");
     recordIntegrationEvent({
@@ -86,7 +93,9 @@ const connectKafka = async (attempt = 0): Promise<void> => {
 
   const delay = retryDelay(attempt);
   console.warn(`Retrying payment Kafka dependencies in ${delay}ms.`);
-  kafkaRetryTimer = setTimeout(() => void connectKafka(attempt + 1), delay);
+  kafkaRetryTimer = setTimeout(() => {
+    kafkaBootstrapPromise = connectKafka(attempt + 1);
+  }, delay);
 };
 
 const validateStripeApi = async (attempt = 0): Promise<void> => {
@@ -133,6 +142,7 @@ const validateStripeApi = async (attempt = 0): Promise<void> => {
     const delay = retryDelay(attempt);
     console.error("Failed to verify the Stripe API credential:", error);
     console.warn(`Retrying Stripe API verification in ${delay}ms.`);
+    if (isShuttingDown) return;
     stripeRetryTimer = setTimeout(
       () => void validateStripeApi(attempt + 1),
       delay,
@@ -158,64 +168,58 @@ const refreshWebhookSecretStatus = () => {
 const bootstrap = () => {
   refreshWebhookSecretStatus();
   webhookSecretTimer = setInterval(refreshWebhookSecretStatus, 1_000);
-  void connectKafka();
+  kafkaBootstrapPromise = connectKafka();
   void validateStripeApi();
 };
 
-const shutdown = async (signal: string) => {
-  if (isShuttingDown) {
-    return;
-  }
+const server = Bun.serve({
+  port,
+  fetch: app.fetch,
+  idleTimeout: getServerIdleTimeoutSeconds(),
+  maxRequestBodySize: STRIPE_WEBHOOK_MAX_BODY_SIZE_BYTES,
+});
 
-  isShuttingDown = true;
-  console.log(`Received ${signal}. Shutting down payment service...`);
-  paymentServiceRuntime.markNotReady(
-    "kafka.producer",
-    `Shutdown triggered by ${signal}.`,
-  );
-  paymentServiceRuntime.markNotReady(
-    "kafka.consumer",
-    `Shutdown triggered by ${signal}.`,
-  );
-  paymentServiceRuntime.markNotReady(
-    "stripe.api",
-    `Shutdown triggered by ${signal}.`,
-  );
-  paymentServiceRuntime.markNotReady(
-    "stripe.webhook",
-    `Shutdown triggered by ${signal}.`,
-  );
-  if (kafkaRetryTimer) clearTimeout(kafkaRetryTimer);
-  if (stripeRetryTimer) clearTimeout(stripeRetryTimer);
-  if (webhookSecretTimer) clearInterval(webhookSecretTimer);
-  recordIntegrationEvent({
-    source: "service",
-    type: "shutdown.started",
-    message: "Payment service shutdown started.",
-    details: {
-      signal,
-    },
-  });
-
-  const results = await Promise.allSettled([
-    producer.shutdown(),
-    consumer.shutdown(),
-  ]);
-  const failed = results.some((result) => result.status === "rejected");
-
-  if (failed) {
-    console.error("Payment service shutdown completed with errors.", results);
-  }
-
-  process.exit(failed ? 1 : 0);
-};
+const shutdown = createShutdownHandler({
+  name: "payment-service",
+  onShutdown: (signal) => {
+    isShuttingDown = true;
+    console.log(`Received ${signal}. Shutting down payment service...`);
+    paymentServiceRuntime.markNotReady(
+      "kafka.producer",
+      `Shutdown triggered by ${signal}.`,
+    );
+    paymentServiceRuntime.markNotReady(
+      "kafka.consumer",
+      `Shutdown triggered by ${signal}.`,
+    );
+    paymentServiceRuntime.markNotReady(
+      "stripe.api",
+      `Shutdown triggered by ${signal}.`,
+    );
+    paymentServiceRuntime.markNotReady(
+      "stripe.webhook",
+      `Shutdown triggered by ${signal}.`,
+    );
+    if (kafkaRetryTimer) clearTimeout(kafkaRetryTimer);
+    if (stripeRetryTimer) clearTimeout(stripeRetryTimer);
+    if (webhookSecretTimer) clearInterval(webhookSecretTimer);
+    recordIntegrationEvent({
+      source: "service",
+      type: "shutdown.started",
+      message: "Payment service shutdown started.",
+      details: {
+        signal,
+      },
+    });
+  },
+  steps: [
+    { name: "HTTP requests", run: () => server.stop() },
+    { name: "Kafka bootstrap", run: () => kafkaBootstrapPromise },
+    { name: "Kafka consumer", run: () => consumer.shutdown() },
+    { name: "Kafka producer", run: () => producer.shutdown() },
+  ],
+});
 
 bootstrap();
 process.on("SIGINT", () => void shutdown("SIGINT"));
 process.on("SIGTERM", () => void shutdown("SIGTERM"));
-
-export default {
-  port,
-  fetch: app.fetch,
-  maxRequestBodySize: STRIPE_WEBHOOK_MAX_BODY_SIZE_BYTES,
-};

@@ -28,6 +28,7 @@ function AuthenticatedReturnContent() {
   useEffect(() => {
     const currentSessionId = searchParams.get("session_id");
     let isActive = true;
+    const controller = new AbortController();
     let pollTimeout: ReturnType<typeof setTimeout> | undefined;
 
     if (!currentSessionId) {
@@ -43,6 +44,10 @@ function AuthenticatedReturnContent() {
           getCheckoutSessionStatusPath(currentSessionId),
           {
             cache: "no-store",
+            signal: AbortSignal.any([
+              controller.signal,
+              AbortSignal.timeout(15_000),
+            ]),
             headers: { accept: "application/json" },
           },
         );
@@ -80,6 +85,7 @@ function AuthenticatedReturnContent() {
 
     return () => {
       isActive = false;
+      controller.abort();
       if (pollTimeout) clearTimeout(pollTimeout);
     };
   }, [clearCart, clearShippingForm, searchParams, verificationAttempt]);

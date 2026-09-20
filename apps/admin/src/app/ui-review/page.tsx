@@ -1,14 +1,13 @@
 import {
-  ArrowRight,
   Banknote,
   CheckCircle2,
-  Clock3,
   CreditCard,
   RadioTower,
   Server,
   ShoppingCart,
 } from "lucide-react";
 import Link from "next/link";
+import DashboardActions from "@/components/DashboardActions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -55,44 +54,25 @@ export default function UiReviewPage() {
     <div className="space-y-5 py-5 sm:space-y-6 sm:py-6">
       <section
         aria-labelledby="dashboard-heading"
-        className="relative overflow-hidden rounded-[1.75rem] bg-[linear-gradient(125deg,oklch(0.2_0.07_264),oklch(0.31_0.13_265))] px-6 py-7 text-white shadow-[0_30px_70px_-42px_rgba(32,43,90,0.85)] sm:px-8 sm:py-9"
+        className="flex flex-col justify-between gap-5 border-b pb-6 sm:flex-row sm:items-end"
       >
-        <div
-          className="absolute -right-12 -top-24 size-72 rounded-full border border-white/10"
-          aria-hidden="true"
-        />
-        <div
-          className="absolute -right-2 -top-14 size-52 rounded-full border border-white/10"
-          aria-hidden="true"
-        />
-        <div className="relative flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl">
-            <Badge className="border-white/12 bg-white/10 text-white">
-              <span className="size-1.5 rounded-full bg-emerald-300" />
-              Operations briefing
-            </Badge>
-            <h1
-              id="dashboard-heading"
-              className="mt-5 max-w-2xl text-3xl font-bold tracking-[-0.04em] sm:text-4xl lg:text-5xl"
-            >
-              Commerce, clearly in view.
-            </h1>
-            <p className="mt-4 max-w-2xl text-sm leading-6 text-white/68 sm:text-base sm:leading-7">
-              Track revenue, checkout activity, and service health from one
-              focused operating surface.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex min-h-10 items-center gap-2 rounded-xl border border-white/12 bg-white/8 px-3 text-xs text-white/65 backdrop-blur">
-              <Clock3 className="size-4" aria-hidden="true" />
-              Updated today at 9:42 AM
-            </div>
-            <Button asChild variant="secondary" size="lg">
-              <Link href="/payments">
-                Open payments <ArrowRight aria-hidden="true" />
-              </Link>
-            </Button>
-          </div>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+            Workspace / Overview
+          </p>
+          <h1
+            id="dashboard-heading"
+            className="mt-2 text-3xl font-bold tracking-[-0.04em] sm:text-4xl"
+          >
+            Your store at a glance
+          </h1>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
+            Keep up with payments, monitor your store, and pick up where you
+            left off.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Badge variant="outline">Sample data · UI preview</Badge>
         </div>
       </section>
 
@@ -105,27 +85,27 @@ export default function UiReviewPage() {
             key={metric.label}
             className="group rounded-2xl border bg-card p-5 shadow-[0_16px_36px_-30px_rgba(28,39,72,0.55)]"
           >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                  {metric.label}
-                </p>
-                <p className="mt-3 break-words text-3xl font-bold tracking-[-0.04em]">
-                  {metric.value}
-                </p>
-              </div>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                {metric.label}
+              </p>
               <span
-                className={`grid size-11 shrink-0 place-items-center rounded-xl ${metric.tone}`}
+                className={`grid size-9 shrink-0 place-items-center rounded-lg ${metric.tone}`}
               >
-                <metric.icon className="size-5" aria-hidden="true" />
+                <metric.icon className="size-4" aria-hidden="true" />
               </span>
             </div>
+            <p className="mt-3 break-words text-3xl font-bold tabular-nums tracking-[-0.04em]">
+              {metric.value}
+            </p>
             <p className="mt-4 text-sm leading-6 text-muted-foreground">
               {metric.description}
             </p>
           </article>
         ))}
       </section>
+
+      <DashboardActions />
 
       <div className="grid gap-5 xl:grid-cols-[0.82fr_1.18fr]">
         <section

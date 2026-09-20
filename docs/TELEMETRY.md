@@ -19,7 +19,7 @@ The platform emits dependency-light telemetry that works in local Docker logs, K
 | `TELEMETRY_ENABLED` | `true` | Set to `false` to disable structured telemetry logs. |
 | `TELEMETRY_LOG_FORMAT` | `json` | Use `json` for log collectors or `pretty` for object logging during local debugging. |
 
-These variables are runtime-only and are listed in Turborepo `globalPassThroughEnv`, so changing them does not invalidate build artifacts.
+These variables are runtime-only and are listed in the Turborepo `dev` task's `passThroughEnv`, so they are available to local services without invalidating unrelated build artifacts.
 
 ## Log Examples
 

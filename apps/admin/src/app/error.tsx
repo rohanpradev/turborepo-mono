@@ -1,8 +1,8 @@
 "use client";
 
-import { AlertTriangle, RotateCcw } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import RefreshButton from "@/components/RefreshButton";
 
 export default function AdminError({
   error,
@@ -26,10 +26,9 @@ export default function AdminError({
           The operations data could not be refreshed. Your navigation and
           existing data remain unchanged.
         </p>
-        <Button type="button" className="mt-6" onClick={reset}>
-          <RotateCcw className="size-4" aria-hidden="true" />
-          Try again
-        </Button>
+        <div className="mt-6">
+          <RefreshButton label="Try again" onRefresh={reset} />
+        </div>
       </div>
     </section>
   );

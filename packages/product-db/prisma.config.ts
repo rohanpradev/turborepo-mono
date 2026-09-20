@@ -7,10 +7,12 @@ const databaseUrl =
 
 export default definePrismaConfig({
   orm: definePostgresConfig({
-    contract: "prisma8/contract.prisma",
-    output: "generated/prisma8",
+    contract: "src/contract.prisma",
     db: {
       connection: databaseUrl,
+    },
+    migrations: {
+      dir: "migrations",
     },
   }),
 });

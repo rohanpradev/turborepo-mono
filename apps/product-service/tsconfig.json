@@ -2,8 +2,7 @@
   "extends": "@repo/typescript-config/bun-service.json",
   "compilerOptions": {
     "paths": {
-      "@/*": ["./src/*"],
-      "@prisma/*": ["../../../packages/product-db/generated/prisma/*"]
+      "@/*": ["./src/*"]
     }
   }
 }

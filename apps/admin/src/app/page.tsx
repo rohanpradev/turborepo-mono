@@ -6,7 +6,6 @@ import {
 } from "@repo/api-client";
 import { formatUsdFromCents } from "@repo/types";
 import {
-  ArrowRight,
   Banknote,
   CheckCircle2,
   Clock3,
@@ -17,8 +16,11 @@ import {
   ShoppingCart,
 } from "lucide-react";
 import Link from "next/link";
+import DashboardActions from "@/components/DashboardActions";
+import RefreshButton from "@/components/RefreshButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { formatTimestamp } from "@/lib/admin-data";
 import { requireAdminAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -26,12 +28,6 @@ export const dynamic = "force-dynamic";
 const liveFetchOptions = {
   cache: "no-store" as const,
 };
-
-const formatEventTimestamp = (timestamp: string) =>
-  new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(timestamp));
 
 const uniquePaymentsByTransaction = <
   T extends { details?: { transactionId?: unknown } },
@@ -109,21 +105,30 @@ const HomePage = async () => {
       icon: CreditCard,
       label: "Transactions",
       tone: "bg-indigo-500/12 text-indigo-700 dark:text-indigo-300",
-      value: recentPayments.length.toLocaleString(),
+      value:
+        "error" in paymentEvents
+          ? "Unavailable"
+          : recentPayments.length.toLocaleString(),
     },
     {
       description: "Captured across the recent event window",
       icon: Banknote,
       label: "Recent revenue",
       tone: "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300",
-      value: formatUsdFromCents(recentRevenueCents),
+      value:
+        "error" in paymentEvents
+          ? "Unavailable"
+          : formatUsdFromCents(recentRevenueCents),
     },
     {
       description: "Checkout sessions awaiting or completing payment",
       icon: ShoppingCart,
       label: "Checkouts",
       tone: "bg-amber-500/14 text-amber-700 dark:text-amber-300",
-      value: recentCheckouts.length.toLocaleString(),
+      value:
+        "error" in paymentEvents
+          ? "Unavailable"
+          : recentCheckouts.length.toLocaleString(),
     },
     {
       description: "Live readiness from the payment service",
@@ -141,48 +146,31 @@ const HomePage = async () => {
     <div className="space-y-5 py-5 sm:space-y-6 sm:py-6">
       <section
         aria-labelledby="dashboard-heading"
-        className="relative overflow-hidden rounded-[1.75rem] bg-[linear-gradient(125deg,oklch(0.2_0.07_264),oklch(0.31_0.13_265))] px-6 py-7 text-white shadow-[0_30px_70px_-42px_rgba(32,43,90,0.85)] sm:px-8 sm:py-9"
+        className="flex flex-col justify-between gap-5 border-b pb-6 sm:flex-row sm:items-end"
       >
-        <div
-          className="absolute -right-12 -top-24 size-72 rounded-full border border-white/10"
-          aria-hidden="true"
-        />
-        <div
-          className="absolute -right-2 -top-14 size-52 rounded-full border border-white/10"
-          aria-hidden="true"
-        />
-        <div className="relative flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl">
-            <Badge className="border-white/12 bg-white/10 text-white">
-              <span className="size-1.5 rounded-full bg-emerald-300" />
-              Operations briefing
-            </Badge>
-            <h1
-              id="dashboard-heading"
-              className="mt-5 max-w-2xl text-3xl font-bold tracking-[-0.04em] sm:text-4xl lg:text-5xl"
-            >
-              Commerce, clearly in view.
-            </h1>
-            <p className="mt-4 max-w-2xl text-sm leading-6 text-white/68 sm:text-base sm:leading-7">
-              Track revenue, checkout activity, and service health from one
-              focused operating surface.
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+            Workspace / Overview
+          </p>
+          <h1
+            id="dashboard-heading"
+            className="mt-2 text-3xl font-bold tracking-[-0.04em] sm:text-4xl"
+          >
+            Your store at a glance
+          </h1>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
+            Keep up with payments, monitor your store, and pick up where you
+            left off.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <RefreshButton />
+          {latestEventTimestamp ? (
+            <p className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Clock3 className="size-3.5" aria-hidden="true" />
+              Latest event {formatTimestamp(latestEventTimestamp)}
             </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            {latestEventTimestamp ? (
-              <div className="flex min-h-10 items-center gap-2 rounded-xl border border-white/12 bg-white/8 px-3 text-xs text-white/65 backdrop-blur">
-                <Clock3 className="size-4" aria-hidden="true" />
-                Updated {formatEventTimestamp(latestEventTimestamp)}
-              </div>
-            ) : null}
-            <Button asChild variant="secondary" size="lg">
-              <Link href="/payments">
-                Open payments
-                <ArrowRight aria-hidden="true" />
-              </Link>
-            </Button>
-          </div>
+          ) : null}
         </div>
       </section>
 
@@ -195,27 +183,27 @@ const HomePage = async () => {
             key={metric.label}
             className="group rounded-2xl border bg-card p-5 shadow-[0_16px_36px_-30px_rgba(28,39,72,0.55)] transition-[transform,box-shadow,border-color] hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-[0_24px_50px_-32px_rgba(28,39,72,0.62)]"
           >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                  {metric.label}
-                </p>
-                <p className="mt-3 break-words text-3xl font-bold tracking-[-0.04em]">
-                  {metric.value}
-                </p>
-              </div>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                {metric.label}
+              </p>
               <span
-                className={`grid size-11 shrink-0 place-items-center rounded-xl ${metric.tone}`}
+                className={`grid size-9 shrink-0 place-items-center rounded-lg ${metric.tone}`}
               >
-                <metric.icon className="size-5" aria-hidden="true" />
+                <metric.icon className="size-4" aria-hidden="true" />
               </span>
             </div>
+            <p className="mt-3 break-words text-3xl font-bold tabular-nums tracking-[-0.04em]">
+              {metric.value}
+            </p>
             <p className="mt-4 text-sm leading-6 text-muted-foreground">
               {metric.description}
             </p>
           </article>
         ))}
       </section>
+
+      <DashboardActions />
 
       <div className="grid gap-5 xl:grid-cols-[0.82fr_1.18fr]">
         <section
@@ -292,7 +280,10 @@ const HomePage = async () => {
                     >
                       <span className="font-medium">{dependency.name}</span>
                       <span className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                        <span className="size-1.5 rounded-full bg-emerald-500" />
+                        <span
+                          aria-hidden="true"
+                          className={`size-1.5 rounded-full ${dependency.status === "ready" ? "bg-emerald-500" : dependency.status === "disabled" ? "bg-slate-400" : "bg-amber-500"}`}
+                        />
                         {dependency.status}
                       </span>
                     </li>
@@ -381,7 +372,7 @@ const HomePage = async () => {
                         dateTime={event.timestamp}
                         className="mt-1 block text-xs text-muted-foreground"
                       >
-                        {formatEventTimestamp(event.timestamp)}
+                        {formatTimestamp(event.timestamp)}
                       </time>
                     </div>
                   </li>

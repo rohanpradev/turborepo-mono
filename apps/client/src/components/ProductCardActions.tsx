@@ -1,6 +1,6 @@
 "use client";
 
-import { ShoppingCart } from "lucide-react";
+import { Check, ShoppingCart } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -22,15 +22,26 @@ const ProductCardActions = ({
 }: ProductCardActionsProps) => {
   const defaultSize = product.sizes[0] ?? "";
   const [selectedSize, setSelectedSize] = useState(defaultSize);
+  const [lastAdded, setLastAdded] = useState<string | null>(null);
+  const selectionKey = `${selectedColor}:${selectedSize}`;
+  const added = lastAdded === selectionKey;
   const addToCart = useCartStore((state) => state.addToCart);
 
   const handleAddToCart = () => {
-    addToCart({
+    const added = addToCart({
       ...product,
       quantity: 1,
       selectedColor,
       selectedSize,
     });
+    if (!added) {
+      toast.error("Your bag has reached its limit", {
+        description:
+          "Reduce the quantity or remove a piece from your bag before adding more.",
+      });
+      return;
+    }
+    setLastAdded(selectionKey);
     toast.success(`${product.name} added to your bag`, {
       description: `${selectedColor} · ${selectedSize.toUpperCase()}`,
     });
@@ -61,10 +72,13 @@ const ProductCardActions = ({
 
       <fieldset className="space-y-2">
         <legend className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
-          Color
+          Color{" "}
+          <span className="font-normal normal-case tracking-normal">
+            / {selectedColor}
+          </span>
         </legend>
         <div className="flex min-h-8 flex-wrap gap-1.5">
-          {product.colors.slice(0, 6).map((color) => (
+          {product.colors.map((color) => (
             <button
               type="button"
               key={color}
@@ -72,7 +86,7 @@ const ProductCardActions = ({
               aria-pressed={selectedColor === color}
               onClick={() => onSelectedColorChange(color)}
               title={color}
-              className={`grid size-9 cursor-pointer place-items-center rounded-full border transition-[border-color,background-color,box-shadow] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30 focus-visible:ring-offset-2 ${
+              className={`grid size-11 cursor-pointer place-items-center rounded-full border transition-[border-color,background-color,box-shadow] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30 focus-visible:ring-offset-2 ${
                 selectedColor === color
                   ? "border-foreground bg-foreground shadow-sm"
                   : "border-border bg-card hover:border-stone-400"
@@ -90,11 +104,16 @@ const ProductCardActions = ({
       <Button
         type="button"
         onClick={handleAddToCart}
+        aria-label={`Add ${product.name} to bag`}
         disabled={!selectedSize || !selectedColor}
         className="w-full"
       >
-        <ShoppingCart className="size-4" />
-        Quick add
+        {added ? (
+          <Check className="size-4" aria-hidden="true" />
+        ) : (
+          <ShoppingCart className="size-4" aria-hidden="true" />
+        )}
+        <span>{added ? "Add another" : "Add to bag"}</span>
       </Button>
     </div>
   );

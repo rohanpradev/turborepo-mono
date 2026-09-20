@@ -4,13 +4,13 @@ import BrandMark from "@/components/BrandMark";
 
 const Footer = () => {
   return (
-    <footer className="mt-18 overflow-hidden rounded-2xl bg-foreground text-background">
+    <footer className="mt-16 overflow-hidden bg-[#28332b] text-background">
       <div className="flex flex-col gap-6 border-b border-white/12 px-6 py-8 sm:flex-row sm:items-end sm:justify-between sm:px-9 sm:py-10 lg:px-12">
         <div className="max-w-2xl">
           <p className="text-[0.6875rem] font-bold uppercase tracking-[0.18em] text-background/50">
             The Common Goods edit
           </p>
-          <h2 className="mt-3 max-w-xl font-serif text-4xl font-semibold leading-[0.98] tracking-[-0.035em] sm:text-5xl">
+          <h2 className="mt-3 max-w-xl font-serif text-4xl font-normal leading-[0.98] tracking-[-0.035em] sm:text-5xl">
             Everyday pieces, thoughtfully chosen.
           </h2>
         </div>
@@ -109,7 +109,7 @@ const Footer = () => {
             <span>Secure payments</span>
             <span>Live order status</span>
             <span>Curated inventory</span>
-            <span>Fast support flow</span>
+            <span>Thoughtful everyday style</span>
           </div>
         </div>
       </div>

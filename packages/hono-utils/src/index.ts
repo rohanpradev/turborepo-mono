@@ -382,6 +382,37 @@ const getRequestTimeoutMs = (fallback: number) => {
   return Number.isFinite(configured) && configured > 0 ? configured : fallback;
 };
 
+const BUN_MAX_IDLE_TIMEOUT_SECONDS = 255;
+const SERVER_IDLE_TIMEOUT_HEADROOM_SECONDS = 5;
+
+export const SERVICE_MAX_REQUEST_BODY_SIZE_BYTES = 1024 * 1024;
+
+export const getServerIdleTimeoutSeconds = () => {
+  const configured = process.env.HTTP_IDLE_TIMEOUT_SECONDS;
+
+  if (configured !== undefined && configured !== "") {
+    const seconds = Number(configured);
+
+    if (
+      !Number.isSafeInteger(seconds) ||
+      seconds <= 0 ||
+      seconds > BUN_MAX_IDLE_TIMEOUT_SECONDS
+    ) {
+      throw new Error(
+        `HTTP_IDLE_TIMEOUT_SECONDS must be an integer between 1 and ${BUN_MAX_IDLE_TIMEOUT_SECONDS}.`,
+      );
+    }
+
+    return seconds;
+  }
+
+  return Math.min(
+    BUN_MAX_IDLE_TIMEOUT_SECONDS,
+    Math.ceil(getRequestTimeoutMs(30_000) / 1000) +
+      SERVER_IDLE_TIMEOUT_HEADROOM_SECONDS,
+  );
+};
+
 const getAdminUserIds = () =>
   new Set(
     process.env.ADMIN_USER_IDS?.split(",")
@@ -820,7 +851,17 @@ export const createHealthRoutes = <
     },
   });
 
-  return createServiceRouter<E>()
+  // Scope probe headers to their routes so this mounted router cannot alter
+  // application responses or the route labels used by request metrics.
+  const noStore = createMiddleware(async (c, next) => {
+    c.header("Cache-Control", "no-store");
+    await next();
+  });
+  const router = createServiceRouter<E>();
+  router.use("/health", noStore);
+  router.use("/health/*", noStore);
+  router.use(getPrometheusMetricsPath(), noStore);
+  return router
     .openapi(healthRoute, (c) =>
       c.json(buildHealthPayload(runtime.snapshot()), 200),
     )
@@ -1248,7 +1289,7 @@ export const createTelemetryMiddleware = (serviceName: string) =>
 
 export const createORPCMiddleware = <TRouter extends AnyRouter>({
   context,
-  maxBodySize = 1024 * 1024,
+  maxBodySize = SERVICE_MAX_REQUEST_BODY_SIZE_BYTES,
   prefix = "/rpc",
   router,
 }: CreateORPCMiddlewareOptions<TRouter>) => {
@@ -1342,4 +1383,5 @@ export const createServiceApp = <E extends Env = Env>({
   return app;
 };
 
+export { createShutdownHandler } from "./shutdown";
 export { createRoute, OpenAPIHono, z };

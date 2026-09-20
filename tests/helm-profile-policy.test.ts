@@ -84,3 +84,38 @@ metadata:
     ).toThrow("forbidden latest image tags");
   });
 });
+
+const jobBudgetManifest = `${manifest}
+---
+kind: Job
+metadata:
+  name: deploy-db
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: product-service
+        app.kubernetes.io/job-name: deploy-db
+---
+kind: PodDisruptionBudget
+metadata:
+  name: product-service
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: product-service
+`;
+
+test("rejects database Jobs in application disruption budgets", () => {
+  expect(() =>
+    assertProfilePolicy(jobBudgetManifest, profile, "1.36.4"),
+  ).toThrow("Job deploy-db must not be selected");
+});
+
+test("accepts Jobs excluded from the budget without changing network labels", () => {
+  const isolated = jobBudgetManifest.replace(
+    "  selector:\n",
+    "  selector:\n    matchExpressions:\n      - key: app.kubernetes.io/job-name\n        operator: DoesNotExist\n",
+  );
+  expect(assertProfilePolicy(isolated, profile, "1.36.4")).toBe(4);
+});

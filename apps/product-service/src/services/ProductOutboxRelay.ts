@@ -1,44 +1,54 @@
-import { prisma } from "@repo/product-db";
+import { and, db, or } from "@repo/product-db";
 import { productServiceRuntime } from "@/runtime";
 import { producer } from "@/utils/kafka";
+
+import { nowUtc } from "@/utils/timestamps";
 
 const POLL_MS = 1_000;
 const LEASE_MS = 30_000;
 let timer: ReturnType<typeof setTimeout> | undefined;
-let stopped = false;
+let stopped = true;
+let inFlight: Promise<void> | undefined;
 
 const nextDelay = (attempts: number) =>
   Math.min(60_000, 1_000 * 2 ** Math.min(attempts, 6));
 
-const relayOnce = async () => {
-  const now = new Date();
-  const event = await prisma.productOutboxEvent.findFirst({
-    where: {
-      availableAt: { lte: now },
-      OR: [
-        { status: "PENDING" },
-        { status: "PUBLISHING", leaseUntil: { lt: now } },
-      ],
-    },
-    orderBy: { createdAt: "asc" },
-  });
+export const relayProductOutboxOnce = async () => {
+  const currentTime = nowUtc();
+  const claimableEvents = db.orm.public.ProductOutboxEvent.where((event) =>
+    event.availableAt.lte(currentTime),
+  ).where((event) =>
+    or(
+      event.status.eq("PENDING"),
+      and(event.status.eq("PUBLISHING"), event.leaseUntil.lt(currentTime)),
+    ),
+  );
+  const event = await claimableEvents
+    .orderBy((event) => event.createdAt.asc())
+    .first();
   if (!event) return;
 
-  const claimed = await prisma.productOutboxEvent.updateMany({
-    where: {
-      id: event.id,
-      OR: [
-        { status: "PENDING" },
-        { status: "PUBLISHING", leaseUntil: { lt: now } },
-      ],
-    },
-    data: {
+  // Prisma 8's single-row update first resolves an identity, then updates by
+  // primary key. Use the count terminal to keep all lease predicates in the
+  // atomic UPDATE statement, including when another worker races this claim.
+  const attempts = event.attempts + 1;
+  const claimed = await claimableEvents
+    .where({ id: event.id, attempts: event.attempts })
+    .updateAndCount({
       status: "PUBLISHING",
-      leaseUntil: new Date(now.getTime() + LEASE_MS),
-      attempts: { increment: 1 },
-    },
+      leaseUntil: currentTime.add({ milliseconds: LEASE_MS }),
+      attempts,
+      updatedAt: currentTime,
+    });
+  if (claimed !== 1) return;
+
+  // A lease can expire during a slow publish. Only this claim may finalize it;
+  // an older worker must never overwrite a newer worker's retry or success.
+  const ownedEvent = db.orm.public.ProductOutboxEvent.where({
+    id: event.id,
+    status: "PUBLISHING",
+    attempts,
   });
-  if (claimed.count === 0) return;
 
   try {
     await producer.start();
@@ -46,27 +56,27 @@ const relayOnce = async () => {
       key: event.eventKey,
       headers: { "outbox-event-id": event.id },
     });
-    await prisma.productOutboxEvent.update({
-      where: { id: event.id },
-      data: {
-        status: "PUBLISHED",
-        publishedAt: new Date(),
-        leaseUntil: null,
-        lastError: null,
-      },
+    const publishedAt = nowUtc();
+    await ownedEvent.updateAndCount({
+      status: "PUBLISHED",
+      publishedAt,
+      leaseUntil: null,
+      lastError: null,
+      updatedAt: publishedAt,
     });
     productServiceRuntime.markReady("kafka.producer");
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Outbox publish failed.";
-    await prisma.productOutboxEvent.update({
-      where: { id: event.id },
-      data: {
-        status: "PENDING",
-        leaseUntil: null,
-        lastError: message.slice(0, 2_000),
-        availableAt: new Date(Date.now() + nextDelay(event.attempts + 1)),
-      },
+    const retryAt = nowUtc();
+    await ownedEvent.updateAndCount({
+      status: "PENDING",
+      leaseUntil: null,
+      lastError: message.slice(0, 2_000),
+      availableAt: retryAt.add({
+        milliseconds: nextDelay(event.attempts + 1),
+      }),
+      updatedAt: retryAt,
     });
     productServiceRuntime.markNotReady("kafka.producer", message);
   }
@@ -75,20 +85,25 @@ const relayOnce = async () => {
 const run = async () => {
   if (stopped) return;
   try {
-    await relayOnce();
+    await relayProductOutboxOnce();
   } catch (error) {
     console.error("Product outbox relay failed:", error);
   } finally {
-    if (!stopped) timer = setTimeout(() => void run(), POLL_MS);
+    if (!stopped)
+      timer = setTimeout(() => {
+        inFlight = run();
+      }, POLL_MS);
   }
 };
 
 export const startProductOutboxRelay = () => {
+  if (!stopped) return;
   stopped = false;
-  void run();
+  inFlight = run();
 };
 
-export const stopProductOutboxRelay = () => {
+export const stopProductOutboxRelay = async () => {
   stopped = true;
   if (timer) clearTimeout(timer);
+  await inFlight;
 };

@@ -64,8 +64,8 @@ Public read paths can run without Clerk configured, which keeps local service se
 ## Data Model Choices
 
 - Product catalog writes use PostgreSQL through Prisma because catalog data is relational, validated, and admin-managed.
-- Prisma 8 is the primary database CLI/runtime and emits a versioned PostgreSQL contract during local, CI, and container builds. Existing service queries remain on the explicitly namespaced Prisma 7 compatibility client while the supported incremental cutover is exercised.
-- Prisma 7 currently owns the existing migration ledger; Prisma 8 must not take migration ownership until the contract, baseline, database signature, and `db` ref are established together. Pool size, idle timeout, and connection timeout remain explicit so dependency outages fail readiness promptly.
+- Prisma 8 is the only product-database CLI and runtime. It emits a deterministic PostgreSQL contract during local, CI, and container builds; product queries use the composable `db.orm` API and transactions use `db.transaction`.
+- Prisma 8 owns the checked-in content-addressed migration graph and baseline. Deployment adopts an unsigned existing database only after strict schema verification succeeds; fresh databases apply the baseline normally. Pool size, idle timeout, and connection timeout remain explicit so dependency outages fail readiness promptly.
 - Orders use MongoDB as a read model fed by payment events, which keeps checkout payment handling decoupled from customer order queries.
 - Stripe owns payment execution; local services only persist/query the platform state they need.
 

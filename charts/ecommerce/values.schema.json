@@ -399,7 +399,7 @@
     "jobs": {
       "type": "object",
       "propertyNames": {
-        "enum": ["migrate-product-db", "seed-product-db"]
+        "enum": ["migrate-product-db", "seed-product-db", "index-order-db"]
       },
       "additionalProperties": {
         "type": "object",

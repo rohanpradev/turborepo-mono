@@ -1,85 +1,83 @@
 # @repo/product-db
 
-Shared Prisma data layer and schema contracts for the product database.
+Prisma 8 contract, PostgreSQL runtime, and migration graph for the product service.
 
-## Overview
+## Runtime
 
-This package provides a centralized Prisma configuration for the PostgreSQL product database, used by the product-service.
+The package uses only Prisma 8:
 
-## Technology
-
-- **ORM**: Prisma 8 contract/runtime with an explicitly namespaced Prisma 7 compatibility client
-- **Database**: PostgreSQL
-- **Driver Adapter**: `@prisma/adapter-pg`
-
-## Database Schema
-
-### Models
-
-**Product**
-
-- Product catalog with variants (sizes, colors)
-- Image storage as JSON
-- Category relationship
-
-**Category**
-
-- Product categorization
-- Unique slug for URLs
-
-## Usage
+- `src/contract.prisma` is the source-of-truth data contract.
+- `src/contract.json` and `src/contract.d.ts` are deterministic emitted artifacts.
+- `src/client.ts` creates the module-level Prisma 8 PostgreSQL client and the explicitly sized `pg` pool.
+- `migrations/app/` contains the content-addressed Prisma 8 migration graph.
 
 ```typescript
-import { prisma } from "@repo/product-db";
-import type { Product, Category, Prisma } from "@repo/product-db";
+import { db } from "@repo/product-db";
 
-// Query products
-const products = await prisma.product.findMany({
-  where: { categorySlug: "electronics" },
-  include: { category: true },
-});
+const products = await db.orm.public.Product
+  .where({ categorySlug: "shoes" })
+  .orderBy((product) => product.createdAt.desc())
+  .limit(20)
+  .all();
 
-// Create product
-const product = await prisma.product.create({
-  data: {
-    name: "Product Name",
-    price: 2999,
-    categorySlug: "electronics",
-  },
+const product = await db.orm.public.Product.create({
+  name: "Product Name",
+  shortDescription: "Short description",
+  description: "Description",
+  price: 2999,
+  sizes: ["m"],
+  colors: ["black"],
+  images: { black: "/products/example.png" },
+  categorySlug: "shoes",
+  updatedAt: Temporal.Now.plainDateTimeISO("UTC"),
 });
 ```
 
-## Scripts
+Use `db.transaction(async (tx) => ...)` for atomic work. Query through `tx.orm` inside the callback; queries made through the module-level `db` are outside that transaction.
+
+## Commands
+
+Run these from this package directory:
 
 ```bash
-# Generate the Prisma 7 compatibility client and emit the Prisma 8 contract
+# Emit the deterministic JSON contract and TypeScript types
 bun run db:generate
 
-# Validate the schema and Prisma configuration
+# Emit the contract and verify migration-graph integrity (CI-safe and offline)
 bun run db:validate
 
-# Create and apply a migration through the current Prisma 7 owner
+# Update an unshared local development database and advance the local db ref
 bun run db:migrate
 
-# Deploy migrations (production)
+# Plan a reviewable migration after editing the contract
+bun run db:plan -- --name add_feature
+
+# Apply reviewed migrations to the emitted contract state
 bun run db:deploy
+
+# Verify the live database marker and schema
+bun run db:verify
 ```
 
-## Environment Variables
+## Existing database adoption
+
+The checked-in baseline creates the same schema formerly represented by the legacy SQL migration ledger. `db:deploy` runs `prisma db migrate`, which uses the configured contract as its target and replays only reviewed migrations. Deployment errors stop the job; they never trigger automatic database signing.
+
+For an existing unsigned database with the matching legacy schema, explicitly verify and adopt it before deployment:
+
+```bash
+DATABASE_URL="postgresql://..." bun run db:adopt
+```
+
+`db:adopt` refuses to mark a database whose physical schema differs from the contract. Fresh databases do not need adoption; `db:deploy` applies the baseline from the empty state.
+
+## Environment
 
 ```env
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/product_db?schema=public"
+POSTGRES_POOL_MAX=20
+POSTGRES_CONNECTION_TIMEOUT_MS=5000
+POSTGRES_IDLE_TIMEOUT_MS=30000
 ```
 
-## Prisma Client
-
-Prisma 8 is the primary CLI and PostgreSQL runtime. Its contract is inferred from the same database and emitted during validation/builds. Existing product queries continue through the namespaced Prisma 7 compatibility client until their query and transaction behavior has moved to Prisma 8; Prisma 7 remains the migration owner during that supported side-by-side phase. `connectProductDB()` and `disconnectProductDB()` are available for explicit service lifecycle management.
-
-## Schema Location
-
-- Prisma 8 contract: `prisma8/contract.prisma`
-- Prisma 8 configuration: `prisma.config.ts`
-- Prisma 7 compatibility schema: `prisma/schema.prisma`
-- Prisma 7 compatibility configuration: `prisma7.config.ts`
-- Current migrations: `prisma/migrations/`
-- Generated artifacts: `generated/prisma8/` and `generated/prisma/`
+The long-running service owns one pool for its process lifetime and closes both the Prisma 8 client and the externally supplied pool during graceful shutdown. Short-lived seed scripts call the same lifecycle helpers so they exit cleanly.

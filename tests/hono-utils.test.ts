@@ -7,12 +7,15 @@ import {
   createTraceparent,
   getClerkAuthenticationErrorMessage,
   getCorsOrigins,
+  getServerIdleTimeoutSeconds,
   parseTraceparent,
 } from "../packages/hono-utils/src/index";
 
 const originalCorsAllowedOrigins = process.env.CORS_ALLOWED_ORIGINS;
 const originalPrometheusMetricsEnabled = process.env.PROMETHEUS_METRICS_ENABLED;
 const originalTelemetryEnabled = process.env.TELEMETRY_ENABLED;
+const originalHttpIdleTimeoutSeconds = process.env.HTTP_IDLE_TIMEOUT_SECONDS;
+const originalRequestTimeoutMs = process.env.REQUEST_TIMEOUT_MS;
 
 afterEach(() => {
   if (originalCorsAllowedOrigins === undefined) {
@@ -32,9 +35,47 @@ afterEach(() => {
   } else {
     process.env.TELEMETRY_ENABLED = originalTelemetryEnabled;
   }
+
+  if (originalHttpIdleTimeoutSeconds === undefined) {
+    delete process.env.HTTP_IDLE_TIMEOUT_SECONDS;
+  } else {
+    process.env.HTTP_IDLE_TIMEOUT_SECONDS = originalHttpIdleTimeoutSeconds;
+  }
+
+  if (originalRequestTimeoutMs === undefined) {
+    delete process.env.REQUEST_TIMEOUT_MS;
+  } else {
+    process.env.REQUEST_TIMEOUT_MS = originalRequestTimeoutMs;
+  }
 });
 
 describe("@repo/hono-utils", () => {
+  it("serves uncached GET and HEAD health responses as dependencies change", async () => {
+    const runtime = createServiceRuntime("probe-test", [
+      { name: "database" },
+    ] as const);
+    const app = createHealthRoutes(runtime);
+    for (const method of ["GET", "HEAD"]) {
+      const unavailable = await app.request("http://probe.test/health/ready", {
+        method,
+      });
+      expect(unavailable.status).toBe(503);
+      expect(unavailable.headers.get("cache-control")).toBe("no-store");
+      if (method === "HEAD") expect(await unavailable.text()).toBe("");
+    }
+    runtime.markReady("database");
+    for (const path of ["/health", "/health/live", "/health/ready"]) {
+      for (const method of ["GET", "HEAD"]) {
+        const response = await app.request(`http://probe.test${path}`, {
+          method,
+        });
+        expect(response.status).toBe(200);
+        expect(response.headers.get("cache-control")).toBe("no-store");
+        if (method === "HEAD") expect(await response.text()).toBe("");
+      }
+    }
+  });
+
   it("reports readiness based on required dependencies only", () => {
     const runtime = createServiceRuntime("payment-service", [
       { name: "kafka.producer" },
@@ -69,6 +110,24 @@ describe("@repo/hono-utils", () => {
       "https://shop.localhost",
       "https://admin.localhost",
     ]);
+  });
+
+  it("keeps Bun's idle timeout above the application timeout", () => {
+    delete process.env.HTTP_IDLE_TIMEOUT_SECONDS;
+    process.env.REQUEST_TIMEOUT_MS = "45000";
+
+    expect(getServerIdleTimeoutSeconds()).toBe(50);
+
+    process.env.HTTP_IDLE_TIMEOUT_SECONDS = "60";
+    expect(getServerIdleTimeoutSeconds()).toBe(60);
+  });
+
+  it("rejects invalid Bun idle timeout configuration", () => {
+    process.env.HTTP_IDLE_TIMEOUT_SECONDS = "256";
+
+    expect(() => getServerIdleTimeoutSeconds()).toThrow(
+      "must be an integer between 1 and 255",
+    );
   });
 
   it("returns actionable Clerk authentication failures", () => {

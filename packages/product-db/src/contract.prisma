@@ -1,13 +1,13 @@
-// Contract inferred from the live database schema. Edit as needed, then run `prisma contract emit`.
+// Prisma 8 data contract for the product service PostgreSQL database.
+// Run `bun run db:generate` after editing this file.
 
 namespace public {
   model Category {
     id       Int       @id(map: "Category_pkey") @default(autoincrement())
     name     String
-    slug     String
+    slug     String    @unique(map: "Category_slug_key")
     products Product[]
 
-    @@index([slug], map: "Category_slug_key", unique: true)
     @@map("Category")
   }
 

@@ -67,7 +67,7 @@ export default function RootLayout({
           <Suspense fallback={<Navbar viewer={adminViewerFallback} />}>
             <AdminNavbar />
           </Suspense>
-          <div className="mx-auto w-full max-w-[1500px] px-3 pb-8 sm:px-5">
+          <div className="mx-auto w-full max-w-[1500px] px-4 pb-10 sm:px-6 lg:px-8">
             {children}
           </div>
         </main>

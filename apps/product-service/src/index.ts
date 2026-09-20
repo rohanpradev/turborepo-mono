@@ -1,3 +1,8 @@
+import {
+  createShutdownHandler,
+  getServerIdleTimeoutSeconds,
+  SERVICE_MAX_REQUEST_BODY_SIZE_BYTES,
+} from "@repo/hono-utils";
 import { connectProductDB, disconnectProductDB } from "@repo/product-db";
 import { app } from "@/app";
 import { productServiceRuntime } from "@/runtime";
@@ -13,6 +18,7 @@ let isShuttingDown = false;
 const bootstrap = async () => {
   try {
     await connectProductDB();
+    if (isShuttingDown) return;
     productServiceRuntime.markReady("database");
     console.log("Connected to product database");
   } catch (error) {
@@ -27,6 +33,7 @@ const bootstrap = async () => {
 
   try {
     await ensureProductKafkaTopics();
+    if (isShuttingDown) return;
     await producer.start();
     productServiceRuntime.markReady("kafka.producer");
     console.log("Kafka producer connected");
@@ -38,44 +45,39 @@ const bootstrap = async () => {
     productServiceRuntime.markNotReady("kafka.producer", message);
     console.error("Failed to initialize product Kafka producer:", error);
   }
-  startProductOutboxRelay();
+  if (!isShuttingDown) startProductOutboxRelay();
 };
 
-const shutdown = async (signal: string) => {
-  if (isShuttingDown) {
-    return;
-  }
-
-  isShuttingDown = true;
-  stopProductOutboxRelay();
-  console.log(`Received ${signal}. Shutting down product service...`);
-  productServiceRuntime.markNotReady(
-    "database",
-    `Shutdown triggered by ${signal}.`,
-  );
-  productServiceRuntime.markNotReady(
-    "kafka.producer",
-    `Shutdown triggered by ${signal}.`,
-  );
-
-  const results = await Promise.allSettled([
-    producer.shutdown(),
-    disconnectProductDB(),
-  ]);
-  const failed = results.some((result) => result.status === "rejected");
-
-  if (failed) {
-    console.error("Product service shutdown completed with errors.", results);
-  }
-
-  process.exit(failed ? 1 : 0);
-};
-
-void bootstrap();
-process.on("SIGINT", () => void shutdown("SIGINT"));
-process.on("SIGTERM", () => void shutdown("SIGTERM"));
-
-export default {
+const server = Bun.serve({
   port,
   fetch: app.fetch,
-};
+  idleTimeout: getServerIdleTimeoutSeconds(),
+  maxRequestBodySize: SERVICE_MAX_REQUEST_BODY_SIZE_BYTES,
+});
+
+const shutdown = createShutdownHandler({
+  name: "product-service",
+  onShutdown: (signal) => {
+    isShuttingDown = true;
+    console.log(`Received ${signal}. Shutting down product service...`);
+    productServiceRuntime.markNotReady(
+      "database",
+      `Shutdown triggered by ${signal}.`,
+    );
+    productServiceRuntime.markNotReady(
+      "kafka.producer",
+      `Shutdown triggered by ${signal}.`,
+    );
+  },
+  steps: [
+    { name: "HTTP requests", run: () => server.stop() },
+    { name: "bootstrap", run: () => bootstrapPromise },
+    { name: "outbox relay", run: stopProductOutboxRelay },
+    { name: "Kafka producer", run: () => producer.shutdown() },
+    { name: "database", run: disconnectProductDB },
+  ],
+});
+
+const bootstrapPromise = bootstrap();
+process.on("SIGINT", () => void shutdown("SIGINT"));
+process.on("SIGTERM", () => void shutdown("SIGTERM"));

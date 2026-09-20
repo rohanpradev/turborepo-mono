@@ -52,10 +52,17 @@ awk -v secret_file="$secret_file" '
 awk_pid=$!
 
 stripe_status=0
+# Stripe CLI 1.51 replaces the snapshot wildcard with an explicit flag.
+stripe_events="${STRIPE_CLI_EVENTS:-checkout.session.completed,payment_intent.succeeded,payment_intent.payment_failed}"
+if [ "$stripe_events" = '*' ]; then
+  set -- --all-snapshot
+else
+  set -- --events "$stripe_events"
+fi
 stripe listen \
   --skip-update \
   --forward-to "$STRIPE_WEBHOOK_FORWARD_TO" \
-  --events "${STRIPE_CLI_EVENTS:-checkout.session.completed,payment_intent.succeeded,payment_intent.payment_failed}" \
+  "$@" \
   > "$log_pipe" 2>&1 || stripe_status=$?
 
 wait "$awk_pid"

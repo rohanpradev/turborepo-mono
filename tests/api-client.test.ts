@@ -6,7 +6,10 @@ import {
   deleteProduct,
   getCheckoutSessionStatus,
   getPaymentIntegrationEvents,
+  getPaymentServiceHealth,
+  listOrders,
   listProducts,
+  listUserOrders,
   updateProduct,
 } from "../packages/api-client/src/index";
 
@@ -17,6 +20,36 @@ afterEach(() => {
 });
 
 describe("@repo/api-client", () => {
+  it.each([listOrders, listUserOrders])(
+    "preserves cancellation and cache policy for authenticated order reads",
+    async (readOrders) => {
+      const controller = new AbortController();
+      const started = Promise.withResolvers<Request>();
+      globalThis.fetch = ((input, init) => {
+        const request = new Request(input, init);
+        started.resolve(request);
+        return new Promise<Response>((_resolve, reject) => {
+          request.signal.addEventListener(
+            "abort",
+            () => reject(request.signal.reason),
+            { once: true },
+          );
+        });
+      }) as typeof fetch;
+      const pending = readOrders("https://orders.test", {
+        token: "test-token",
+        fetchOptions: { signal: controller.signal, cache: "no-store" },
+      });
+      const outcome = pending.catch((error: unknown) => error);
+      const request = await started.promise;
+      expect(request.headers.get("authorization")).toBe("Bearer test-token");
+      expect(request.cache).toBe("no-store");
+      controller.abort();
+      expect(request.signal.aborted).toBe(true);
+      expect(await outcome).toBeInstanceOf(ApiClientError);
+    },
+  );
+
   it("calls product list RPC with encoded input", async () => {
     let capturedUrl: URL | null = null;
     let capturedRequest: Request | null = null;
@@ -251,6 +284,68 @@ describe("@repo/api-client", () => {
     expect(capturedRequest?.headers.get("authorization")).toBe(
       "Bearer admin-token",
     );
+  });
+
+  it("preserves caller cancellation and request options in RPC fetches", async () => {
+    const controller = new AbortController();
+    let receivedSignal: AbortSignal | null | undefined;
+    let receivedCache: RequestCache | undefined;
+    let receivedHeader: string | null = null;
+    globalThis.fetch = (async (_input, init) => {
+      receivedSignal = init?.signal;
+      receivedCache = init?.cache;
+      receivedHeader = new Headers(init?.headers).get("x-request-id");
+      controller.abort();
+      expect(receivedSignal?.aborted).toBe(true);
+      throw new DOMException("Request cancelled", "AbortError");
+    }) as typeof fetch;
+    await expect(
+      listProducts(
+        "https://api.localhost",
+        {},
+        {
+          signal: controller.signal,
+          cache: "no-store",
+          headers: { "x-request-id": "catalog-test" },
+        },
+      ),
+    ).rejects.toBeInstanceOf(ApiClientError);
+    expect(receivedCache).toBe("no-store");
+    expect(receivedHeader).toBe("catalog-test");
+  });
+
+  it("bounds stalled RPC requests with a timeout signal", async () => {
+    const originalTimeout = AbortSignal.timeout;
+    let timeoutMs: number | undefined;
+    try {
+      AbortSignal.timeout = (milliseconds) => {
+        timeoutMs = milliseconds;
+        return AbortSignal.abort(new DOMException("Timed out", "TimeoutError"));
+      };
+      globalThis.fetch = (async (_input, init) => {
+        expect(init?.signal?.aborted).toBe(true);
+        throw init?.signal?.reason;
+      }) as typeof fetch;
+      await expect(
+        listProducts("https://api.localhost"),
+      ).rejects.toBeInstanceOf(ApiClientError);
+      expect(timeoutMs).toBe(15_000);
+    } finally {
+      AbortSignal.timeout = originalTimeout;
+    }
+  });
+
+  it("rejects malformed successful health responses instead of returning null", async () => {
+    globalThis.fetch = (async () =>
+      new Response("not-json", {
+        headers: { "content-type": "application/json" },
+      })) as typeof fetch;
+    await expect(
+      getPaymentServiceHealth("https://payments.localhost"),
+    ).rejects.toMatchObject({
+      status: 502,
+      message: "Service returned an invalid JSON response",
+    });
   });
 
   it("surfaces typed API errors from JSON responses", async () => {

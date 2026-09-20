@@ -1,4 +1,5 @@
 [install]
-# Bun 1.4's isolated linker uses the shared global virtual store while keeping
-# undeclared transitive dependencies out of workspace resolution.
+# Workspace installs use Bun’s local virtual store and isolated linker.
+# The global store is opt-in; Docker uses hoisted installs for portable layers.
+# Isolated mode retains Bun’s transitive fallback unless hoist=false is set.
 linker = "isolated"

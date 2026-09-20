@@ -9,17 +9,33 @@ const OrderSchema = new Schema(
     orderId: { type: String, required: true },
     userId: { type: String, required: true },
     email: { type: String, required: true },
-    amount: { type: Number, required: true },
+    amount: {
+      type: Number,
+      required: true,
+      min: 0,
+      validate: Number.isSafeInteger,
+    },
     status: { type: String, enum: orderStatus, required: true },
     products: {
       type: [
         {
           name: { type: String, required: true },
-          price: { type: Number, required: true },
-          quantity: { type: Number, required: true },
+          price: {
+            type: Number,
+            required: true,
+            min: 0,
+            validate: Number.isSafeInteger,
+          },
+          quantity: {
+            type: Number,
+            required: true,
+            min: 1,
+            validate: Number.isSafeInteger,
+          },
         },
       ],
       required: true,
+      validate: (products: unknown[]) => products.length > 0,
     },
   },
   { timestamps: true },

@@ -1,12 +1,13 @@
 import { ensureTopics, type ProductCreatedMessage, Topics } from "@repo/kafka";
 import {
   connectProductDB,
+  db,
   disconnectProductDB,
   type Product,
-  prisma,
 } from "@repo/product-db";
 import { toUsdCents } from "@repo/types";
 import { kafkaClient, producer } from "@/utils/kafka";
+import { nowUtc, toUtcISOString } from "@/utils/timestamps";
 
 type SeedCategory = {
   name: string;
@@ -207,33 +208,27 @@ const toProductCreatedMessage = (product: Product): ProductCreatedMessage => ({
   price: product.price,
   categorySlug: product.categorySlug,
   stock: 0,
-  createdAt: product.createdAt.toISOString(),
+  createdAt: toUtcISOString(product.createdAt),
 });
 
 const seedCategories = async () => {
   await Promise.all(
     categories.map((category) =>
-      prisma.category.upsert({
-        where: { slug: category.slug },
+      db.orm.public.Category.upsert({
         create: category,
         update: { name: category.name },
+        conflictOn: { slug: category.slug },
       }),
     ),
   );
 };
 
 const seedProducts = async () => {
-  const existingProducts = await prisma.product.findMany({
-    where: {
-      name: {
-        in: products.map((product) => product.name),
-      },
-    },
-    select: {
-      id: true,
-      name: true,
-    },
-  });
+  const existingProducts = await db.orm.public.Product.where((product) =>
+    product.name.in(products.map((item) => item.name)),
+  )
+    .select("id", "name")
+    .all();
 
   const existingByName = new Map<string, number>(
     existingProducts.map((product: ExistingSeedProduct): [string, number] => [
@@ -247,19 +242,24 @@ const seedProducts = async () => {
 
   for (const seedProduct of products) {
     const existingId = existingByName.get(seedProduct.name);
+    const updatedAt = nowUtc();
 
     if (existingId) {
-      const updatedProduct = await prisma.product.update({
-        where: { id: existingId },
-        data: seedProduct,
+      const updatedProduct = await db.orm.public.Product.where({
+        id: existingId,
+      }).update({
+        ...seedProduct,
+        updatedAt,
       });
+      if (!updatedProduct) continue;
       storedProducts.push(updatedProduct);
       updatedCount += 1;
       continue;
     }
 
-    const createdProduct = await prisma.product.create({
-      data: seedProduct,
+    const createdProduct = await db.orm.public.Product.create({
+      ...seedProduct,
+      updatedAt,
     });
     storedProducts.push(createdProduct);
     createdCount += 1;
