@@ -22,6 +22,7 @@ import type {
 
 import type {
   ContractWithTypeMaps,
+  RelationKeys,
   TypeMaps as TypeMapsType,
 } from '@prisma/orm-postgres/family-contract/types';
 import type {
@@ -382,6 +383,55 @@ export type StorageColumnInputTypes = {
     };
   };
 };
+
+export namespace Models {
+  export type public_Category = {
+    id: CodecTypes['pg/int4@1']['output'];
+    name: CodecTypes['pg/text@1']['output'];
+    slug: CodecTypes['pg/text@1']['output'];
+    products: public_Product[];
+    readonly [RelationKeys]?: 'products';
+  };
+  export type public_Product = {
+    id: CodecTypes['pg/int4@1']['output'];
+    name: CodecTypes['pg/text@1']['output'];
+    shortDescription: CodecTypes['pg/text@1']['output'];
+    description: CodecTypes['pg/text@1']['output'];
+    price: CodecTypes['pg/int4@1']['output'];
+    sizes: ReadonlyArray<CodecTypes['pg/text@1']['output']>;
+    colors: ReadonlyArray<CodecTypes['pg/text@1']['output']>;
+    images: CodecTypes['pg/jsonb@1']['output'];
+    createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
+    updatedAt: CodecTypes['pg/timestamp-temporal@1']['output'];
+    categorySlug: CodecTypes['pg/text@1']['output'];
+    category: public_Category;
+    readonly [RelationKeys]?: 'category';
+  };
+  export type public_ProductOutboxEvent = {
+    id: CodecTypes['pg/text@1']['output'];
+    topic: CodecTypes['pg/text@1']['output'];
+    eventKey: CodecTypes['pg/text@1']['output'];
+    payload: CodecTypes['pg/jsonb@1']['output'];
+    status: 'PENDING' | 'PUBLISHING' | 'PUBLISHED';
+    attempts: CodecTypes['pg/int4@1']['output'];
+    availableAt: CodecTypes['pg/timestamp-temporal@1']['output'];
+    leaseUntil: CodecTypes['pg/timestamp-temporal@1']['output'] | null;
+    publishedAt: CodecTypes['pg/timestamp-temporal@1']['output'] | null;
+    lastError: CodecTypes['pg/text@1']['output'] | null;
+    createdAt: CodecTypes['pg/timestamp-temporal@1']['output'];
+    updatedAt: CodecTypes['pg/timestamp-temporal@1']['output'];
+    readonly [RelationKeys]?: never;
+  };
+}
+
+export declare const models: {
+  public: {
+    Category: Models.public_Category;
+    Product: Models.public_Product;
+    ProductOutboxEvent: Models.public_ProductOutboxEvent;
+  };
+};
+
 export type TypeMaps = TypeMapsType<
   CodecTypes,
   QueryOperationTypes,
@@ -757,6 +807,7 @@ type ContractBase = Omit<
                   readonly model: 'Category';
                 };
                 readonly cardinality: 'N:1';
+                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['categorySlug'];
                   readonly targetFields: readonly ['slug'];

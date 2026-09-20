@@ -169,6 +169,7 @@
             "relations": {
               "category": {
                 "cardinality": "N:1",
+                "nullable": false,
                 "on": {
                   "localFields": [
                     "categorySlug"

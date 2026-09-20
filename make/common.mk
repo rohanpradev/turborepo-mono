@@ -47,10 +47,10 @@ K8S_POD_SECURITY_VERSION ?= v1.35
 KUBECONFORM_IMAGE ?= ghcr.io/yannh/kubeconform:v0.8.0@sha256:faffaf43f95aa6425306e1ab8d6fcad72acb9049158f38e574c085ea1ec0f64e
 GATEWAY_API_VERSION ?= 1.6.2
 GATEWAY_API_MANIFEST_SHA256 ?= faede450fa178126aba41337737b97d351ebe87d93c910237ce1e072d1ca40d9
-TRAEFIK_CHART_VERSION ?= 41.5.0
+TRAEFIK_CHART_VERSION ?= 41.6.0
 TRAEFIK_IMAGE_VERSION ?= v3.7.13
-TRAEFIK_IMAGE_DIGEST ?= sha256:f86a2cab1b5c649070c49f883c743dd32d8485a56e3368c5f93b9e91f1e91259
-OBS_CHART_VERSION ?= 90.0.0
+TRAEFIK_IMAGE_DIGEST ?= sha256:1c32e7c368204fd72812152ebdd2ac0425993df6fd982317deb02e48f2d5423c
+OBS_CHART_VERSION ?= 91.4.1
 HELM_CHART ?= charts/ecommerce
 HELM_RELEASE ?= ecommerce
 HELM_NAMESPACE ?= ecommerce
@@ -93,8 +93,8 @@ export K8S_IMAGE_TAG
 K8S_IMAGE_SET_ARGS ?= --set-string services.product.image.tag=$(K8S_IMAGE_TAG) --set-string services.order.image.tag=$(K8S_IMAGE_TAG) --set-string services.payment.image.tag=$(K8S_IMAGE_TAG) --set-string services.client.image.tag=$(K8S_IMAGE_TAG) --set-string services.admin.image.tag=$(K8S_IMAGE_TAG)
 K8S_LOCAL_IMAGES ?= turborepo-monorepo-product-service:$(K8S_IMAGE_TAG) turborepo-monorepo-order-service:$(K8S_IMAGE_TAG) turborepo-monorepo-payment-service:$(K8S_IMAGE_TAG) turborepo-monorepo-client:$(K8S_IMAGE_TAG) turborepo-monorepo-admin:$(K8S_IMAGE_TAG)
 HELM_UPGRADE_ARGS ?= --rollback-on-failure --wait --timeout $(K8S_ROLLOUT_TIMEOUT)
-DHI_CHECK_IMAGES ?= dhi.io/postgres:18.6-debian13@sha256:4a72d79e4bfe9feb692ae4655ccac9865eb0d3772b5be3958c919dc4239d8e85 dhi.io/kafka:4.3.1-debian13-native@sha256:3b1c8546d66d4bb8e99bfa079f18b9ca5fbad6482749e8484fc44e4ec177e4af
-DHI_AMD64_CHECK_IMAGES ?= dhi.io/mongodb:8.3.8-debian13@sha256:56c95d1a82a27f1d75fb9f3591649fb3ef733e338b1967f780579ae29a2b1c8a
+DHI_CHECK_IMAGES ?= dhi.io/postgres:18.6-debian13@sha256:8ebb9c5029314e1700be34df809897f32a29a5064e579038f861c6e0ed5f028b dhi.io/kafka:4.3.1-debian13-native@sha256:acb17aecd630d0b855630cdd186b8ccb311ef4f64a8bf257b2e444deae0bab60
+DHI_AMD64_CHECK_IMAGES ?= dhi.io/mongodb:8.3.11-debian13@sha256:f65e3024ffddc94842026277a1070c29f2a3ac11b84d483c90c9f63ee6b97c01
 DOCKER_SMOKE_TIMEOUT ?= 10
 DOCKER_IMAGE_LOCK_FILE ?= docker/compose.images.lock.yml
 LOCAL_TLS_CERT_DIR ?= docker/certs

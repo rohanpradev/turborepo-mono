@@ -7,7 +7,9 @@ import {
   getCheckoutSessionStatus,
   getPaymentIntegrationEvents,
   getPaymentServiceHealth,
+  listOrders,
   listProducts,
+  listUserOrders,
   updateProduct,
 } from "../packages/api-client/src/index";
 
@@ -18,6 +20,36 @@ afterEach(() => {
 });
 
 describe("@repo/api-client", () => {
+  it.each([listOrders, listUserOrders])(
+    "preserves cancellation and cache policy for authenticated order reads",
+    async (readOrders) => {
+      const controller = new AbortController();
+      const started = Promise.withResolvers<Request>();
+      globalThis.fetch = ((input, init) => {
+        const request = new Request(input, init);
+        started.resolve(request);
+        return new Promise<Response>((_resolve, reject) => {
+          request.signal.addEventListener(
+            "abort",
+            () => reject(request.signal.reason),
+            { once: true },
+          );
+        });
+      }) as typeof fetch;
+      const pending = readOrders("https://orders.test", {
+        token: "test-token",
+        fetchOptions: { signal: controller.signal, cache: "no-store" },
+      });
+      const outcome = pending.catch((error: unknown) => error);
+      const request = await started.promise;
+      expect(request.headers.get("authorization")).toBe("Bearer test-token");
+      expect(request.cache).toBe("no-store");
+      controller.abort();
+      expect(request.signal.aborted).toBe(true);
+      expect(await outcome).toBeInstanceOf(ApiClientError);
+    },
+  );
+
   it("calls product list RPC with encoded input", async () => {
     let capturedUrl: URL | null = null;
     let capturedRequest: Request | null = null;

@@ -851,7 +851,17 @@ export const createHealthRoutes = <
     },
   });
 
-  return createServiceRouter<E>()
+  // Scope probe headers to their routes so this mounted router cannot alter
+  // application responses or the route labels used by request metrics.
+  const noStore = createMiddleware(async (c, next) => {
+    c.header("Cache-Control", "no-store");
+    await next();
+  });
+  const router = createServiceRouter<E>();
+  router.use("/health", noStore);
+  router.use("/health/*", noStore);
+  router.use(getPrometheusMetricsPath(), noStore);
+  return router
     .openapi(healthRoute, (c) =>
       c.json(buildHealthPayload(runtime.snapshot()), 200),
     )

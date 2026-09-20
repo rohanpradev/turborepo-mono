@@ -425,21 +425,13 @@ export const getPaymentServiceHealth = async (
 
 export const listOrders = async (
   baseUrl: string,
-  options: AuthenticatedGetOptions,
-) =>
-  rpcCall(() =>
-    createOrderRpcClient(baseUrl, { token: options.token }).order.listAll(),
-  );
+  options: AuthenticatedFetchOptions,
+) => rpcCall(() => createOrderRpcClient(baseUrl, options).order.listAll());
 
 export const listUserOrders = async (
   baseUrl: string,
-  options: AuthenticatedGetOptions,
-) =>
-  rpcCall(() =>
-    createOrderRpcClient(baseUrl, {
-      token: options.token,
-    }).order.listForUser(),
-  );
+  options: AuthenticatedFetchOptions,
+) => rpcCall(() => createOrderRpcClient(baseUrl, options).order.listForUser());
 
 export const createCheckoutSession = async (
   baseUrl: string,

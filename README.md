@@ -318,7 +318,7 @@ The Docker path uses the digest-pinned official Bun 1.4 image for application bu
 | `traefik` | `traefik:v3.7.13` | TLS router, API gateway, dashboard |
 | `docker-socket-proxy` | `ghcr.io/tecnativa/docker-socket-proxy:v0.4.2` | Restricted Docker API surface for Traefik discovery |
 | `postgres` | `dhi.io/postgres:18.6-debian13` | Product catalog database |
-| `mongodb` | `dhi.io/mongodb:8.3.8-debian13` | Order read-model database |
+| `mongodb` | `dhi.io/mongodb:8.3.11-debian13` | Order read-model database |
 | `kafka-broker-1..3` | `dhi.io/kafka:4.3.1-debian13-native` | Three-broker Kafka cluster |
 | `kafka-ui` | `ghcr.io/kafbat/kafka-ui:v1.5.0` | Kafka topic, consumer, and message visibility |
 | `product-service` | `docker/Dockerfile.product-service` | Catalog API, Prisma writes, product events |
@@ -326,7 +326,7 @@ The Docker path uses the digest-pinned official Bun 1.4 image for application bu
 | `order-service` | `docker/Dockerfile.order-service` | Order API and MongoDB read model |
 | `client` | `docker/Dockerfile.client` | Customer storefront |
 | `admin` | `docker/Dockerfile.admin` | Admin operations dashboard |
-| `stripe-cli` | `stripe/stripe-cli:v1.50.10` | Local webhook forwarding |
+| `stripe-cli` | `stripe/stripe-cli:v1.51.0` | Local webhook forwarding |
 
 The five application Dockerfiles use Turbo pruning, Bun frozen installs, and hardened Bun runtime images. Frontend images build standalone Next.js output, while service images copy only runtime code, generated clients, shared packages, and production dependencies.
 
@@ -414,7 +414,7 @@ Core API groups:
 
 See [the verified improvements and operational guide](docs/QUALITY_VERIFICATION.md) for database index deployment, graceful shutdown, catalog accessibility, and the real-database CI test suite.
 
-See [the latest-package research and implementation review](docs/LATEST_PACKAGE_REVIEW.md) for the dated release audit, shadcn/Next.js changes, outbox concurrency fix, and CI verification scope.
+See [the September 20 upgrade and verification report](docs/UPGRADE_REVIEW_2026-09-20.md) for current versions and validation. See [the earlier package research and implementation review](docs/LATEST_PACKAGE_REVIEW.md) for the dated release audit, shadcn/Next.js changes, outbox concurrency fix, and CI verification scope.
 
 ## CI image publishing
 

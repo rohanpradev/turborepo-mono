@@ -50,6 +50,32 @@ afterEach(() => {
 });
 
 describe("@repo/hono-utils", () => {
+  it("serves uncached GET and HEAD health responses as dependencies change", async () => {
+    const runtime = createServiceRuntime("probe-test", [
+      { name: "database" },
+    ] as const);
+    const app = createHealthRoutes(runtime);
+    for (const method of ["GET", "HEAD"]) {
+      const unavailable = await app.request("http://probe.test/health/ready", {
+        method,
+      });
+      expect(unavailable.status).toBe(503);
+      expect(unavailable.headers.get("cache-control")).toBe("no-store");
+      if (method === "HEAD") expect(await unavailable.text()).toBe("");
+    }
+    runtime.markReady("database");
+    for (const path of ["/health", "/health/live", "/health/ready"]) {
+      for (const method of ["GET", "HEAD"]) {
+        const response = await app.request(`http://probe.test${path}`, {
+          method,
+        });
+        expect(response.status).toBe(200);
+        expect(response.headers.get("cache-control")).toBe("no-store");
+        if (method === "HEAD") expect(await response.text()).toBe("");
+      }
+    }
+  });
+
   it("reports readiness based on required dependencies only", () => {
     const runtime = createServiceRuntime("payment-service", [
       { name: "kafka.producer" },

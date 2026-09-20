@@ -13,7 +13,7 @@ import {
 import type { Route } from "next";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import ShippingForm from "@/components/ShippingForm";
 import StripePaymentForm from "@/components/StripePaymentForm";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +43,7 @@ const CartContent = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [hasMounted, setHasMounted] = useState(false);
+  const lastScrolledStep = useRef<number | null>(null);
   const { shippingForm, setShippingForm } = useCheckoutStore();
 
   const requestedStep = normalizeCheckoutStep(searchParams.get("step"));
@@ -65,6 +66,15 @@ const CartContent = () => {
   useEffect(() => {
     setHasMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!hasMounted || lastScrolledStep.current === activeStep) {
+      return;
+    }
+
+    lastScrolledStep.current = activeStep;
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [activeStep, hasMounted]);
 
   useEffect(() => {
     if (!hasMounted) {

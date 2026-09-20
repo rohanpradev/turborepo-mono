@@ -26,6 +26,7 @@ helm-lint-experimental: ## Render-lint every chart profile against experimental 
 	@$(MAKE) --no-print-directory helm-lint-supported K8S_SUPPORTED_VERSIONS="$(K8S_EXPERIMENTAL_VERSIONS)" K8S_VERSION_TIER=experimental
 
 helm-validate-supported: helm-lint-supported ## Schema-validate every real profile against supported Kubernetes minors
+	@mkdir -p "$(RUNTIME_DIR)/kubeconform-cache"
 	@rendered_manifest="$$(mktemp)"; trap 'rm -f "$$rendered_manifest"' EXIT HUP INT TERM; \
 	for kubernetes_version in $(K8S_SUPPORTED_VERSIONS); do \
 		for profile in ingress gateway local local-full; do \
@@ -37,7 +38,7 @@ helm-validate-supported: helm-lint-supported ## Schema-validate every real profi
 				local-full) profile_args="--values $(HELM_FULL_VALUES)" ;; \
 			esac; \
 			$(HELM) template $(HELM_RELEASE) $(HELM_CHART) --namespace $(HELM_NAMESPACE) --kube-version "$$kubernetes_version" $$profile_args > "$$rendered_manifest" || exit 1; \
-			docker run --rm -i $(KUBECONFORM_IMAGE) -strict -summary -ignore-missing-schemas -kubernetes-version "$$kubernetes_version" - < "$$rendered_manifest" || exit 1; \
+			docker run --rm -i -v "$(RUNTIME_DIR)/kubeconform-cache:/schemas-cache" $(KUBECONFORM_IMAGE) -cache /schemas-cache -strict -summary -ignore-missing-schemas -kubernetes-version "$$kubernetes_version" - < "$$rendered_manifest" || exit 1; \
 		done; \
 	done
 	@echo "$(GREEN)All $(K8S_VERSION_TIER) Helm profiles passed kubeconform validation$(NC)"
@@ -117,13 +118,13 @@ k8s-traefik: ## Install or upgrade the pinned Traefik ingress chart
 	@command -v $(HELM) >/dev/null || { echo "$(RED)helm is required$(NC)"; exit 1; }
 	@command -v $(KUBECTL) >/dev/null || { echo "$(RED)kubectl is required$(NC)"; exit 1; }
 	@$(KUBECTL) cluster-info >/dev/null
+	$(HELM) repo add traefik https://traefik.github.io/charts --force-update
+	$(HELM) repo update traefik
 	@echo "$(BLUE)Applying Traefik $(TRAEFIK_CHART_VERSION) CRDs before the controller upgrade...$(NC)"
-	$(HELM) show crds traefik \
-		--repo https://traefik.github.io/charts \
+	$(HELM) show crds traefik/traefik \
 		--version $(TRAEFIK_CHART_VERSION) | \
 		$(KUBECTL) apply --server-side --force-conflicts -f -
-	$(HELM) upgrade --install traefik traefik \
-		--repo https://traefik.github.io/charts \
+	$(HELM) upgrade --install traefik traefik/traefik \
 		--version $(TRAEFIK_CHART_VERSION) \
 		--set image.registry=docker.io \
 		--set image.repository=traefik \
@@ -149,13 +150,13 @@ k8s-observability: ## Install or upgrade Prometheus Operator, Prometheus, Alertm
 	@command -v $(HELM) >/dev/null || { echo "$(RED)helm is required$(NC)"; exit 1; }
 	@command -v $(KUBECTL) >/dev/null || { echo "$(RED)kubectl is required$(NC)"; exit 1; }
 	@$(KUBECTL) cluster-info >/dev/null
+	$(HELM) repo add prometheus-community https://prometheus-community.github.io/helm-charts --force-update
+	$(HELM) repo update prometheus-community
 	@echo "$(BLUE)Applying kube-prometheus-stack $(OBS_CHART_VERSION) CRDs before the controller upgrade...$(NC)"
-	$(HELM) show crds kube-prometheus-stack \
-		--repo https://prometheus-community.github.io/helm-charts \
+	$(HELM) show crds prometheus-community/kube-prometheus-stack \
 		--version $(OBS_CHART_VERSION) | \
 		$(KUBECTL) apply --server-side --force-conflicts -f -
-	$(HELM) upgrade --install $(OBS_RELEASE) kube-prometheus-stack \
-		--repo https://prometheus-community.github.io/helm-charts \
+	$(HELM) upgrade --install $(OBS_RELEASE) prometheus-community/kube-prometheus-stack \
 		--version $(OBS_CHART_VERSION) \
 		--namespace $(OBS_NAMESPACE) \
 		--create-namespace \
@@ -285,7 +286,8 @@ k8s-load-images: ## Load locally built images into kind or minikube when the cur
 k8s-validate: helm-lint runtime-dir ## Render and schema-validate Kubernetes manifests without deploying
 	@echo "$(BLUE)Rendering Helm manifests to $(HELM_RENDERED_FILE)...$(NC)"
 	@umask 077; $(MAKE) helm-template > "$(HELM_RENDERED_FILE)"; chmod 0600 "$(HELM_RENDERED_FILE)"
-	docker run --rm -i $(KUBECONFORM_IMAGE) -strict -summary -ignore-missing-schemas -kubernetes-version $(K8S_TARGET_VERSION) < "$(HELM_RENDERED_FILE)"
+	@mkdir -p "$(RUNTIME_DIR)/kubeconform-cache"
+	docker run --rm -i -v "$(RUNTIME_DIR)/kubeconform-cache:/schemas-cache" $(KUBECONFORM_IMAGE) -cache /schemas-cache -strict -summary -ignore-missing-schemas -kubernetes-version $(K8S_TARGET_VERSION) < "$(HELM_RENDERED_FILE)"
 	@echo "$(GREEN)Kubernetes manifests validated$(NC)"
 
 k8s-validate-full: ## Render and schema-validate full-stack Kubernetes manifests without deploying
