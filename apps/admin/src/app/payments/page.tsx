@@ -1,9 +1,9 @@
 import {
   getPaymentIntegrationEvents,
   getPaymentServiceHealth,
-  getPaymentServiceServerUrl,
   getPaymentServiceUrl,
 } from "@repo/api-client";
+import { getPaymentServiceServerUrl } from "@repo/api-client/server";
 import { formatUsdFromCents } from "@repo/types";
 import type { Metadata } from "next";
 import { Badge } from "@/components/ui/badge";

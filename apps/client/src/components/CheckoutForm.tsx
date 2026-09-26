@@ -1,6 +1,9 @@
 "use client";
 
-import { PaymentElement, useCheckout } from "@stripe/react-stripe-js/checkout";
+import {
+  PaymentElement,
+  useCheckoutElements,
+} from "@stripe/react-stripe-js/checkout";
 import { type SubmitEvent, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { ShippingFormInputs as BaseShippingFormInputs } from "@/types";
@@ -14,7 +17,7 @@ const CheckoutForm = ({
 }: {
   shippingForm: ShippingFormInputs;
 }) => {
-  const checkoutState = useCheckout();
+  const checkoutState = useCheckoutElements();
   const [message, setMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncingDetails, setIsSyncingDetails] = useState(false);
@@ -102,7 +105,7 @@ const CheckoutForm = ({
   const handleSubmit = async (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!checkout) {
+    if (!checkout?.canConfirm || isLoading || isSyncingDetails) {
       return;
     }
 
@@ -203,7 +206,7 @@ const CheckoutForm = ({
 
       <Button
         type="submit"
-        disabled={isLoading || isSyncingDetails || !checkout}
+        disabled={isLoading || isSyncingDetails || !checkout?.canConfirm}
         className="w-full"
         size="lg"
       >

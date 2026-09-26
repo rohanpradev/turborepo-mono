@@ -11,7 +11,7 @@ spec:
   {{- if hasKey $service.podDisruptionBudget "minAvailable" }}
   minAvailable: {{ $service.podDisruptionBudget.minAvailable }}
   {{- else }}
-  maxUnavailable: {{ default 1 $service.podDisruptionBudget.maxUnavailable }}
+  maxUnavailable: {{ dig "maxUnavailable" 1 $service.podDisruptionBudget }}
   {{- end }}
   selector:
     # Database hooks share component labels for NetworkPolicy coverage, but

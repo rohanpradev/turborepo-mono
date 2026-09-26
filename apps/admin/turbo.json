@@ -53,7 +53,8 @@
         "CLERK_PUBLISHABLE_KEY",
         "CLERK_SECRET_KEY",
         "NEXT_TELEMETRY_DISABLED"
-      ]
+      ],
+      "outputs": [".next/types/**", "tsconfig.tsbuildinfo"]
     }
   }
 }

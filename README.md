@@ -54,7 +54,6 @@ For engineering standards and verification policy, see [docs/QUALITY.md](docs/QU
 For service and Kafka telemetry behavior, see [docs/TELEMETRY.md](docs/TELEMETRY.md).
 For Prometheus, Grafana, Traefik, and Kubernetes metrics, see [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md).
 For Stripe deployment, webhook, Clerk-auth, and incident procedures, see [docs/STRIPE_OPERATIONS.md](docs/STRIPE_OPERATIONS.md).
-For the current expert gap assessment and prioritized roadmap, see [docs/EXPERT_MICROSERVICES_IMPROVEMENT_PLAN.md](docs/EXPERT_MICROSERVICES_IMPROVEMENT_PLAN.md).
 
 ## Apps And Packages
 
@@ -104,7 +103,7 @@ For the current expert gap assessment and prioritized roadmap, see [docs/EXPERT_
 ## Prerequisites
 
 - `Bun >= 1.4.2`
-- `Node >= 20.19.0`
+- `Node >= 24.0.0`
 - Docker with Compose
 - `mkcert` for locally trusted `*.localhost` TLS certificates
 - `docker login dhi.io` if you want the full Docker Hardened Images path
@@ -175,6 +174,8 @@ Useful follow-ups:
 
 ```bash
 make k8s-doctor
+make k8s-install-kubectl # checksum-verified project-local client, if needed
+make k8s-verify          # rollout, in-cluster readiness, and HTTPS checks
 make k8s-status
 make k8s-test
 make k8s-clear
@@ -316,7 +317,7 @@ The Docker path uses the digest-pinned official Bun 1.4 image for application bu
 | Compose service | Image / Build | Purpose |
 | --- | --- | --- |
 | `traefik` | `traefik:v3.7.13` | TLS router, API gateway, dashboard |
-| `docker-socket-proxy` | `ghcr.io/tecnativa/docker-socket-proxy:v0.4.2` | Restricted Docker API surface for Traefik discovery |
+| `docker-socket-proxy` | `ghcr.io/tecnativa/docker-socket-proxy:v0.5.0` | Restricted Docker API surface for Traefik discovery |
 | `postgres` | `dhi.io/postgres:18.6-debian13` | Product catalog database |
 | `mongodb` | `dhi.io/mongodb:8.3.11-debian13` | Order read-model database |
 | `kafka-broker-1..3` | `dhi.io/kafka:4.3.1-debian13-native` | Three-broker Kafka cluster |
@@ -326,9 +327,11 @@ The Docker path uses the digest-pinned official Bun 1.4 image for application bu
 | `order-service` | `docker/Dockerfile.order-service` | Order API and MongoDB read model |
 | `client` | `docker/Dockerfile.client` | Customer storefront |
 | `admin` | `docker/Dockerfile.admin` | Admin operations dashboard |
-| `stripe-cli` | `stripe/stripe-cli:v1.51.0` | Local webhook forwarding |
+| `stripe-cli` | `stripe/stripe-cli:v1.52.0` | Local webhook forwarding |
 
 The five application Dockerfiles use Turbo pruning, Bun frozen installs, and hardened Bun runtime images. Frontend images build standalone Next.js output, while service images copy only runtime code, generated clients, shared packages, and production dependencies.
+
+Docker discovery uses an internal network shared only by Traefik and the socket proxy. Application containers cannot reach the proxy, and its write API is explicitly disabled.
 
 Useful Docker commands:
 
@@ -414,7 +417,6 @@ Core API groups:
 
 See [the verified improvements and operational guide](docs/QUALITY_VERIFICATION.md) for database index deployment, graceful shutdown, catalog accessibility, and the real-database CI test suite.
 
-See [the September 20 upgrade and verification report](docs/UPGRADE_REVIEW_2026-09-20.md) for current versions and validation. See [the earlier package research and implementation review](docs/LATEST_PACKAGE_REVIEW.md) for the dated release audit, shadcn/Next.js changes, outbox concurrency fix, and CI verification scope.
 
 ## CI image publishing
 

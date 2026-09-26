@@ -11,12 +11,14 @@
     "@repo/contracts": "workspace:*",
     "@repo/product-db": "workspace:*",
     "@repo/types": "workspace:*",
-    "@orpc/server": "catalog:",
-    "hono": "catalog:"
+    "@orpc/server": "catalog:"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "@types/bun": "catalog:",
-    "@types/node": "catalog:"
-  }
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "hono": "catalog:"
+  },
+  "private": true
 }

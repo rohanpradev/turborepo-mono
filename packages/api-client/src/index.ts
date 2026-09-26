@@ -133,15 +133,6 @@ export const getOrderServiceUrl = () =>
 export const getPaymentServiceUrl = () =>
   process.env.NEXT_PUBLIC_PAYMENT_SERVICE_URL ?? "http://localhost:8002";
 
-export const getProductServiceServerUrl = () =>
-  process.env.PRODUCT_SERVICE_INTERNAL_URL ?? getProductServiceUrl();
-
-export const getOrderServiceServerUrl = () =>
-  process.env.ORDER_SERVICE_INTERNAL_URL ?? getOrderServiceUrl();
-
-export const getPaymentServiceServerUrl = () =>
-  process.env.PAYMENT_SERVICE_INTERNAL_URL ?? getPaymentServiceUrl();
-
 const toRpcUrl = (baseUrl: string, service: string) =>
   new URL(`/rpc/${service}`, baseUrl).toString();
 
@@ -204,6 +195,8 @@ const createRpcLink = (
       const fetchInit = {
         ...options.fetchOptions,
         ...init,
+        // Authenticated data must never enter a shared Next.js fetch cache.
+        cache: options.token ? "no-store" : options.fetchOptions?.cache,
         signal: requestSignal(
           request instanceof Request ? request.signal : undefined,
           options.fetchOptions?.signal,

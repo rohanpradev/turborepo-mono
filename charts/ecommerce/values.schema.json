@@ -20,6 +20,10 @@
           "type": "integer",
           "minimum": 0
         },
+        "preStopDelaySeconds": {
+          "type": "integer",
+          "minimum": 0
+        },
         "topologySpread": {
           "type": "object",
           "additionalProperties": false,
@@ -367,8 +371,11 @@
               "maxReplicas": { "type": "integer", "minimum": 1 },
               "targetCPUUtilizationPercentage": {
                 "type": "integer",
-                "minimum": 1,
-                "maximum": 100
+                "minimum": 1
+              },
+              "targetMemoryUtilizationPercentage": {
+                "type": "integer",
+                "minimum": 1
               }
             }
           },

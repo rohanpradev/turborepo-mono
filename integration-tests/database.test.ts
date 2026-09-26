@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, spyOn, test } from "bun:test";
 import { createOrder } from "../apps/order-service/src/utils/order";
 import { relayProductOutboxOnce } from "../apps/product-service/src/services/ProductOutboxRelay";
+import { ProductService } from "../apps/product-service/src/services/ProductService";
 import { producer } from "../apps/product-service/src/utils/kafka";
 import { nowUtc } from "../apps/product-service/src/utils/timestamps";
 import {
@@ -34,6 +35,52 @@ afterAll(async () => {
 });
 
 describe("database guarantees", () => {
+  test("catalog pagination breaks price and timestamp ties deterministically", async () => {
+    const slug = `pagination-${crypto.randomUUID()}`;
+    const timestamp = nowUtc();
+    await db.orm.public.Category.create({ name: "Pagination test", slug });
+    const ids: number[] = [];
+    try {
+      for (let index = 0; index < 3; index++) {
+        const product = await db.orm.public.Product.create({
+          name: `Product ${index}`,
+          shortDescription: "Pagination fixture",
+          description: "Products with identical sort fields",
+          categorySlug: slug,
+          price: 1000,
+          sizes: ["m"],
+          colors: ["black"],
+          images: { black: "/product.png" },
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        });
+        ids.push(product.id);
+      }
+      for (const sort of ["asc", "desc", "oldest", "newest"] as const) {
+        const pages = await Promise.all(
+          [1, 2, 3].map((page) =>
+            ProductService.getAllProducts({
+              category: slug,
+              limit: 1,
+              page,
+              sort,
+            }),
+          ),
+        );
+        const expected =
+          sort === "desc" || sort === "newest" ? [...ids].reverse() : ids;
+        expect(
+          pages.flatMap((page) => page.items.map((item) => item.id)),
+        ).toEqual(expected);
+      }
+    } finally {
+      await db.orm.public.Product.where({
+        categorySlug: slug,
+      }).deleteAndCount();
+      await db.orm.public.Category.where({ slug }).delete();
+    }
+  });
+
   test("refuses consumers without the unique index and deploys it idempotently", async () => {
     await Order.collection.dropIndex("orderId_1");
     await expect(verifyOrderIndexes()).rejects.toThrow(

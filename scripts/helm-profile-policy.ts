@@ -61,7 +61,12 @@ export const usesLatestTag = (image: string) => {
   const lastSlash = reference.lastIndexOf("/");
   const lastColon = reference.lastIndexOf(":");
 
-  return lastColon > lastSlash && reference.slice(lastColon + 1) === "latest";
+  if (lastColon > lastSlash) {
+    return reference.slice(lastColon + 1) === "latest";
+  }
+
+  // Kubernetes defaults an omitted tag to latest; digest-only references are pinned.
+  return !image.includes("@");
 };
 
 export const findImageReferences = (
@@ -126,11 +131,24 @@ const selectorMatches = (
   });
 };
 
-const assertJobBudgetIsolation = (resources: Array<KubernetesResource>) => {
+const assertJobIsolation = (resources: Array<KubernetesResource>) => {
   for (const job of resources.filter(({ kind }) => kind === "Job")) {
     const labels = record(
       record(record(record(job.spec).template).metadata).labels,
     );
+    for (const service of resources.filter(({ kind }) => kind === "Service")) {
+      const selector = record(service.spec).selector;
+      // A Service without a selector has manually managed endpoints.
+      if (
+        isRecord(selector) &&
+        Object.keys(selector).length > 0 &&
+        selectorMatches({ matchLabels: selector }, labels)
+      ) {
+        throw new Error(
+          `Job ${record(job.metadata).name} must not be selected by Service ${record(service.metadata).name}.`,
+        );
+      }
+    }
     for (const budget of resources.filter(
       ({ kind }) => kind === "PodDisruptionBudget",
     )) {
@@ -185,7 +203,7 @@ export const assertProfilePolicy = (
     );
   }
 
-  assertJobBudgetIsolation(resources);
+  assertJobIsolation(resources);
   return resources.length;
 };
 

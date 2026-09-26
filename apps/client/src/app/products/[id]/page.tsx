@@ -1,8 +1,5 @@
-import {
-  ApiClientError,
-  getProduct,
-  getProductServiceServerUrl,
-} from "@repo/api-client";
+import { ApiClientError, getProduct } from "@repo/api-client";
+import { getProductServiceServerUrl } from "@repo/api-client/server";
 import { formatUsdFromCents } from "@repo/types";
 import type { Metadata } from "next";
 import Image from "next/image";

@@ -27,7 +27,7 @@ Use the smallest check that matches the risk of the change.
 | Package boundary changes | `bun run boundaries`, `bun run check-types` |
 | Telemetry changes | `bun run test`, `bun run check-types`, inspect service logs for `traceId` |
 | Docker/Compose changes | `bun run doctor`, `make docker-validate`, `make docker-test` when DHI credentials are available |
-| Helm/Kubernetes changes | `make helm-lint`, `make helm-template`, `kubectl apply --dry-run=client --validate=false -f <rendered-manifests>` |
+| Helm/Kubernetes changes | `make helm-validate-supported`, `make helm-validate-experimental`, `make helm-assert-profiles`; `make k8s-verify` after deploying to a local cluster |
 
 ## Main Commands
 
@@ -117,3 +117,15 @@ make docker-test
 - Stripe webhook secrets should be read from `STRIPE_WEBHOOK_SECRET` or a mounted Stripe CLI secret file. Signature verification must use the raw body, and the handler must hand work to Kafka before returning promptly.
 - Browser calls for authenticated storefront operations should stay same-origin and use Next.js route handlers as the Clerk session boundary.
 - CORS origins should be explicit in `.env` and Compose.
+
+## Workspace and Next.js maintenance
+
+- Every workspace is private; each workspace that runs type checks declares its own TypeScript compiler dependency through the root catalog. Shared packages expose explicit public entry points.
+- `bun run check-types` checks application/package code and the operational scripts in `scripts/tsconfig.json`. CI runs the same tasks.
+- Database validation depends on contract generation in Turborepo. Only `db:generate` owns the generated contract outputs; its inputs exclude those outputs to avoid self-invalidating cache keys. When running directly inside `packages/product-db`, run `db:generate` before `db:validate`.
+- `NODE_ENV` participates in task hashes. Web type checks restore their generated route types and incremental compiler cache. Tasks that verify or modify a live database are never cached.
+- Import runtime service URLs from `@repo/api-client/server` in Next.js server modules. This entry point and the admin data-access modules use `server-only` to reject accidental browser imports. Browser-safe API methods remain at `@repo/api-client`.
+- Authenticated RPC requests always use `cache: "no-store"`, including when a caller supplies a cache policy. Public catalog requests retain their explicit policy.
+- `NEXT_PUBLIC_IMAGE_REMOTE_HOSTS` is a build-time setting. Pass it through Compose or the repository variable of the same name in CI, then rebuild both web images. Changing a running container's environment does not rewrite Next.js's standalone image configuration.
+
+These conventions follow the version-matched Next.js guides bundled with the installed framework and the official [server/client boundary](https://nextjs.org/docs/app/getting-started/server-and-client-components#preventing-environment-poisoning), [Turborepo task](https://turborepo.dev/docs/crafting-your-repository/configuring-tasks), and [internal package](https://turborepo.dev/docs/core-concepts/internal-packages) guidance.

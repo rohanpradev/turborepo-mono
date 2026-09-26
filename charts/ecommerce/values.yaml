@@ -6,7 +6,9 @@ global:
   imagePullPolicy: IfNotPresent
   imagePullSecrets: []
   enableServiceLinks: false
-  terminationGracePeriodSeconds: 30
+  # Allow endpoint removal to propagate before the app's 25-second shutdown.
+  terminationGracePeriodSeconds: 40
+  preStopDelaySeconds: 5
   podAnnotations: {}
   podLabels: {}
   nodeSelector: {}
@@ -68,8 +70,8 @@ stripeCli:
   enabled: false
   image:
     repository: stripe/stripe-cli
-    tag: v1.51.0
-    digest: sha256:f92a8017ca321945d7c4786bf6a75fe0790f3400bacc38ec9ee71c27664d3a16
+    tag: v1.52.0
+    digest: sha256:da11dbbdb78100602014096a6cbf764b211243111b3b8a57309d18c3939c9777
     pullPolicy: IfNotPresent
   forwardTo: http://127.0.0.1:8002/api/webhooks/stripe
   webhookSecretFile: /var/run/stripe/webhook-secret

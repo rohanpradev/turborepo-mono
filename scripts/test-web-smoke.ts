@@ -9,6 +9,8 @@ const apps = [
       { path: "/", status: 200 },
       { path: "/products", status: 200 },
       { path: "/cart", status: 200 },
+      { path: "/orders", status: 200 },
+      { path: "/return", status: 200 },
     ],
   },
   // The real dashboard must fail closed without configured authentication.
@@ -102,6 +104,15 @@ for (const app of apps) {
           `${app.name}${page.path}: expected ${page.status}, received ${response.status}.`,
         );
       const html = await response.text();
+      if (
+        app.name === "client" &&
+        page.path === "/orders" &&
+        !html.includes("Order history is unavailable in this environment.")
+      ) {
+        throw new Error(
+          "Order history did not fail closed without authentication.",
+        );
+      }
       // Streaming can send 200 before notFound() is reached. Check the rendered
       // denial rather than treating HTTP 200 as authorization success.
       if (
@@ -119,6 +130,22 @@ for (const app of apps) {
         /(?:href|src)="([^"\s]*\/_next\/static\/[^"\s]+)"/g,
       )) {
         if (match[1]) assets.add(match[1].replaceAll("&amp;", "&"));
+      }
+    }
+    if (app.name === "client") {
+      const response = await fetch(`${origin}/sitemap.xml`, {
+        signal: AbortSignal.timeout(20_000),
+      });
+      const xml = await response.text();
+      if (
+        !response.ok ||
+        !response.headers.get("content-type")?.includes("xml") ||
+        !xml.includes("<urlset") ||
+        !xml.includes("/products</loc>")
+      ) {
+        throw new Error(
+          "The sitemap must retain public routes during a catalog outage.",
+        );
       }
     }
     if (!assets.size)

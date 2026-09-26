@@ -260,26 +260,28 @@ const main = async () => {
     ),
     commandCheck(
       "Compose config",
-      ["docker", "compose", "--env-file", ".env", "config"],
+      ["docker", "compose", "--env-file", ".env", "config", "--quiet"],
       "Root Docker Compose file renders successfully.",
       (output) => `Compose validation failed. ${summarizeOutput(output)}`,
     ),
     commandCheck(
       "Kafka compose config",
-      ["docker", "compose", "-f", "packages/kafka/compose.yml", "config"],
+      [
+        "docker",
+        "compose",
+        "-f",
+        "packages/kafka/compose.yml",
+        "config",
+        "--quiet",
+      ],
       "Standalone Kafka Compose file renders successfully.",
       (output) => `Kafka Compose validation failed. ${summarizeOutput(output)}`,
     ),
     optionalCommandCheck(
-      "Official Bun runtime image",
-      [
-        "docker",
-        "pull",
-        "oven/bun:1.4.2@sha256:9114c058aeae42162ee16dd5084b95fe9473970bb6bcb5b232ab1630f0546895",
-      ],
-      "Bun 1.4 runtime image can be pulled.",
-      (output) =>
-        `Bun runtime image pull is not ready. ${summarizeOutput(output)}`,
+      "Docker engine",
+      ["docker", "version", "--format", "{{.Server.Version}}"],
+      "Docker engine is available for container and integration checks.",
+      (output) => `Docker engine is unavailable. ${summarizeOutput(output)}`,
     ),
   ];
 

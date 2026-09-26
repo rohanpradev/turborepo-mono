@@ -151,7 +151,7 @@
       ]
     },
     "db:generate": {
-      "inputs": ["$TURBO_DEFAULT$", "src/contract.prisma", "prisma.config.ts"],
+      "inputs": ["package.json", "prisma.config.ts", "src/contract.prisma"],
       "outputs": ["src/contract.json", "src/contract.d.ts"],
       "outputLogs": "new-only",
       "passThroughEnv": ["DATABASE_URL"]
@@ -163,9 +163,10 @@
         "src/contract.prisma",
         "prisma.config.ts"
       ],
-      "outputs": ["src/contract.json", "src/contract.d.ts"],
+      "outputs": [],
       "outputLogs": "new-only",
-      "passThroughEnv": ["DATABASE_URL"]
+      "passThroughEnv": ["DATABASE_URL"],
+      "dependsOn": ["db:generate"]
     },
     "db:migrate": {
       "cache": false,
@@ -185,6 +186,19 @@
     "//#test:integration": {
       "cache": false,
       "passThroughEnv": ["INTEGRATION_DATABASE_URL", "INTEGRATION_MONGO_URL"]
+    },
+    "db:verify": {
+      "cache": false,
+      "passThroughEnv": ["DATABASE_URL"]
+    },
+    "db:adopt": {
+      "cache": false,
+      "passThroughEnv": ["DATABASE_URL"]
+    },
+    "//#check-tools": {
+      "inputs": ["scripts/**", "packages/typescript-config/**", "package.json"],
+      "outputs": []
     }
-  }
+  },
+  "globalEnv": ["NODE_ENV"]
 }

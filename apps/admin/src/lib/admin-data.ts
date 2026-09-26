@@ -1,8 +1,7 @@
+import "server-only";
+
 import {
-  getOrderServiceServerUrl,
   getPaymentIntegrationEvents,
-  getPaymentServiceServerUrl,
-  getProductServiceServerUrl,
   type ListProductsResponse,
   listCategories,
   listOrders,
@@ -10,6 +9,11 @@ import {
   type PaymentIntegrationEventsResponse,
   type ProductListQuery,
 } from "@repo/api-client";
+import {
+  getOrderServiceServerUrl,
+  getPaymentServiceServerUrl,
+  getProductServiceServerUrl,
+} from "@repo/api-client/server";
 import type { CategoryRecord, OrderRecord, ProductRecord } from "@repo/types";
 import { requireAdminAccess } from "@/lib/auth";
 

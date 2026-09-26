@@ -44,6 +44,7 @@ Run these from this package directory:
 bun run db:generate
 
 # Emit the contract and verify migration-graph integrity (CI-safe and offline)
+bun run db:generate
 bun run db:validate
 
 # Update an unshared local development database and advance the local db ref

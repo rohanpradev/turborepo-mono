@@ -49,12 +49,15 @@ describe("Helm profile policy", () => {
     ]);
   });
 
-  test("detects explicit latest tags without false positives", () => {
+  test("detects explicit and implicit latest tags without false positives", () => {
     expect(usesLatestTag("storefront:latest")).toBe(true);
     expect(usesLatestTag("registry:5000/storefront:latest@sha256:abc")).toBe(
       true,
     );
     expect(usesLatestTag("storefront:latest-security")).toBe(false);
+    expect(usesLatestTag("storefront")).toBe(true);
+    expect(usesLatestTag("registry:5000/storefront")).toBe(true);
+    expect(usesLatestTag("storefront@sha256:abc")).toBe(false);
     expect(usesLatestTag("registry:5000/storefront@sha256:abc")).toBe(false);
   });
 
@@ -81,6 +84,12 @@ metadata:
 
     expect(() =>
       assertProfilePolicy(invalidManifest, profile, "1.36.4"),
+    ).toThrow("forbidden latest image tags");
+  });
+
+  test("rejects omitted image tags in rendered workloads", () => {
+    expect(() =>
+      assertProfilePolicy(manifest.replace(":1.2.3", ""), profile, "1.36.4"),
     ).toThrow("forbidden latest image tags");
   });
 });
@@ -118,4 +127,26 @@ test("accepts Jobs excluded from the budget without changing network labels", ()
     "  selector:\n    matchExpressions:\n      - key: app.kubernetes.io/job-name\n        operator: DoesNotExist\n",
   );
   expect(assertProfilePolicy(isolated, profile, "1.36.4")).toBe(4);
+});
+
+test("rejects Services that select database Jobs", () => {
+  const serviceManifest = jobBudgetManifest
+    .replace("kind: PodDisruptionBudget", "kind: Service")
+    .replace(
+      "    matchLabels:\n      app.kubernetes.io/component:",
+      "    app.kubernetes.io/component:",
+    );
+  expect(() => assertProfilePolicy(serviceManifest, profile, "1.36.4")).toThrow(
+    "must not be selected by Service",
+  );
+  expect(
+    assertProfilePolicy(
+      serviceManifest.replace(
+        "  selector:\n",
+        "  selector:\n    app.kubernetes.io/workload-type: deployment\n",
+      ),
+      profile,
+      "1.36.4",
+    ),
+  ).toBe(4);
 });

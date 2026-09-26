@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@clerk/nextjs";
 import type { CheckoutSessionStatusResponse } from "@repo/api-client";
 import { ArrowRight, CheckCircle2, ShoppingBag } from "lucide-react";
 import { useSearchParams } from "next/navigation";
@@ -206,9 +207,20 @@ function AuthenticatedReturnContent() {
   );
 }
 
+function ReturnAccountBoundary() {
+  const { userId } = useAuth();
+  const searchParams = useSearchParams();
+
+  return (
+    <AuthenticatedReturnContent
+      key={`${userId ?? "signed-out"}:${searchParams.get("session_id") ?? ""}`}
+    />
+  );
+}
+
 function ReturnContent() {
   if (isClerkConfigured) {
-    return <AuthenticatedReturnContent />;
+    return <ReturnAccountBoundary />;
   }
 
   return (

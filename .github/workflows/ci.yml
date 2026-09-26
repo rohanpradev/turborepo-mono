@@ -30,7 +30,7 @@ env:
   K8S_EXPERIMENTAL_VERSIONS: 1.37.0
   NODE_VERSION: 24.21.0
   REGISTRY: ghcr.io
-  TURBO_VERSION: 2.11.2
+  TURBO_VERSION: 2.11.4
   NEXT_TELEMETRY_DISABLED: 1
   TURBO_TELEMETRY_DISABLED: 1
 
@@ -194,7 +194,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:18.6@sha256:4ef4dbc939d61acea57712655ddb4b4ab27419c913f94cca0cd57cb3ea3c2280
+        image: postgres:18.6@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
         env:
           POSTGRES_PASSWORD: integration-only-password
           POSTGRES_DB: ecommerce_test
@@ -243,6 +243,7 @@ jobs:
       PUBLISH_IMAGES: ${{ (github.event_name == 'push' && (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/v'))) || (github.event_name == 'workflow_dispatch' && inputs.publish_images) }}
       # Published images use the public storefront unless a deployment-specific
       # image-optimizer origin is configured explicitly.
+      NEXT_PUBLIC_IMAGE_REMOTE_HOSTS: ${{ vars.NEXT_PUBLIC_IMAGE_REMOTE_HOSTS }}
       NEXT_IMAGE_STOREFRONT_ORIGIN: ${{ vars.NEXT_IMAGE_STOREFRONT_ORIGIN || vars.NEXT_PUBLIC_CLIENT_APP_URL }}
       NEXT_PUBLIC_ADMIN_APP_URL: ${{ vars.NEXT_PUBLIC_ADMIN_APP_URL }}
       NEXT_PUBLIC_CLIENT_APP_URL: ${{ vars.NEXT_PUBLIC_CLIENT_APP_URL }}
@@ -336,6 +337,7 @@ jobs:
             --build-arg "BUN_RUNTIME_IMAGE=${BUN_RUNTIME_IMAGE}" \
             --build-arg "TURBO_VERSION=${TURBO_VERSION}" \
             --build-arg "NEXT_DEPLOYMENT_ID=${GITHUB_SHA}" \
+            --build-arg "NEXT_PUBLIC_IMAGE_REMOTE_HOSTS=${NEXT_PUBLIC_IMAGE_REMOTE_HOSTS}" \
             --build-arg "NEXT_IMAGE_ALLOW_LOCAL_IP=false" \
             --build-arg "NEXT_IMAGE_STOREFRONT_ORIGIN=${NEXT_IMAGE_STOREFRONT_ORIGIN}" \
             --build-arg "NEXT_PUBLIC_ADMIN_APP_URL=${NEXT_PUBLIC_ADMIN_APP_URL}" \
@@ -359,6 +361,7 @@ jobs:
             BUN_RUNTIME_IMAGE=${{ env.BUN_RUNTIME_IMAGE }}
             TURBO_VERSION=${{ env.TURBO_VERSION }}
             NEXT_DEPLOYMENT_ID=${{ github.sha }}
+            NEXT_PUBLIC_IMAGE_REMOTE_HOSTS=${{ env.NEXT_PUBLIC_IMAGE_REMOTE_HOSTS }}
             NEXT_IMAGE_ALLOW_LOCAL_IP=false
             NEXT_IMAGE_STOREFRONT_ORIGIN=${{ env.NEXT_IMAGE_STOREFRONT_ORIGIN }}
             NEXT_PUBLIC_ADMIN_APP_URL=${{ env.NEXT_PUBLIC_ADMIN_APP_URL }}
