@@ -24,7 +24,11 @@ export default defineConfig((options) => {
           "integration-tests/**/*.test.ts",
           "scripts/k8s-runtime-secret.ts",
         ],
-        project: ["scripts/**/*.ts", "tests/**/*.ts", "integration-tests/**/*.ts"],
+        project: [
+          "scripts/**/*.ts",
+          "tests/**/*.ts",
+          "integration-tests/**/*.ts",
+        ],
         ignoreUnresolved: ["./tests/preload.ts"],
       },
       "apps/product-service": {

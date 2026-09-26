@@ -1,22 +1,39 @@
 import { expect, test } from "bun:test";
 import {
-  CHECKOUT_REQUEST_MAX_BODY_SIZE_BYTES as LIMIT,
   getCheckoutRequestError,
+  CHECKOUT_REQUEST_MAX_BODY_SIZE_BYTES as LIMIT,
   readCheckoutPayload,
 } from "../apps/client/src/lib/checkout-payload";
 
 test("checkout rejects cross-origin browser requests and simple form content types", () => {
   for (const site of ["cross-site", "same-site"]) {
-    expect(getCheckoutRequestError(new Headers({ "sec-fetch-site": site, "content-type": "application/json" }))?.status).toBe(403);
+    expect(
+      getCheckoutRequestError(
+        new Headers({
+          "sec-fetch-site": site,
+          "content-type": "application/json",
+        }),
+      )?.status,
+    ).toBe(403);
   }
-  for (const contentType of ["text/plain", "application/x-www-form-urlencoded", "multipart/form-data", ""]) {
-    expect(getCheckoutRequestError(new Headers({ "content-type": contentType }))?.status).toBe(415);
+  for (const contentType of [
+    "text/plain",
+    "application/x-www-form-urlencoded",
+    "multipart/form-data",
+    "",
+  ]) {
+    expect(
+      getCheckoutRequestError(new Headers({ "content-type": contentType }))
+        ?.status,
+    ).toBe(415);
   }
 });
 
 test("checkout accepts same-origin JSON and authenticated clients without Fetch Metadata", () => {
   for (const site of ["same-origin", "none", ""]) {
-    const headers = new Headers({ "content-type": "Application/JSON; charset=utf-8" });
+    const headers = new Headers({
+      "content-type": "Application/JSON; charset=utf-8",
+    });
     if (site) headers.set("sec-fetch-site", site);
     expect(getCheckoutRequestError(headers)).toBeNull();
   }
@@ -24,10 +41,16 @@ test("checkout accepts same-origin JSON and authenticated clients without Fetch 
 
 test("checkout does not wait for an unresponsive oversized stream to finish cancelling", async () => {
   const body = new ReadableStream<Uint8Array>({
-    start(controller) { controller.enqueue(new Uint8Array(LIMIT + 1)); },
-    cancel() { return new Promise<void>(() => {}); },
+    start(controller) {
+      controller.enqueue(new Uint8Array(LIMIT + 1));
+    },
+    cancel() {
+      return new Promise<void>(() => {});
+    },
   });
-  expect(await readCheckoutPayload(request(body))).toEqual({ kind: "too_large" });
+  expect(await readCheckoutPayload(request(body))).toEqual({
+    kind: "too_large",
+  });
 });
 
 const request = (body: BodyInit, headers?: HeadersInit) =>

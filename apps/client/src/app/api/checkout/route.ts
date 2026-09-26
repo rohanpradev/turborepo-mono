@@ -2,12 +2,18 @@ import { auth } from "@clerk/nextjs/server";
 import { ApiClientError, createCheckoutSession } from "@repo/api-client";
 import { getPaymentServiceServerUrl } from "@repo/api-client/server";
 import { checkoutSessionPayloadSchema } from "@repo/types";
-import { getCheckoutRequestError, readCheckoutPayload } from "@/lib/checkout-payload";
+import {
+  getCheckoutRequestError,
+  readCheckoutPayload,
+} from "@/lib/checkout-payload";
 
 export async function POST(request: Request) {
   const requestError = getCheckoutRequestError(request.headers);
   if (requestError) {
-    return Response.json({ message: requestError.message }, { status: requestError.status });
+    return Response.json(
+      { message: requestError.message },
+      { status: requestError.status },
+    );
   }
 
   const { getToken, userId } = await auth();

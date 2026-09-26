@@ -5,14 +5,24 @@ export const CHECKOUT_REQUEST_MAX_BODY_SIZE_BYTES = 64 * 1024;
 export const getCheckoutRequestError = (headers: Headers) => {
   const site = headers.get("sec-fetch-site");
   if (site && site !== "same-origin" && site !== "none") {
-    return { status: 403, message: "Checkout must be started from this store." } as const;
+    return {
+      status: 403,
+      message: "Checkout must be started from this store.",
+    } as const;
   }
 
-  const mediaType = headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase();
+  const mediaType = headers
+    .get("content-type")
+    ?.split(";", 1)[0]
+    ?.trim()
+    .toLowerCase();
   // Requiring JSON also blocks cross-origin HTML form submissions in browsers
   // without Fetch Metadata support. This endpoint does not enable CORS.
   if (mediaType !== "application/json") {
-    return { status: 415, message: "Checkout requires a JSON request." } as const;
+    return {
+      status: 415,
+      message: "Checkout requires a JSON request.",
+    } as const;
   }
 
   return null;
