@@ -1,8 +1,5 @@
-import {
-  getProductServiceServerUrl,
-  listCategories,
-  listProducts,
-} from "@repo/api-client";
+import { listCategories, listProducts } from "@repo/api-client";
+import { getProductServiceServerUrl } from "@repo/api-client/server";
 import type { CategoryRecord, ProductRecord } from "@repo/types";
 import { ArrowLeft, ArrowRight, SearchX } from "lucide-react";
 import { io } from "next/cache";

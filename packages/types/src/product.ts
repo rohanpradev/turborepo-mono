@@ -52,29 +52,29 @@ export const sizes = [
 export const ProductFormSchema = z
   .object({
     name: z
-      .string({ message: "Product name is required!" })
-      .min(1, { message: "Product name is required!" }),
+      .string({ error: "Product name is required!" })
+      .min(1, { error: "Product name is required!" }),
     shortDescription: z
-      .string({ message: "Short description is required!" })
-      .min(1, { message: "Short description is required!" })
+      .string({ error: "Short description is required!" })
+      .min(1, { error: "Short description is required!" })
       .max(60),
     description: z
-      .string({ message: "Description is required!" })
-      .min(1, { message: "Description is required!" }),
+      .string({ error: "Description is required!" })
+      .min(1, { error: "Description is required!" }),
     price: z
-      .number({ message: "Price is required!" })
-      .min(1, { message: "Price is required!" }),
+      .number({ error: "Price is required!" })
+      .min(1, { error: "Price is required!" }),
     categorySlug: z
-      .string({ message: "Category is required!" })
-      .min(1, { message: "Category is required!" }),
+      .string({ error: "Category is required!" })
+      .min(1, { error: "Category is required!" }),
     sizes: z
       .array(z.enum(sizes))
-      .min(1, { message: "At least one size is required!" }),
+      .min(1, { error: "At least one size is required!" }),
     colors: z
       .array(z.enum(colors))
-      .min(1, { message: "At least one color is required!" }),
+      .min(1, { error: "At least one color is required!" }),
     images: z.record(z.string(), z.string(), {
-      message: "Image for each color is required!",
+      error: "Image for each color is required!",
     }),
   })
   .refine(
@@ -85,7 +85,7 @@ export const ProductFormSchema = z
       return missingImages.length === 0;
     },
     {
-      message: "Image is required for each selected color!",
+      error: "Image is required for each selected color!",
       path: ["images"],
     },
   );
@@ -94,9 +94,9 @@ export type CategoryType = CategoryRecord;
 
 export const CategoryFormSchema = z.object({
   name: z
-    .string({ message: "Name is Required!" })
-    .min(1, { message: "Name is Required!" }),
+    .string({ error: "Name is Required!" })
+    .min(1, { error: "Name is Required!" }),
   slug: z
-    .string({ message: "Slug is Required!" })
-    .min(1, { message: "Slug is Required!" }),
+    .string({ error: "Slug is Required!" })
+    .min(1, { error: "Slug is Required!" }),
 });

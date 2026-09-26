@@ -7,7 +7,7 @@ export type CartItemsType = CartItemType[];
 
 export const shippingFormSchema = z.object({
   name: z.string().trim().min(1, "Enter your full name."),
-  email: z.string().trim().email("Enter a valid email address."),
+  email: z.string().trim().pipe(z.email("Enter a valid email address.")),
   phone: z
     .string()
     .trim()

@@ -1,64 +1,63 @@
-"use client";
-
-import { SignInButton, useAuth } from "@clerk/nextjs";
-import { getOrderServiceUrl, listUserOrders } from "@repo/api-client";
-import type { OrderRecord } from "@repo/types";
-import { formatUsdFromCents } from "@repo/types";
-import { useEffect, useState } from "react";
+import { auth } from "@clerk/nextjs/server";
+import { listUserOrders } from "@repo/api-client";
+import { getOrderServiceServerUrl } from "@repo/api-client/server";
+import { formatUsdFromCents, type OrderRecord } from "@repo/types";
+import type { Route } from "next";
+import { connection } from "next/server";
+import { Suspense } from "react";
+import RefreshButton from "@/components/RefreshButton";
 import { Button } from "@/components/ui/button";
 
-const isClerkConfigured = Boolean(
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
-    !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.includes("_here"),
-);
+const OrdersContent = async () => {
+  // Authentication and private order data must be read for the current request.
+  await connection();
+  const isClerkConfigured = Boolean(
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
+      !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.includes("_here") &&
+      process.env.CLERK_SECRET_KEY &&
+      !process.env.CLERK_SECRET_KEY.includes("_here"),
+  );
 
-const OrdersContent = () => {
-  const { getToken } = useAuth();
-  const [orders, setOrders] = useState<Array<OrderRecord>>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    const loadOrders = async () => {
-      try {
-        const token = await getToken();
-        if (controller.signal.aborted) return;
-
-        if (!token) {
-          throw new Error("Authentication token unavailable.");
-        }
-
-        const response = await listUserOrders(getOrderServiceUrl(), {
-          token,
-          fetchOptions: { signal: controller.signal, cache: "no-store" },
-        });
-        if (controller.signal.aborted) return;
-        setOrders(response.data);
-        setError(null);
-      } catch (caughtError) {
-        if (controller.signal.aborted) return;
-        setError(
-          caughtError instanceof Error
-            ? caughtError.message
-            : "Unable to load orders right now.",
-        );
-      } finally {
-        if (!controller.signal.aborted) setIsLoading(false);
-      }
-    };
-
-    setIsLoading(true);
-    void loadOrders();
-    return () => controller.abort();
-  }, [getToken]);
-
-  if (isLoading) {
+  if (!isClerkConfigured) {
     return (
-      <div className="mt-12 flex min-h-[40vh] items-center justify-center">
-        <div className="size-10 animate-spin rounded-full border-2 border-border border-t-foreground" />
-      </div>
+      <section className="mx-auto max-w-3xl space-y-4 py-8">
+        <h1 className="font-serif text-4xl font-semibold tracking-[-0.035em]">
+          Your orders.
+        </h1>
+        <p className="rounded-xl border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
+          Order history is unavailable in this environment.
+        </p>
+      </section>
     );
+  }
+
+  const { getToken, userId } = await auth();
+  const token = userId ? await getToken() : null;
+  if (!token) {
+    return (
+      <section className="mx-auto max-w-3xl space-y-4 py-8">
+        <h1 className="font-serif text-4xl font-semibold tracking-[-0.035em]">
+          Your orders.
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Sign in to see your order history.
+        </p>
+        <Button href={"/sign-in?redirect_url=%2Forders" as Route}>
+          Sign in
+        </Button>
+      </section>
+    );
+  }
+
+  let orders: Array<OrderRecord> = [];
+  let error: string | null = null;
+  try {
+    const response = await listUserOrders(getOrderServiceServerUrl(), {
+      token,
+    });
+    orders = response.data;
+  } catch {
+    error = "Unable to load your orders right now. Please try again.";
   }
 
   return (
@@ -68,13 +67,17 @@ const OrdersContent = () => {
           Your orders.
         </h1>
         <p className="text-sm text-muted-foreground">
-          Payment-backed orders synced from the order service.
+          Your purchases and their latest status.
         </p>
       </div>
 
       {error ? (
-        <div className="rounded-xl border border-dashed border-destructive/25 bg-destructive/8 px-4 py-6 text-sm text-destructive">
-          {error}
+        <div
+          role="alert"
+          className="space-y-4 rounded-xl border border-dashed border-destructive/25 bg-destructive/8 px-4 py-6 text-sm text-destructive"
+        >
+          <p>{error}</p>
+          <RefreshButton label="Try again" />
         </div>
       ) : orders.length > 0 ? (
         <div className="space-y-4">
@@ -140,48 +143,16 @@ const OrdersContent = () => {
   );
 };
 
-function AuthenticatedOrders() {
-  const { isLoaded, userId } = useAuth();
-  if (!isLoaded) {
-    return (
-      <p role="status" className="py-12">
-        Loading your account…
-      </p>
-    );
-  }
-  if (!userId) {
-    return (
-      <section className="mx-auto max-w-3xl space-y-4 py-8">
-        <h1 className="font-serif text-4xl font-semibold tracking-[-0.035em]">
-          Your orders.
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Sign in to see your order history.
-        </p>
-        <SignInButton mode="modal">
-          <Button type="button">Sign in</Button>
-        </SignInButton>
-      </section>
-    );
-  }
-  // Account changes immediately discard the previous account's state and effects.
-  return <OrdersContent key={userId} />;
-}
-
 export default function OrdersPage() {
-  if (!isClerkConfigured) {
-    return (
-      <section className="mx-auto max-w-3xl space-y-4 py-8">
-        <h1 className="font-serif text-4xl font-semibold tracking-[-0.035em]">
-          Your orders.
-        </h1>
-        <p className="rounded-xl border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
-          Authentication is not configured for this environment, so customer
-          order history is unavailable.
+  return (
+    <Suspense
+      fallback={
+        <p role="status" className="py-12">
+          Loading your orders…
         </p>
-      </section>
-    );
-  }
-
-  return <AuthenticatedOrders />;
+      }
+    >
+      <OrdersContent />
+    </Suspense>
+  );
 }

@@ -20,6 +20,36 @@ afterEach(() => {
 });
 
 describe("@repo/api-client", () => {
+  it.each([undefined, "force-cache" as const])(
+    "never caches authenticated requests, including a caller policy of %s",
+    async (cache) => {
+      let receivedCache: RequestCache | undefined;
+      globalThis.fetch = (async (_input, init) => {
+        receivedCache = init?.cache;
+        return Response.json({ json: { success: true, data: [] } });
+      }) as typeof fetch;
+
+      await listOrders("https://orders.test", {
+        token: "test-token",
+        fetchOptions: { cache },
+      });
+
+      expect(receivedCache).toBe("no-store");
+    },
+  );
+
+  it("preserves an explicit public catalog cache policy", async () => {
+    let receivedCache: RequestCache | undefined;
+    globalThis.fetch = (async (_input, init) => {
+      receivedCache = init?.cache;
+      return Response.json({ json: { success: true, data: [] } });
+    }) as typeof fetch;
+
+    await listProducts("https://catalog.test", {}, { cache: "force-cache" });
+
+    expect(receivedCache).toBe("force-cache");
+  });
+
   it.each([listOrders, listUserOrders])(
     "preserves cancellation and cache policy for authenticated order reads",
     async (readOrders) => {

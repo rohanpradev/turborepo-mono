@@ -1,9 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
-import {
-  ApiClientError,
-  getCheckoutSessionStatus,
-  getPaymentServiceServerUrl,
-} from "@repo/api-client";
+import { ApiClientError, getCheckoutSessionStatus } from "@repo/api-client";
+import { getPaymentServiceServerUrl } from "@repo/api-client/server";
 import { checkoutSessionStatusQuerySchema } from "@repo/types";
 
 export async function GET(

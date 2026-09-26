@@ -23,13 +23,10 @@ export const productListQuerySchema = z.strictObject({
   limit: z.coerce.number().int().positive().max(100).optional(),
 });
 
-const httpImageUrlSchema = z
-  .string()
-  .url()
-  .refine((value) => {
-    const protocol = value.slice(0, value.indexOf(":") + 1);
-    return protocol === "http:" || protocol === "https:";
-  });
+const httpImageUrlSchema = z.url().refine((value) => {
+  const protocol = value.slice(0, value.indexOf(":") + 1);
+  return protocol === "http:" || protocol === "https:";
+});
 
 const isSupportedImagePath = (value: string) => {
   if (/\s/.test(value)) {
@@ -57,7 +54,7 @@ const productBaseSchema = z.strictObject({
       .string()
       .min(1)
       .refine((value) => isSupportedImagePath(value), {
-        message: "Image must be an HTTP(S) URL or a root-relative path.",
+        error: "Image must be an HTTP(S) URL or a root-relative path.",
       }),
   ),
 });
@@ -65,7 +62,7 @@ const productBaseSchema = z.strictObject({
 export const productPayloadSchema = productBaseSchema.refine(
   (data) => data.colors.every((color) => Boolean(data.images[color])),
   {
-    message: "Each selected color must have a matching image.",
+    error: "Each selected color must have a matching image.",
     path: ["images"],
   },
 );
@@ -78,12 +75,12 @@ export const productUpdateSchema = productBaseSchema
         ? true
         : data.colors.every((color) => Boolean(data.images?.[color])),
     {
-      message: "Each selected color must have a matching image.",
+      error: "Each selected color must have a matching image.",
       path: ["images"],
     },
   )
   .refine((data) => Object.keys(data).length > 0, {
-    message: "At least one field must be updated.",
+    error: "At least one field must be updated.",
   });
 
 export const categoryPayloadSchema = z.strictObject({
@@ -94,7 +91,7 @@ export const categoryPayloadSchema = z.strictObject({
 export const categoryUpdateSchema = categoryPayloadSchema
   .partial()
   .refine((data) => Object.keys(data).length > 0, {
-    message: "At least one field must be updated.",
+    error: "At least one field must be updated.",
   });
 
 export const productRecordSchema = z.object({
@@ -152,7 +149,7 @@ export const orderRecordSchema = z.object({
   _id: z.string(),
   orderId: z.string().optional(),
   userId: z.string(),
-  email: z.string().email(),
+  email: z.email(),
   amount: z.number().nonnegative(),
   status: orderStatusSchema,
   products: z.array(orderProductSchema),

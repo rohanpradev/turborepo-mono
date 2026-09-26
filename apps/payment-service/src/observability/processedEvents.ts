@@ -47,6 +47,7 @@ export const releaseProcessableEvent = (key: string) => {
   processingEvents.delete(key);
 };
 
+/** @internal Exported for regression tests. */
 export const clearProcessedEventsForTesting = () => {
   processingEvents.clear();
   processedEvents.clear();

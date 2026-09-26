@@ -25,6 +25,12 @@ make k8s-forward
 
 After an existing deployment, run `make k8s-forward` to expose the Storefront, Admin, Grafana, and Prometheus without rebuilding or upgrading the cluster. The target keeps reconnecting transiently dropped port-forwards until you stop it with Ctrl-C.
 
+Run `make k8s-verify` after a deployment to check rollout completion, run the bounded Helm health tests inside the cluster, and verify HTTPS routing through Traefik. The `k8s-up` targets run this gate automatically. A failed check stops the command.
+
+If the system kubectl is outside the supported one-minor client/server skew, run `make k8s-install-kubectl`. This downloads the pinned `KUBECTL_VERSION` (defaults to `K8S_TARGET_VERSION`) from the official Kubernetes release service and verifies its SHA-256 before installing it under `.runtime/bin`. Make automatically uses that project-local binary; the system installation is untouched. The one-command setup checks tool compatibility before installing controllers or building images.
+
+Services select only pods labelled `app.kubernetes.io/workload-type: deployment`; migration and seed hooks retain component labels for network policy coverage without receiving application traffic. Deployment selectors remain unchanged so existing releases can upgrade in place. During shutdown, the kubelet waits `global.preStopDelaySeconds` (5 seconds by default) before signalling the application, allowing endpoint changes to propagate. The default 40-second termination grace period includes this delay and the application's 25-second cleanup budget. Keep sufficient margin when overriding these values.
+
 Each one-command deployment generates an immutable `dev-<UTC timestamp>` image tag and passes it to Helm, so rebuilt images always produce a real rollout. To reproduce or resume a deployment across separate Make invocations, provide the same tag explicitly, for example `make k8s K8S_IMAGE_TAG=dev-my-test`.
 
 Useful lower-level commands:
@@ -61,7 +67,7 @@ make k8s-uninstall
 
 The local workflow installs Traefik as a standard Kubernetes Ingress controller and deploys app routes with `ingressClassName: traefik`.
 
-The deployment toolchain is pinned to Helm 4.3.0, kubeconform 0.8.0, Traefik chart 41.6.0 with Traefik 3.7.13, kube-prometheus-stack 91.4.1, and Gateway API 1.6.2. The Gateway manifest is SHA-256 verified before apply. Kubernetes 1.35 and 1.36 form the project deployment baseline; Kubernetes 1.37 is kept as an experimental render and schema-validation target until project runtime qualification is complete. The chart's strict values schema rejects unknown root, service, and job fields. CI checks explicit Ingress, Gateway, local, and local-full profiles across both tiers. CRD-backed resources without Kubernetes-core schemas remain covered by Helm rendering and live-cluster validation. Environment-owned values live under `deploy/environments`, while chart-only validation fixtures live under `charts/ecommerce/ci`. Traefik and kube-prometheus-stack CRDs are applied before controller upgrades because Helm does not upgrade CRDs automatically.
+The deployment toolchain is pinned to Helm 4.3.0, kubeconform 0.8.0, Traefik chart 41.6.0 with Traefik 3.7.13, kube-prometheus-stack 91.5.2, and Gateway API 1.6.2. The Gateway manifest is SHA-256 verified before apply. Kubernetes 1.35 and 1.36 form the project deployment baseline; Kubernetes 1.37 is kept as an experimental render and schema-validation target until project runtime qualification is complete. The chart's strict values schema rejects unknown root, service, and job fields. CI checks explicit Ingress, Gateway, local, and local-full profiles across both tiers. Schema validation explicitly skips Gateway, GatewayClass, HTTPRoute, ServiceMonitor, and PrometheusRule; every other missing schema fails the check. These CRD-backed resources require live-cluster validation in addition to Helm rendering. Environment-owned values live under `deploy/environments`, while chart-only validation fixtures live under `charts/ecommerce/ci`. Traefik and kube-prometheus-stack CRDs are applied before controller upgrades because Helm does not upgrade CRDs automatically.
 
 For Prometheus, Grafana, app metrics, Traefik metrics, and alert rules, run:
 
@@ -118,6 +124,8 @@ The default local image names match the Docker Compose builds:
 For registries, set `global.imageRegistry` and per-service tags. Every service image also accepts `digest`; when present, Helm renders the traceable `repository:tag@sha256:...` form and Kubernetes uses the immutable digest at runtime. External Stripe CLI and Helm test images are digest-pinned by default.
 
 The admin image optimizer reads storefront product assets over the cluster-internal client Service instead of looping through the public ingress. When building outside `make k8s`, pass `NEXT_IMAGE_STOREFRONT_ORIGIN` to the admin image at build time and set the matching `STOREFRONT_ASSET_ORIGIN` at runtime. Private-IP optimization defaults off in the Dockerfile and is enabled only by the explicit local Compose/Kubernetes build path.
+
+When enabling autoscaling, configure at least one CPU or memory utilization target and the corresponding resource request on every container, including the optional Stripe CLI sidecar. Helm rejects missing requests and inverted replica ranges. Utilization is relative to the request, so targets above 100 are valid. Health-test URLs follow each configured Service port. Job cleanup accepts `ttlSecondsAfterFinished: 0` for immediate cleanup.
 
 Example production override:
 

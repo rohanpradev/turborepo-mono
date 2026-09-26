@@ -6,17 +6,20 @@
     "check-types": "tsc --noEmit"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./server": "./src/server.ts"
   },
   "dependencies": {
     "@orpc/client": "catalog:",
-    "@orpc/contract": "catalog:",
     "@repo/contracts": "workspace:*",
-    "@repo/types": "workspace:*"
+    "@repo/types": "workspace:*",
+    "server-only": "catalog:"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "@types/bun": "catalog:",
-    "@types/node": "catalog:"
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "@orpc/contract": "catalog:"
   }
 }

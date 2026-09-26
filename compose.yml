@@ -21,6 +21,7 @@ x-app-service: &app-service
     - /tmp:size=64m,mode=1777
 
 x-frontend-build-args: &frontend-build-args
+  NEXT_PUBLIC_IMAGE_REMOTE_HOSTS: ${NEXT_PUBLIC_IMAGE_REMOTE_HOSTS:-}
   NEXT_DEPLOYMENT_ID: ${NEXT_DEPLOYMENT_ID:-local}
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
   NEXT_PUBLIC_PRODUCT_SERVICE_URL: ${DOCKER_PUBLIC_PRODUCT_SERVICE_URL:-https://api.localhost:8443}
@@ -59,6 +60,7 @@ services:
       NETWORKS: 1
       PING: 1
       VERSION: 1
+      POST: 0
     expose:
       - "2375"
     volumes:
@@ -69,12 +71,12 @@ services:
         bind:
           create_host_path: false
     networks:
-      - ecommerce-network
+      - docker-api
     restart: unless-stopped
 
   traefik:
     <<: *runtime-security
-    image: traefik:v3.7.13@sha256:1c32e7c368204fd72812152ebdd2ac0425993df6fd982317deb02e48f2d5423c
+    image: traefik:v3.7.13@sha256:24841fe2de7304c149343d877d2923b4c8800a38ba015dea9174c23b20e344a0
     read_only: true
     tmpfs:
       - /tmp:size=32m,mode=1777
@@ -125,6 +127,7 @@ services:
       - "traefik.http.routers.dashboard.middlewares=dashboard-auth@docker"
     networks:
       - ecommerce-network
+      - docker-api
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
       interval: 10s
@@ -134,7 +137,7 @@ services:
 
   postgres:
     <<: *runtime-security
-    image: dhi.io/postgres:18.6-debian13@sha256:8ebb9c5029314e1700be34df809897f32a29a5064e579038f861c6e0ed5f028b
+    image: dhi.io/postgres:18.6-debian13@sha256:63836d2fab4781db2f073b4e64c6f4cf1ce8042d2d894f62df54bf4ba2b63daf
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
@@ -162,7 +165,7 @@ services:
 
   mongodb:
     <<: *runtime-security
-    image: dhi.io/mongodb:8.3.11-debian13@sha256:f65e3024ffddc94842026277a1070c29f2a3ac11b84d483c90c9f63ee6b97c01
+    image: dhi.io/mongodb:8.3.11-debian13@sha256:afbf632eee0bdcceee6bd5b1ca9f9e7a1ce07eca1094568102a6c824ec0a26e1
     platform: linux/amd64
     command:
       - "--bind_ip_all"
@@ -250,7 +253,7 @@ services:
 
   kafka-broker-1:
     <<: *runtime-security
-    image: dhi.io/kafka:4.3.1-debian13-native@sha256:acb17aecd630d0b855630cdd186b8ccb311ef4f64a8bf257b2e444deae0bab60
+    image: dhi.io/kafka:4.3.1-debian13-native@sha256:42acf0d63c66d9618c386c01952c3c212f53c4d4a7687c0ebc636092c901c68a
     environment:
       <<: *kafka-broker-env
       KAFKA_NODE_ID: 1
@@ -275,7 +278,7 @@ services:
 
   kafka-broker-2:
     <<: *runtime-security
-    image: dhi.io/kafka:4.3.1-debian13-native@sha256:acb17aecd630d0b855630cdd186b8ccb311ef4f64a8bf257b2e444deae0bab60
+    image: dhi.io/kafka:4.3.1-debian13-native@sha256:42acf0d63c66d9618c386c01952c3c212f53c4d4a7687c0ebc636092c901c68a
     environment:
       <<: *kafka-broker-env
       KAFKA_NODE_ID: 2
@@ -300,7 +303,7 @@ services:
 
   kafka-broker-3:
     <<: *runtime-security
-    image: dhi.io/kafka:4.3.1-debian13-native@sha256:acb17aecd630d0b855630cdd186b8ccb311ef4f64a8bf257b2e444deae0bab60
+    image: dhi.io/kafka:4.3.1-debian13-native@sha256:42acf0d63c66d9618c386c01952c3c212f53c4d4a7687c0ebc636092c901c68a
     environment:
       <<: *kafka-broker-env
       KAFKA_NODE_ID: 3
@@ -539,7 +542,7 @@ services:
 
   stripe-cli:
     <<: *app-service
-    image: stripe/stripe-cli:v1.51.0@sha256:f92a8017ca321945d7c4786bf6a75fe0790f3400bacc38ec9ee71c27664d3a16
+    image: stripe/stripe-cli:v1.52.0@sha256:da11dbbdb78100602014096a6cbf764b211243111b3b8a57309d18c3939c9777
     environment:
       STRIPE_API_KEY: ${STRIPE_API_KEY:-}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
@@ -694,6 +697,9 @@ services:
       start_period: 60s
 
 networks:
+  # Only Traefik can query the Docker API; application containers cannot inspect it.
+  docker-api:
+    internal: true
   ecommerce-network:
     driver: bridge
 

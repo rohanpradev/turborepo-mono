@@ -13,6 +13,7 @@ let inFlight: Promise<void> | undefined;
 const nextDelay = (attempts: number) =>
   Math.min(60_000, 1_000 * 2 ** Math.min(attempts, 6));
 
+/** @internal Exported for regression tests. */
 export const relayProductOutboxOnce = async () => {
   const currentTime = nowUtc();
   const claimableEvents = db.orm.public.ProductOutboxEvent.where((event) =>

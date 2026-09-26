@@ -116,6 +116,7 @@ const mapWithConcurrency = async <TInput, TOutput>(
   return results;
 };
 
+/** @internal Exported for regression tests. */
 export const resolveCheckoutCatalog = async (
   payload: CheckoutSessionPayload,
   telemetryHeaders?: Record<string, string>,

@@ -1,14 +1,16 @@
 import {
   getOrderServiceHealth,
-  getOrderServiceServerUrl,
   getOrderServiceUrl,
   getPaymentServiceHealth,
-  getPaymentServiceServerUrl,
   getPaymentServiceUrl,
   getProductServiceHealth,
-  getProductServiceServerUrl,
   getProductServiceUrl,
 } from "@repo/api-client";
+import {
+  getOrderServiceServerUrl,
+  getPaymentServiceServerUrl,
+  getProductServiceServerUrl,
+} from "@repo/api-client/server";
 import { connection } from "next/server";
 import { createStoreMetadata } from "@/lib/metadata";
 

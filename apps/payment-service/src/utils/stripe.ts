@@ -30,6 +30,7 @@ export const getStripeClient = () => {
   return stripeClient;
 };
 
+/** @internal Exported for regression tests. */
 export const setStripeClientForTesting = (
   client: Stripe | null | undefined,
 ) => {

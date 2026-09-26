@@ -9,7 +9,10 @@ import {
 import { type AnyRouter, ORPCError, onError } from "@orpc/server";
 import { BodyLimitPlugin, RPCHandler } from "@orpc/server/fetch";
 import type { CustomJwtSessionClaims } from "@repo/types";
-import { Scalar } from "@scalar/hono-api-reference";
+import {
+  type ApiReferenceConfiguration,
+  Scalar,
+} from "@scalar/hono-api-reference";
 import type { Context, Env } from "hono";
 import { compress } from "hono/compress";
 import { cors } from "hono/cors";
@@ -29,29 +32,13 @@ type ServiceTag = {
   description: string;
 };
 
-type ScalarTheme =
-  | "default"
-  | "kepler"
-  | "alternate"
-  | "moon"
-  | "purple"
-  | "solarized"
-  | "bluePlanet"
-  | "deepSpace"
-  | "saturn"
-  | "elysiajs"
-  | "fastify"
-  | "mars"
-  | "laserwave"
-  | "none";
-
 type CreateServiceAppOptions = {
   title: string;
   version: string;
   description: string;
   serviceName?: string;
   tags: Array<ServiceTag>;
-  theme?: ScalarTheme;
+  theme?: ApiReferenceConfiguration["theme"];
   requestTimeoutMs?: number;
 };
 
@@ -157,18 +144,16 @@ export const serviceDependencySchema = z
   })
   .openapi("ServiceDependency");
 
-export const createSuccessResponseSchema = <T extends z.ZodTypeAny>(
-  schema: T,
-) =>
+export const createSuccessResponseSchema = <T extends z.ZodType>(schema: T) =>
   z.object({
     success: z.literal(true),
     data: schema,
   });
 
-export const createListResponseSchema = <T extends z.ZodTypeAny>(schema: T) =>
+export const createListResponseSchema = <T extends z.ZodType>(schema: T) =>
   createSuccessResponseSchema(z.array(schema));
 
-export const createPaginatedListResponseSchema = <T extends z.ZodTypeAny>(
+export const createPaginatedListResponseSchema = <T extends z.ZodType>(
   schema: T,
 ) =>
   z.object({
@@ -204,7 +189,7 @@ export const createReadinessResponseSchema = (service: string) =>
     dependencies: z.array(serviceDependencySchema),
   });
 
-export const jsonContent = <T extends z.ZodTypeAny>(schema: T) => ({
+export const jsonContent = <T extends z.ZodType>(schema: T) => ({
   "application/json": {
     schema,
   },
