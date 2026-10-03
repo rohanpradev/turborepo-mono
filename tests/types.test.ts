@@ -163,6 +163,8 @@ describe("@repo/types schemas", () => {
       phone: "+1 (555) 123-4567",
       address: "123 Main Street",
       city: "New York",
+      state: "NY",
+      postalCode: "10001",
     };
 
     expect(shippingFormSchema.safeParse(validShippingDetails).success).toBe(

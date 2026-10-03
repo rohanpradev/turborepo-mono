@@ -12,6 +12,34 @@ spec:
   groups:
     - name: ecommerce.slo
       rules:
+        - alert: EcommerceKafkaMessageQuarantined
+          expr: sum by (group, topic) (increase(ecommerce_kafka_quarantined_total[15m])) > 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "A commerce event was quarantined; inspect its dead-letter topic"
+        - alert: EcommercePaymentQuarantine
+          expr: max by (kind) (ecommerce_payment_jobs{state="quarantined"}) > 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Payment jobs require investigation and explicit redrive"
+        - alert: EcommercePaymentProcessingDelayed
+          expr: max by (kind) (ecommerce_payment_job_oldest_seconds{state=~"pending|processing"}) > 300
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Payment processing is delayed by more than five minutes"
+        - alert: EcommerceUnresolvedStockReservation
+          expr: max(ecommerce_payment_unresolved_reservations) > 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Expired stock holds have no attached provider session; reconciliation is required"
         - alert: EcommerceServiceNotReady
           expr: ecommerce_service_ready == 0
           for: 2m
@@ -25,7 +53,7 @@ spec:
             (
               sum by (app_service) (rate(ecommerce_http_requests_total{status_code=~"5.."}[5m]))
               /
-              clamp_min(sum by (app_service) (rate(ecommerce_http_requests_total[5m])), 1)
+              sum by (app_service) (rate(ecommerce_http_requests_total[5m]))
             ) > {{ .Values.observability.prometheusRule.thresholds.errorRatio }}
           for: 5m
           labels:
@@ -50,7 +78,7 @@ spec:
             (
               sum by (service) (rate(traefik_service_requests_total{code=~"5.."}[5m]))
               /
-              clamp_min(sum by (service) (rate(traefik_service_requests_total[5m])), 1)
+              sum by (service) (rate(traefik_service_requests_total[5m]))
             ) > {{ .Values.observability.prometheusRule.thresholds.traefikErrorRatio }}
           for: 5m
           labels:

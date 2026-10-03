@@ -7,7 +7,7 @@ export type CartItemsType = CartItemType[];
 
 export const shippingFormSchema = z.object({
   name: z.string().trim().min(1, "Enter your full name."),
-  email: z.string().trim().email("Enter a valid email address."),
+  email: z.string().trim().pipe(z.email("Enter a valid email address.")),
   phone: z
     .string()
     .trim()
@@ -19,6 +19,15 @@ export const shippingFormSchema = z.object({
     }, "Phone number must contain between 7 and 15 digits."),
   address: z.string().trim().min(1, "Enter a street address."),
   city: z.string().trim().min(1, "Enter a city."),
+  state: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z]{2}$/, "Enter a two-letter state code."),
+  postalCode: z
+    .string()
+    .trim()
+    .regex(/^\d{5}(-\d{4})?$/, "Enter a valid ZIP code."),
 });
 
 export type ShippingFormInputs = z.infer<typeof shippingFormSchema>;

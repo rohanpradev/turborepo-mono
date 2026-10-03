@@ -1,8 +1,9 @@
 import {
   ApiClientError,
   getProduct,
-  getProductServiceServerUrl,
+  getProductAvailability,
 } from "@repo/api-client";
+import { getProductServiceServerUrl } from "@repo/api-client/server";
 import { formatUsdFromCents } from "@repo/types";
 import type { Metadata } from "next";
 import Image from "next/image";
@@ -121,6 +122,12 @@ const ProductPage = async ({
     notFound();
   }
 
+  const availability = await getProductAvailability(
+    getProductServiceServerUrl(),
+    productId,
+  )
+    .then((response) => response.data)
+    .catch(() => null);
   const requestedSize = getSingleSearchParam(resolvedSearchParams.size);
   const requestedColor = getSingleSearchParam(resolvedSearchParams.color);
   const selectedSize =
@@ -157,7 +164,11 @@ const ProductPage = async ({
     name: product.name,
     offers: {
       "@type": "Offer",
-      availability: "https://schema.org/InStock",
+      availability: availability
+        ? availability.some((row) => row.available > 0)
+          ? "https://schema.org/InStock"
+          : "https://schema.org/OutOfStock"
+        : undefined,
       price: (product.price / 100).toFixed(2),
       priceCurrency: "USD",
       url: productUrl,
@@ -287,6 +298,15 @@ const ProductPage = async ({
             >
               <ProductInteraction
                 product={product}
+                available={
+                  availability
+                    ? (availability.find(
+                        (row) =>
+                          row.size === selectedSize &&
+                          row.color === selectedColor,
+                      )?.available ?? 0)
+                    : null
+                }
                 selectedSize={selectedSize}
                 selectedColor={selectedColor}
               />

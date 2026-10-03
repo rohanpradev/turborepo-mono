@@ -28,6 +28,7 @@ export {
   readKafkaHeader,
   type TraceContext,
 } from "./instrumentation";
+export { validateTopicMessage } from "./schemas";
 export { createProducer, KafkaProducer } from "./topic-producer";
 export {
   type PaymentSuccessfulMessage,

@@ -138,8 +138,21 @@ make docker-test
 ```
 
 Dependency versions should be updated through the root catalog, then locked with `bun install`. If a dependency is shared by more than one workspace, prefer `catalog:` in app/package manifests and keep the actual version in the root `package.json`.
-# Architecture
-
 ## Reliable catalog events
 
 Product create, update, and delete operations use a transactional outbox. The product row mutation and `ProductOutboxEvent` are committed together in PostgreSQL; an in-process, multi-replica-safe relay publishes pending events to Kafka using leases and retry backoff. Delivery is at least once, so catalog consumers must be idempotent. See [ADR 0001](./adr/0001-transactional-product-outbox.md).
+
+
+## Durable purchases and finite inventory
+
+The October 3 implementation adds payment-owned PostgreSQL storage and a
+product-owned inventory schema. See [ADR 0002](adr/0002-payment-inventory.md)
+for reserve/pay/commit/release boundaries, uncertainty handling and migrations.
+Verified webhook intake is decoupled from provider enrichment and Kafka delivery
+through leased durable jobs. Order queries are paginated; delivery and variant
+snapshots survive catalog changes. Admin activity reads persisted purchase data.
+
+[Operations](OPERATIONS.md) covers replay, recovery, retention and launch gates.
+[Hosted profiles](../deploy/environments/README.md) are templates requiring real
+infrastructure values; nothing has been deployed. Structured logs and trace
+headers are not a substitute for a configured trace exporter.

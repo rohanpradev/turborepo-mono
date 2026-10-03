@@ -1,40 +1,21 @@
 import { auth } from "@clerk/nextjs/server";
-import {
-  ApiClientError,
-  createCheckoutSession,
-  getPaymentServiceServerUrl,
-} from "@repo/api-client";
+import { ApiClientError, createCheckoutSession } from "@repo/api-client";
+import { getPaymentServiceServerUrl } from "@repo/api-client/server";
 import { checkoutSessionPayloadSchema } from "@repo/types";
-
-export const CHECKOUT_REQUEST_MAX_BODY_SIZE_BYTES = 64 * 1024;
-
-const readCheckoutPayload = async (request: Request) => {
-  const contentLength = Number(request.headers.get("content-length"));
-
-  if (
-    Number.isFinite(contentLength) &&
-    contentLength > CHECKOUT_REQUEST_MAX_BODY_SIZE_BYTES
-  ) {
-    return { kind: "too_large" } as const;
-  }
-
-  try {
-    const rawBody = await request.text();
-
-    if (
-      new TextEncoder().encode(rawBody).byteLength >
-      CHECKOUT_REQUEST_MAX_BODY_SIZE_BYTES
-    ) {
-      return { kind: "too_large" } as const;
-    }
-
-    return { kind: "ok", data: JSON.parse(rawBody) as unknown } as const;
-  } catch {
-    return { kind: "invalid" } as const;
-  }
-};
+import {
+  getCheckoutRequestError,
+  readCheckoutPayload,
+} from "@/lib/checkout-payload";
 
 export async function POST(request: Request) {
+  const requestError = getCheckoutRequestError(request.headers);
+  if (requestError) {
+    return Response.json(
+      { message: requestError.message },
+      { status: requestError.status },
+    );
+  }
+
   const { getToken, userId } = await auth();
 
   if (!userId) {

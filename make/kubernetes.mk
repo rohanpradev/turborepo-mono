@@ -2,6 +2,24 @@
 
 ##@ Kubernetes / Helm
 
+.PHONY: k8s-install-kubectl
+k8s-install-kubectl: runtime-dir ## Install a checksum-verified, pinned kubectl inside the project
+	@set -eu; \
+		platform="$$(uname -s | tr '[:upper:]' '[:lower:]')"; \
+		case "$$platform" in darwin|linux) ;; *) echo "Unsupported platform: $$platform"; exit 1;; esac; \
+		case "$$(uname -m)" in arm64|aarch64) arch=arm64;; x86_64) arch=amd64;; *) echo "Unsupported architecture"; exit 1;; esac; \
+		mkdir -p "$(RUNTIME_DIR)/bin"; \
+		tmp="$$(mktemp -d "$(RUNTIME_DIR)/bin/.kubectl.XXXXXX")"; \
+		trap 'rm -rf "$$tmp"' EXIT; \
+		url="https://dl.k8s.io/release/v$(KUBECTL_VERSION)/bin/$$platform/$$arch/kubectl"; \
+		curl --fail --silent --show-error --location --retry 3 --connect-timeout 10 --max-time 180 "$$url" -o "$$tmp/kubectl"; \
+		curl --fail --silent --show-error --location --retry 3 --connect-timeout 10 --max-time 30 "$$url.sha256" -o "$$tmp/kubectl.sha256"; \
+		expected="$$(cat "$$tmp/kubectl.sha256")"; \
+		printf '%s  %s\n' "$$expected" "$$tmp/kubectl" | shasum -a 256 -c -; \
+		chmod 0755 "$$tmp/kubectl"; \
+		mv "$$tmp/kubectl" "$(KUBECTL_LOCAL)"; \
+		echo "Installed $(KUBECTL_LOCAL); Make will use it automatically."
+
 helm-lint: ## Lint the ecommerce Helm chart
 	@echo "$(BLUE)Linting Helm chart...$(NC)"
 	$(HELM) lint $(HELM_CHART) --kube-version $(K8S_TARGET_VERSION)
@@ -38,7 +56,7 @@ helm-validate-supported: helm-lint-supported ## Schema-validate every real profi
 				local-full) profile_args="--values $(HELM_FULL_VALUES)" ;; \
 			esac; \
 			$(HELM) template $(HELM_RELEASE) $(HELM_CHART) --namespace $(HELM_NAMESPACE) --kube-version "$$kubernetes_version" $$profile_args > "$$rendered_manifest" || exit 1; \
-			docker run --rm -i -v "$(RUNTIME_DIR)/kubeconform-cache:/schemas-cache" $(KUBECONFORM_IMAGE) -cache /schemas-cache -strict -summary -ignore-missing-schemas -kubernetes-version "$$kubernetes_version" - < "$$rendered_manifest" || exit 1; \
+			docker run --rm -i -v "$(RUNTIME_DIR)/kubeconform-cache:/schemas-cache" $(KUBECONFORM_IMAGE) -cache /schemas-cache -strict -summary -skip Gateway,GatewayClass,HTTPRoute,ServiceMonitor,PrometheusRule -kubernetes-version "$$kubernetes_version" - < "$$rendered_manifest" || exit 1; \
 		done; \
 	done
 	@echo "$(GREEN)All $(K8S_VERSION_TIER) Helm profiles passed kubeconform validation$(NC)"
@@ -52,7 +70,7 @@ helm-assert-profiles: ## Enforce rendered resource and image policies across the
 helm-template: ## Render the ecommerce Helm chart locally
 	@$(HELM) template $(HELM_RELEASE) $(HELM_CHART) --namespace $(HELM_NAMESPACE) --kube-version $(K8S_TARGET_VERSION) --values $(HELM_VALUES) $(HELM_SET_ARGS)
 
-helm-dry-run: helm-lint ## Run a Helm install/upgrade dry run against the current cluster
+helm-dry-run: helm-lint ## Render a Helm install/upgrade dry run without cluster validation
 	@echo "$(BLUE)Running Helm dry run...$(NC)"
 	$(HELM) upgrade --install $(HELM_RELEASE) $(HELM_CHART) --namespace $(HELM_NAMESPACE) --create-namespace --values $(HELM_VALUES) $(HELM_SET_ARGS) --dry-run=client
 
@@ -64,7 +82,7 @@ helm-package: helm-lint ## Package the Helm chart for release or registry publis
 k8s-doctor: ## Show local Kubernetes tooling, context, ingress, and release diagnostics
 	@echo "$(BLUE)Kubernetes doctor$(NC)"
 	@printf "  helm: "; if command -v $(HELM) >/dev/null; then $(HELM) version --short; else echo "$(RED)missing$(NC)"; fi
-	@printf "  kubectl: "; if command -v $(KUBECTL) >/dev/null; then $(KUBECTL) version --client=true --short 2>/dev/null || $(KUBECTL) version --client=true; else echo "$(RED)missing$(NC)"; fi
+	@printf "  kubectl: "; if command -v $(KUBECTL) >/dev/null; then $(KUBECTL) version --client=true; else echo "$(RED)missing$(NC)"; fi
 	@echo "  expected Helm: $(HELM_VERSION)"
 	@echo "  supported Kubernetes: $(K8S_SUPPORTED_VERSIONS)"
 	@echo "  experimental render target: $(K8S_EXPERIMENTAL_VERSIONS)"
@@ -193,7 +211,7 @@ k8s-preflight: k8s-toolchain-check ## Verify local Kubernetes, Helm, kubectl, an
 
 k8s-local-deps: ensure-env docker-auth ## Start local external dependencies used by the Kubernetes web profile
 	@echo "$(BLUE)Starting Kubernetes local backing services...$(NC)"
-	$(DOCKER_COMPOSE) up -d postgres mongodb kafka-broker-1 kafka-broker-2 kafka-broker-3 --wait
+	$(DOCKER_COMPOSE) up -d postgres mongodb kafka-broker-1 kafka-broker-2 kafka-broker-3 --wait --wait-timeout $(DOCKER_WAIT_TIMEOUT)
 	@echo "$(GREEN)Kubernetes local backing services are ready$(NC)"
 
 k8s-namespace: k8s-preflight ## Create the Kubernetes namespace if needed
@@ -228,11 +246,17 @@ k8s-tls-secret: docker-certs k8s-namespace ## Sync the local mkcert certificate 
 	$(KUBECTL) -n $(TRAEFIK_NAMESPACE) create secret tls $(TRAEFIK_GATEWAY_TLS_SECRET) --cert=$(LOCAL_TLS_CERT_FILE) --key=$(LOCAL_TLS_KEY_FILE) --dry-run=client -o yaml | $(KUBECTL) apply -f -
 
 k8s-runtime-secret: ensure-env k8s-namespace ## Sync app runtime secrets from .env into Kubernetes
-	@if [ "$$($(KUBECTL) -n $(HELM_NAMESPACE) get secret $(HELM_RUNTIME_SECRET) -o jsonpath='{.metadata.annotations.meta\.helm\.sh/release-name}' 2>/dev/null)" = "$(HELM_RELEASE)" ]; then \
-		echo "$(YELLOW)Replacing Helm-managed $(HELM_RUNTIME_SECRET) with an external runtime secret$(NC)"; \
-		$(KUBECTL) -n $(HELM_NAMESPACE) delete secret $(HELM_RUNTIME_SECRET); \
-	fi
-	@K8S_DATABASE_URL="$(K8S_DATABASE_URL)" K8S_MONGO_URL="$(K8S_MONGO_URL)" bun run scripts/k8s-runtime-secret.ts --require-commerce --env-file .env --name $(HELM_RUNTIME_SECRET) --namespace $(HELM_NAMESPACE) | $(KUBECTL) apply -f -
+	@set -eu; umask 077; \
+		manifest="$$(mktemp)"; \
+		trap 'rm -f "$$manifest"' EXIT; \
+		trap 'exit 1' HUP INT TERM; \
+		K8S_DATABASE_URL="$(K8S_DATABASE_URL)" K8S_PAYMENT_DATABASE_URL="$(K8S_PAYMENT_DATABASE_URL)" K8S_MONGO_URL="$(K8S_MONGO_URL)" bun run scripts/k8s-runtime-secret.ts --require-commerce --env-file .env --name "$(HELM_RUNTIME_SECRET)" --namespace "$(HELM_NAMESPACE)" > "$$manifest"; \
+		owner="$$($(KUBECTL) -n "$(HELM_NAMESPACE)" get secret "$(HELM_RUNTIME_SECRET)" --ignore-not-found -o jsonpath='{.metadata.annotations.meta\.helm\.sh/release-name}')"; \
+		if [ -n "$$owner" ]; then \
+			echo "$(RED)Secret $(HELM_RUNTIME_SECRET) belongs to Helm release $$owner. Use a new HELM_RUNTIME_SECRET name for synchronization and deployment; Helm may delete its old secret during an upgrade.$(NC)" >&2; \
+			exit 1; \
+		fi; \
+		$(KUBECTL) apply -f "$$manifest"
 
 k8s-build-images: ensure-env docker-auth ## Build local web, public catalog, and checkout images for Kubernetes
 	@echo "$(BLUE)Building local web, public catalog, and checkout images for Kubernetes...$(NC)"
@@ -276,7 +300,7 @@ k8s-load-images: ## Load locally built images into kind or minikube when the cur
 		minikube*) \
 			command -v minikube >/dev/null || { echo "$(RED)minikube context detected, but minikube is not installed.$(NC)"; exit 1; }; \
 			echo "$(BLUE)Loading images into minikube...$(NC)"; \
-			for image in $(K8S_LOCAL_IMAGES); do minikube image load "$$image"; done; \
+			for image in $(K8S_LOCAL_IMAGES); do minikube image load "$$image" || exit 1; done; \
 			;; \
 		*) \
 			echo "$(YELLOW)Using cluster context '$$context'; Docker Desktop and OrbStack can usually see local Docker images directly.$(NC)"; \
@@ -285,9 +309,9 @@ k8s-load-images: ## Load locally built images into kind or minikube when the cur
 
 k8s-validate: helm-lint runtime-dir ## Render and schema-validate Kubernetes manifests without deploying
 	@echo "$(BLUE)Rendering Helm manifests to $(HELM_RENDERED_FILE)...$(NC)"
-	@umask 077; $(MAKE) helm-template > "$(HELM_RENDERED_FILE)"; chmod 0600 "$(HELM_RENDERED_FILE)"
+	@umask 077; $(MAKE) --no-print-directory helm-template > "$(HELM_RENDERED_FILE)" && chmod 0600 "$(HELM_RENDERED_FILE)"
 	@mkdir -p "$(RUNTIME_DIR)/kubeconform-cache"
-	docker run --rm -i -v "$(RUNTIME_DIR)/kubeconform-cache:/schemas-cache" $(KUBECONFORM_IMAGE) -cache /schemas-cache -strict -summary -ignore-missing-schemas -kubernetes-version $(K8S_TARGET_VERSION) < "$(HELM_RENDERED_FILE)"
+	docker run --rm -i -v "$(RUNTIME_DIR)/kubeconform-cache:/schemas-cache" $(KUBECONFORM_IMAGE) -cache /schemas-cache -strict -summary -skip Gateway,GatewayClass,HTTPRoute,ServiceMonitor,PrometheusRule -kubernetes-version $(K8S_TARGET_VERSION) < "$(HELM_RENDERED_FILE)"
 	@echo "$(GREEN)Kubernetes manifests validated$(NC)"
 
 k8s-validate-full: ## Render and schema-validate full-stack Kubernetes manifests without deploying
@@ -319,17 +343,18 @@ k8s-deploy-full: ## Validate and deploy the full app release in place
 	@echo "$(GREEN)Full Kubernetes deployment submitted$(NC)"
 
 k8s-up: ## Prepare data, build images, deploy the local web tier, and smoke-test Traefik in order
+	@$(MAKE) k8s-toolchain-check
 	@$(MAKE) k8s-traefik
 	@$(MAKE) k8s-local-deps
 	@$(MAKE) k8s-build-images
 	@$(MAKE) k8s-tag-images
 	@$(MAKE) k8s-load-images
 	@$(MAKE) k8s-deploy
-	@$(MAKE) k8s-wait
-	@$(MAKE) k8s-smoke
+	@$(MAKE) k8s-verify
 	@echo "$(GREEN)Kubernetes stack is ready$(NC)"
 
 k8s-up-observed: ## Prepare data, build, and deploy observed local Kubernetes in order
+	@$(MAKE) k8s-toolchain-check
 	@$(MAKE) k8s-observability
 	@$(MAKE) k8s-traefik
 	@$(MAKE) k8s-local-deps
@@ -337,19 +362,18 @@ k8s-up-observed: ## Prepare data, build, and deploy observed local Kubernetes in
 	@$(MAKE) k8s-tag-images
 	@$(MAKE) k8s-load-images
 	@$(MAKE) k8s-deploy-observed
-	@$(MAKE) k8s-wait
-	@$(MAKE) k8s-smoke
+	@$(MAKE) k8s-verify
 	@echo "$(GREEN)Observed Kubernetes stack is ready$(NC)"
 
 k8s-up-full: ## Prepare data, build images, deploy the full app, and smoke-test it in order
+	@$(MAKE) k8s-toolchain-check
 	@$(MAKE) k8s-traefik
 	@$(MAKE) k8s-local-deps
 	@$(MAKE) k8s-build-full-images
 	@$(MAKE) k8s-tag-images
 	@$(MAKE) k8s-load-images
 	@$(MAKE) k8s-deploy-full
-	@$(MAKE) k8s-wait
-	@$(MAKE) k8s-smoke-full
+	@$(MAKE) k8s-verify
 	@echo "$(GREEN)Full Kubernetes stack is ready$(NC)"
 
 .PHONY: k8s-gateway k8s-up-gateway
@@ -436,7 +460,13 @@ k8s-smoke-full: k8s-smoke ## Smoke-test full Kubernetes web and API routes throu
 	@echo "$(GREEN)Full Kubernetes smoke tests passed$(NC)"
 
 k8s-test: ## Run Helm tests for the deployed ecommerce release
-	$(HELM) test $(HELM_RELEASE) --namespace $(HELM_NAMESPACE)
+	$(HELM) test $(HELM_RELEASE) --namespace $(HELM_NAMESPACE) --logs --timeout $(K8S_ROLLOUT_TIMEOUT)
+
+.PHONY: k8s-verify
+k8s-verify: ## Verify rollout, in-cluster readiness, and HTTPS routes for the installed release
+	@$(MAKE) k8s-wait
+	@$(MAKE) k8s-test
+	@$(MAKE) k8s-smoke
 
 k8s-status: ## Show Kubernetes release and workload status
 	$(HELM) status $(HELM_RELEASE) --namespace $(HELM_NAMESPACE)

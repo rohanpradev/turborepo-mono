@@ -15,7 +15,9 @@ const ProductInteraction = ({
   product,
   selectedSize,
   selectedColor,
+  available,
 }: {
+  available: number | null;
   product: ProductType;
   selectedSize: string;
   selectedColor: string;
@@ -23,7 +25,10 @@ const ProductInteraction = ({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [quantity, setQuantity] = useState(1);
+  const [requestedQuantity, setQuantity] = useState(1);
+  const maxQuantity = Math.min(MAX_CART_ITEM_QUANTITY, available ?? 0);
+  const quantity = Math.min(requestedQuantity, Math.max(1, maxQuantity));
+  const canAdd = available !== null && available >= quantity;
   const [isPending, startTransition] = useTransition();
 
   const addToCart = useCartStore((state) => state.addToCart);
@@ -39,13 +44,14 @@ const ProductInteraction = ({
 
   const handleQuantityChange = (type: "increment" | "decrement") => {
     if (type === "increment") {
-      setQuantity((prev) => Math.min(prev + 1, MAX_CART_ITEM_QUANTITY));
+      setQuantity((prev) => Math.min(prev + 1, maxQuantity));
     } else {
       setQuantity((prev) => Math.max(prev - 1, 1));
     }
   };
 
   const handleAddToCart = () => {
+    if (!canAdd || isPending) return;
     const added = addToCart({
       ...product,
       quantity,
@@ -65,6 +71,7 @@ const ProductInteraction = ({
   };
 
   const handleBuyNow = () => {
+    if (!canAdd || isPending) return;
     const added = addToCart({
       ...product,
       quantity,
@@ -160,7 +167,7 @@ const ProductInteraction = ({
             type="button"
             className="flex size-9 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground"
             aria-label="Increase quantity"
-            disabled={quantity >= MAX_CART_ITEM_QUANTITY}
+            disabled={quantity >= maxQuantity}
             onClick={() => handleQuantityChange("increment")}
           >
             <Plus className="size-4" />
@@ -168,9 +175,17 @@ const ProductInteraction = ({
         </div>
       </div>
 
+      <p role="status" className="text-sm text-muted-foreground">
+        {available === null
+          ? "Availability is temporarily unavailable. Refresh to try again."
+          : available === 0
+            ? "This size and color are out of stock."
+            : `${available} available. Stock is reserved when you start payment.`}
+      </p>
       <div className="grid gap-3 sm:grid-cols-2">
         <Button
           type="button"
+          disabled={!canAdd || isPending}
           onClick={handleAddToCart}
           className="w-full min-w-0"
           size="lg"
@@ -183,6 +198,7 @@ const ProductInteraction = ({
           variant="outline"
           size="lg"
           className="w-full min-w-0"
+          disabled={!canAdd || isPending}
           onClick={handleBuyNow}
         >
           <ShoppingCart className="size-4" />

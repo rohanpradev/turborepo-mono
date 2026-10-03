@@ -3,9 +3,10 @@
 import { useAuth } from "@clerk/nextjs";
 import { CheckoutElementsProvider } from "@stripe/react-stripe-js/checkout";
 import { type Appearance, loadStripe } from "@stripe/stripe-js";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import CheckoutForm from "@/components/CheckoutForm";
 import { Badge } from "@/components/ui/badge";
+import { checkoutAttempt, rememberCheckout } from "@/lib/checkout-session";
 import useCartStore from "@/stores/cartStore";
 import type { ShippingFormInputs as BaseShippingFormInputs } from "@/types";
 
@@ -82,7 +83,7 @@ const readCheckoutResponse = async (response: Response) => {
   try {
     return JSON.parse(body) as
       | { message: string }
-      | { data: { clientSecret: string } };
+      | { data: { clientSecret: string; sessionId: string } };
   } catch {
     throw new Error("Checkout returned an invalid response. Please try again.");
   }
@@ -118,7 +119,26 @@ const StripePaymentForm = ({
   }
 
   return (
+    <CheckoutAccountBoundary
+      shippingForm={shippingForm}
+      stripePromise={stripePromise}
+    />
+  );
+};
+
+// Account changes discard the previous user's Stripe session immediately.
+const CheckoutAccountBoundary = ({
+  shippingForm,
+  stripePromise,
+}: {
+  shippingForm: ShippingFormInputs;
+  stripePromise: StripePromise;
+}) => {
+  const { userId } = useAuth();
+
+  return (
     <AuthenticatedStripePaymentForm
+      key={userId ?? "signed-out"}
       shippingForm={shippingForm}
       stripePromise={stripePromise}
     />
@@ -132,9 +152,8 @@ const AuthenticatedStripePaymentForm = ({
   shippingForm: ShippingFormInputs;
   stripePromise: StripePromise;
 }) => {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn, userId } = useAuth();
   const cart = useCartStore((state) => state.cart);
-  const checkoutAttemptId = useRef(crypto.randomUUID());
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -143,7 +162,7 @@ const AuthenticatedStripePaymentForm = ({
     let isActive = true;
     const abortController = new AbortController();
 
-    if (!isSignedIn || cart.length === 0) {
+    if (!isSignedIn || !userId || cart.length === 0) {
       setClientSecret(null);
       setError(null);
 
@@ -159,7 +178,7 @@ const AuthenticatedStripePaymentForm = ({
 
       try {
         const checkoutPayload = {
-          checkoutAttemptId: checkoutAttemptId.current,
+          checkoutAttemptId: checkoutAttempt(sessionStorage, userId, cart),
           cart: cart.map(({ id, quantity, selectedColor, selectedSize }) => ({
             id,
             quantity,
@@ -182,6 +201,12 @@ const AuthenticatedStripePaymentForm = ({
           );
         }
 
+        rememberCheckout(
+          sessionStorage,
+          responseBody.data.sessionId,
+          userId,
+          cart,
+        );
         if (isActive) {
           setClientSecret(responseBody.data.clientSecret);
         }
@@ -202,7 +227,7 @@ const AuthenticatedStripePaymentForm = ({
       isActive = false;
       abortController.abort();
     };
-  }, [cart, attempt, isSignedIn]);
+  }, [cart, attempt, isSignedIn, userId]);
 
   if (!isLoaded) {
     return (

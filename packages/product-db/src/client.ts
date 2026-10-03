@@ -46,27 +46,36 @@ const createProductDatabase = () => {
   return { db, pool };
 };
 
-type ProductDatabase = ReturnType<typeof createProductDatabase>;
+type ProductDatabase = ReturnType<typeof createProductDatabase> & {
+  connection?: Promise<void>;
+};
 
 const globalForProductDatabase = globalThis as {
   productDatabase?: ProductDatabase;
 };
-const productDatabase =
+const productDatabase: ProductDatabase =
   globalForProductDatabase.productDatabase ?? createProductDatabase();
 
 export const db = productDatabase.db;
 
 export const connectProductDB = async () => {
-  await db.connect();
-  // Acquiring a runtime is lazy. Read the migrated schema before announcing
-  // readiness so a missing database or migration cannot appear healthy.
-  await db.orm.public.Category.first();
+  productDatabase.connection ??= (async () => {
+    await db.connect();
+    // Acquiring a runtime is lazy. Read the migrated schema before announcing
+    // readiness so a missing database or migration cannot appear healthy.
+    await db.orm.public.Category.first();
+  })().catch((error) => {
+    productDatabase.connection = undefined;
+    throw error;
+  });
+  await productDatabase.connection;
 };
 
 export const disconnectProductDB = async () => {
   try {
     await db.close();
   } finally {
+    productDatabase.connection = undefined;
     await productDatabase.pool.end();
   }
 };

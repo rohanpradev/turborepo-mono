@@ -13,22 +13,34 @@ export interface CustomJwtSessionClaims {
   };
 }
 
+/** Platform administration is independent of organization membership. */
+export const isPlatformAdmin = (
+  userId: string,
+  claims: CustomJwtSessionClaims | null | undefined,
+  allowedUserIds: ReadonlySet<string>,
+) =>
+  allowedUserIds.has(userId) ||
+  (claims?.role ??
+    claims?.metadata?.role ??
+    claims?.publicMetadata?.role ??
+    claims?.public_metadata?.role) === "admin";
+
 export const UserFormSchema = z.object({
   firstName: z
-    .string({ message: "First name is required!" })
-    .min(2, { message: "First name must be at least 2 characters!" })
+    .string({ error: "First name is required!" })
+    .min(2, { error: "First name must be at least 2 characters!" })
     .max(50),
   lastName: z
-    .string({ message: "Last name is required!" })
-    .min(2, { message: "Last name must be at least 2 characters!" })
+    .string({ error: "Last name is required!" })
+    .min(2, { error: "Last name must be at least 2 characters!" })
     .max(50),
   username: z
-    .string({ message: "Username is required!" })
-    .min(2, { message: "Username must be at least 2 characters!" })
+    .string({ error: "Username is required!" })
+    .min(2, { error: "Username must be at least 2 characters!" })
     .max(50),
-  emailAddress: z.array(z.string({ message: "Email address is required!" })),
+  emailAddress: z.array(z.string({ error: "Email address is required!" })),
   password: z
-    .string({ message: "Password is required!" })
-    .min(8, { message: "Password must be at least 8 characters!" })
+    .string({ error: "Password is required!" })
+    .min(8, { error: "Password must be at least 8 characters!" })
     .max(50),
 });

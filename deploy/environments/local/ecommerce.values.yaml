@@ -130,6 +130,8 @@ services:
       NEXT_PUBLIC_PAYMENT_SERVICE_URL: https://api.localhost:9443
 
 jobs:
+  migrate-payment-db:
+    enabled: true
   migrate-product-db:
     enabled: true
   seed-product-db:

@@ -2,6 +2,19 @@
 
 Prisma 8 contract, PostgreSQL runtime, and migration graph for the product service.
 
+## Version compatibility
+
+The root catalog pins `@prisma/orm-postgres` to `8.0.0-rc.14` and the CLI to
+`8.0.0-rc.19`. The root override also pins `@prisma/orm-toolchain` to
+`8.0.0-rc.14`: this CLI ships with `rc.13`, whose schema descriptors are
+incompatible with the `rc.14` framework. Without the override, contract emission
+fails with `CONTRACT.PACK_CONTRIBUTION_INVALID` at `enum`.
+
+Revisit this override when upgrading Prisma. Verify contract emission, migration
+validation, and the disposable database suite before removing it. The integration
+runner regenerates and validates the contract before applying migrations so it
+tests the current schema with the installed toolchain.
+
 ## Runtime
 
 The package uses only Prisma 8:
@@ -44,6 +57,7 @@ Run these from this package directory:
 bun run db:generate
 
 # Emit the contract and verify migration-graph integrity (CI-safe and offline)
+bun run db:generate
 bun run db:validate
 
 # Update an unshared local development database and advance the local db ref

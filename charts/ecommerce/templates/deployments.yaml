@@ -1,3 +1,6 @@
+{{- if ge (int .Values.global.preStopDelaySeconds) (int .Values.global.terminationGracePeriodSeconds) }}
+{{- fail "global.terminationGracePeriodSeconds must exceed global.preStopDelaySeconds to allow application shutdown" }}
+{{- end }}
 {{- range $key, $service := .Values.services }}
 {{- if $service.enabled }}
 {{- $topologySpreadConstraints := coalesce $service.topologySpreadConstraints $.Values.global.topologySpreadConstraints }}
@@ -11,7 +14,7 @@ spec:
   {{- if not $service.autoscaling.enabled }}
   replicas: {{ $service.replicaCount }}
   {{- end }}
-  revisionHistoryLimit: {{ default 3 $service.revisionHistoryLimit }}
+  revisionHistoryLimit: {{ dig "revisionHistoryLimit" 3 $service }}
   {{- with $service.rollout }}
   {{- with .minReadySeconds }}
   minReadySeconds: {{ . }}
@@ -35,6 +38,7 @@ spec:
         {{- with $.Values.global.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
+        app.kubernetes.io/workload-type: deployment
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") $ | sha256sum }}
         {{- if and (eq $key "payment") $.Values.stripeCli.enabled }}
@@ -93,6 +97,12 @@ spec:
           image: {{ include "ecommerce.image" (dict "root" $ "service" $service) | quote }}
           imagePullPolicy: {{ default $.Values.global.imagePullPolicy $service.image.pullPolicy }}
           terminationMessagePolicy: FallbackToLogsOnError
+          {{- if $.Values.global.preStopDelaySeconds }}
+          lifecycle:
+            preStop:
+              sleep:
+                seconds: {{ $.Values.global.preStopDelaySeconds }}
+          {{- end }}
           securityContext:
             {{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
           ports:

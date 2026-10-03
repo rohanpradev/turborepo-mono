@@ -10,6 +10,7 @@ import { Topics } from "@repo/kafka";
 import type { Context } from "hono";
 import { listIntegrationEvents } from "@/observability/integrationEvents";
 import { StripeCheckoutService } from "@/services/StripeCheckoutService";
+import { getPaymentStore } from "./storage/payment-store";
 
 type RPCContext = {
   hono: Context;
@@ -63,6 +64,26 @@ export const paymentRouter = os.router({
     ),
   },
   ops: {
+    activities: os.ops.activities.handler(async ({ context }) => {
+      getAuthenticatedAdminUserId(context.hono);
+      const rows = await getPaymentStore().activities();
+      return {
+        success: true as const,
+        data: rows.map(({ snapshot, session_id, payment }) => ({
+          amountCents: snapshot.total,
+          checkoutTimestamp: new Date(snapshot.createdAt).toISOString(),
+          completedTimestamp: payment?.processedAt ?? null,
+          itemCount: snapshot.items.reduce(
+            (sum, item) => sum + item.quantity,
+            0,
+          ),
+          paymentIntentId: payment?.transactionId ?? null,
+          sessionId: session_id,
+          status: payment ? ("paid" as const) : ("pending" as const),
+          userId: snapshot.userId,
+        })),
+      };
+    }),
     integrationEvents: os.ops.integrationEvents.handler(async ({ context }) => {
       getAuthenticatedAdminUserId(context.hono);
 
@@ -77,10 +98,7 @@ export const paymentRouter = os.router({
               Topics.PRODUCT_DELETED,
               Topics.STRIPE_CHECKOUT_COMPLETED,
             ],
-            publishes: [
-              Topics.STRIPE_CHECKOUT_COMPLETED,
-              Topics.PAYMENT_SUCCESSFUL,
-            ],
+            publishes: [Topics.PAYMENT_SUCCESSFUL],
           },
           recentEvents: listIntegrationEvents(),
         },

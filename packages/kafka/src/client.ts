@@ -73,7 +73,33 @@ export const createKafkaClient = (
 ): KafkaClient => {
   const brokers = readKafkaBrokers(env);
 
+  const mechanism = env.KAFKA_SASL_MECHANISM;
+  if (
+    mechanism &&
+    !["plain", "scram-sha-256", "scram-sha-512"].includes(mechanism)
+  )
+    throw new Error("Unsupported Kafka SASL mechanism.");
+  if (mechanism && (!env.KAFKA_SASL_USERNAME || !env.KAFKA_SASL_PASSWORD))
+    throw new Error("Kafka SASL credentials are required.");
+  if (mechanism && env.KAFKA_SSL !== "true")
+    throw new Error("Kafka SASL requires TLS.");
   return new Kafka({
+    ssl:
+      env.KAFKA_SSL === "true"
+        ? {
+            rejectUnauthorized: true,
+            ...(env.KAFKA_SSL_CA ? { ca: [env.KAFKA_SSL_CA] } : {}),
+          }
+        : false,
+    ...(mechanism
+      ? {
+          sasl: {
+            mechanism: mechanism as "plain",
+            username: env.KAFKA_SASL_USERNAME as string,
+            password: env.KAFKA_SASL_PASSWORD as string,
+          },
+        }
+      : {}),
     clientId: service,
     brokers,
     connectionTimeout: parseInteger(

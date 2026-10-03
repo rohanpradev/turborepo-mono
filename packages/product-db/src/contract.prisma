@@ -1,3 +1,4 @@
+// use prisma-8
 // Prisma 8 data contract for the product service PostgreSQL database.
 // Run `bun run db:generate` after editing this file.
 

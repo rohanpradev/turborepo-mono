@@ -26,7 +26,7 @@ type ProductFilters = {
   limit?: number;
 };
 
-import { nowUtc, toUtcISOString } from "@/utils/timestamps";
+import { nowUtc, toUtcISOString } from "../utils/timestamps";
 
 const toProductRecord = (product: Product): ProductRecord => {
   const images =
@@ -131,12 +131,24 @@ export const ProductService = {
       : categoryQuery;
     const orderedQuery =
       sort === "asc"
-        ? filteredQuery.orderBy((product) => product.price.asc())
+        ? filteredQuery.orderBy([
+            (product) => product.price.asc(),
+            (product) => product.id.asc(),
+          ])
         : sort === "desc"
-          ? filteredQuery.orderBy((product) => product.price.desc())
+          ? filteredQuery.orderBy([
+              (product) => product.price.desc(),
+              (product) => product.id.desc(),
+            ])
           : sort === "oldest"
-            ? filteredQuery.orderBy((product) => product.createdAt.asc())
-            : filteredQuery.orderBy((product) => product.createdAt.desc());
+            ? filteredQuery.orderBy([
+                (product) => product.createdAt.asc(),
+                (product) => product.id.asc(),
+              ])
+            : filteredQuery.orderBy([
+                (product) => product.createdAt.desc(),
+                (product) => product.id.desc(),
+              ]);
 
     const [items, totals] = await Promise.all([
       orderedQuery.offset(skip).limit(limit).all(),

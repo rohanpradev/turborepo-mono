@@ -43,6 +43,7 @@ const app = createServiceApp<{ Variables: ServiceVariables }>({
 });
 
 app.use("*", createCorsMiddleware());
+app.route("/", healthRoutes);
 app.use("*", clerkAuthMiddleware);
 app.use(
   "/rpc/order/*",
@@ -53,10 +54,8 @@ app.use(
   }),
 );
 
-app
-  .openapi(rootRoute, (c) =>
-    c.json({ message: "Order Service API", version: "1.0.0" }, 200),
-  )
-  .route("/", healthRoutes);
+app.openapi(rootRoute, (c) =>
+  c.json({ message: "Order Service API", version: "1.0.0" }, 200),
+);
 
 export { app };

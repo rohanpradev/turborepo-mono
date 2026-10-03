@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@clerk/nextjs";
 import type { CheckoutSessionStatusResponse } from "@repo/api-client";
 import { ArrowRight, CheckCircle2, ShoppingBag } from "lucide-react";
 import { useSearchParams } from "next/navigation";
@@ -7,6 +8,7 @@ import { Suspense, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getCheckoutSessionStatusPath } from "@/lib/checkout";
+import { consumeCheckout } from "@/lib/checkout-session";
 import useCartStore from "@/stores/cartStore";
 import useCheckoutStore from "@/stores/checkoutStore";
 
@@ -16,6 +18,7 @@ const isClerkConfigured = Boolean(
 );
 
 function AuthenticatedReturnContent() {
+  const { userId } = useAuth();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<string>("processing");
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -65,8 +68,18 @@ function AuthenticatedReturnContent() {
           setStatus(payload.data.paymentStatus);
 
           if (payload.data.paymentStatus === "paid") {
-            clearCart();
-            clearShippingForm();
+            if (
+              userId &&
+              consumeCheckout(
+                sessionStorage,
+                currentSessionId,
+                userId,
+                useCartStore.getState().cart,
+              )
+            ) {
+              clearCart();
+              clearShippingForm();
+            }
           } else if (pollCount < 4) {
             pollTimeout = setTimeout(
               () => void verifySession(pollCount + 1),
@@ -88,7 +101,7 @@ function AuthenticatedReturnContent() {
       controller.abort();
       if (pollTimeout) clearTimeout(pollTimeout);
     };
-  }, [clearCart, clearShippingForm, searchParams, verificationAttempt]);
+  }, [clearCart, clearShippingForm, searchParams, verificationAttempt, userId]);
 
   return (
     <div className="min-h-[60vh] px-0 py-10">
@@ -130,7 +143,7 @@ function AuthenticatedReturnContent() {
           className="max-w-xl text-sm text-muted-foreground"
         >
           {isPaid
-            ? "Your payment is confirmed, the cart has been cleared, and the order is ready for the next step."
+            ? "Your payment is confirmed. Your order will appear in order history once processing completes. Any changes made to your cart during checkout have been kept."
             : "We are still verifying the checkout session. You can safely return to the cart or continue browsing."}
         </p>
 
@@ -206,9 +219,20 @@ function AuthenticatedReturnContent() {
   );
 }
 
+function ReturnAccountBoundary() {
+  const { userId } = useAuth();
+  const searchParams = useSearchParams();
+
+  return (
+    <AuthenticatedReturnContent
+      key={`${userId ?? "signed-out"}:${searchParams.get("session_id") ?? ""}`}
+    />
+  );
+}
+
 function ReturnContent() {
   if (isClerkConfigured) {
-    return <AuthenticatedReturnContent />;
+    return <ReturnAccountBoundary />;
   }
 
   return (

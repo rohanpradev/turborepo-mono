@@ -16,6 +16,8 @@ spec:
       appProtocol: {{ default "http" $service.service.appProtocol }}
   selector:
     {{- include "ecommerce.selectorLabels" (dict "root" $ "service" $service) | nindent 4 }}
+    # Hooks retain component labels for network policy, but never receive traffic.
+    app.kubernetes.io/workload-type: deployment
 ---
 {{- end }}
 {{- end }}

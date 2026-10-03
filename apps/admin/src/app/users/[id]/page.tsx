@@ -3,11 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   buildCustomerSummaries,
-  buildPaymentActivities,
   formatCustomerLabel,
   formatTimestamp,
   loadOptionalAdminOrders,
-  loadPaymentEvents,
+  loadPaymentActivities,
 } from "@/lib/admin-data";
 import { requireAdminAccess } from "@/lib/auth";
 
@@ -16,13 +15,12 @@ export const dynamic = "force-dynamic";
 const UserDetailsPage = async ({ params }: PageProps<"/users/[id]">) => {
   await requireAdminAccess();
   const { id } = await params;
-  const [events, orders] = await Promise.all([
-    loadPaymentEvents(),
+  const [activities, orders] = await Promise.all([
+    loadPaymentActivities(),
     loadOptionalAdminOrders(),
   ]);
   const customerOrders = (orders ?? []).filter((order) => order.userId === id);
 
-  const activities = buildPaymentActivities(events);
   const customerActivities = activities.filter(
     (activity) => activity.userId === id,
   );

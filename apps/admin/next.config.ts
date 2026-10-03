@@ -81,10 +81,6 @@ const nextConfig: NextConfig = {
       "@": path.join(__dirname, "src"),
     },
   },
-  experimental: {
-    turbopackFileSystemCacheForBuild: true,
-    useTypeScriptCli: true,
-  },
   async headers() {
     return [
       {

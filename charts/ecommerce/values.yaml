@@ -2,11 +2,14 @@ nameOverride: ""
 fullnameOverride: ""
 
 global:
+  requireImageDigests: false
   imageRegistry: ""
   imagePullPolicy: IfNotPresent
   imagePullSecrets: []
   enableServiceLinks: false
-  terminationGracePeriodSeconds: 30
+  # Allow endpoint removal to propagate before the app's 25-second shutdown.
+  terminationGracePeriodSeconds: 40
+  preStopDelaySeconds: 5
   podAnnotations: {}
   podLabels: {}
   nodeSelector: {}
@@ -68,8 +71,8 @@ stripeCli:
   enabled: false
   image:
     repository: stripe/stripe-cli
-    tag: v1.51.0
-    digest: sha256:f92a8017ca321945d7c4786bf6a75fe0790f3400bacc38ec9ee71c27664d3a16
+    tag: v1.52.0
+    digest: sha256:da11dbbdb78100602014096a6cbf764b211243111b3b8a57309d18c3939c9777
     pullPolicy: IfNotPresent
   forwardTo: http://127.0.0.1:8002/api/webhooks/stripe
   webhookSecretFile: /var/run/stripe/webhook-secret
@@ -85,6 +88,10 @@ secrets:
   create: false
   name: ""
   stringData:
+    PAYMENT_DATABASE_URL: ""
+    INTERNAL_SERVICE_TOKEN: ""
+    KAFKA_SASL_USERNAME: ""
+    KAFKA_SASL_PASSWORD: ""
     DATABASE_URL: ""
     MONGO_URL: ""
     STRIPE_SECRET_KEY: ""
@@ -219,6 +226,7 @@ services:
       PORT: "3000"
     secretEnv:
       DATABASE_URL: DATABASE_URL
+      INTERNAL_SERVICE_TOKEN: INTERNAL_SERVICE_TOKEN
       CLERK_PUBLISHABLE_KEY: CLERK_PUBLISHABLE_KEY
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
       CLERK_SECRET_KEY: CLERK_SECRET_KEY
@@ -356,6 +364,8 @@ services:
       CLIENT_APP_URL: https://shop.example.com
       PRODUCT_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-product-service:3000
     secretEnv:
+      PAYMENT_DATABASE_URL: PAYMENT_DATABASE_URL
+      INTERNAL_SERVICE_TOKEN: INTERNAL_SERVICE_TOKEN
       STRIPE_SECRET_KEY: STRIPE_SECRET_KEY
       STRIPE_WEBHOOK_SECRET: STRIPE_WEBHOOK_SECRET
       CLERK_PUBLISHABLE_KEY: CLERK_PUBLISHABLE_KEY
@@ -625,6 +635,21 @@ jobs:
         memory: 256Mi
     secretEnv:
       DATABASE_URL: DATABASE_URL
+  migrate-payment-db:
+    enabled: true
+    service: payment
+    command: [bun, run, --cwd, apps/payment-service, "db:deploy"]
+    hook: pre-install,pre-upgrade
+    hookWeight: "-10"
+    deletePolicy: before-hook-creation,hook-succeeded
+    backoffLimit: 3
+    activeDeadlineSeconds: 900
+    ttlSecondsAfterFinished: 3600
+    resources:
+      requests: {cpu: 50m, memory: 128Mi}
+      limits: {memory: 256Mi}
+    secretEnv:
+      PAYMENT_DATABASE_URL: PAYMENT_DATABASE_URL
   seed-product-db:
     enabled: false
     service: product

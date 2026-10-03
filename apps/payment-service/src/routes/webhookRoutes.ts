@@ -4,11 +4,13 @@ import {
   createRoute,
   createServiceRouter,
   errorResponseSchema,
+  getTelemetryHeaders,
   jsonContent,
   z,
 } from "@repo/hono-utils";
 import { bodyLimit } from "hono/body-limit";
 import { StripeWebhookService } from "@/services/StripeWebhookService";
+import { enqueuePaidCheckoutSession } from "../services/StripePaymentEventService";
 
 export const STRIPE_WEBHOOK_MAX_BODY_SIZE_BYTES = 1024 * 1024;
 
@@ -61,7 +63,12 @@ export const webhookRoutes = webhookRouter.openapi(
     const signature = c.req.header("stripe-signature");
     const payload = Buffer.from(await c.req.raw.arrayBuffer());
 
-    const result = await StripeWebhookService.handleEvent(payload, signature);
+    const result = await StripeWebhookService.handleEvent(
+      payload,
+      signature,
+      (message) =>
+        enqueuePaidCheckoutSession(message, getTelemetryHeaders(c).traceparent),
+    );
 
     if (result.status === "not_configured") {
       throw createHttpException(

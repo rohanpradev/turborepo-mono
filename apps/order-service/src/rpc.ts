@@ -15,20 +15,20 @@ const os = implement(orderContract).$context<RPCContext>();
 
 export const orderRouter = os.router({
   order: {
-    listAll: os.order.listAll.handler(async ({ context }) => {
+    listAll: os.order.listAll.handler(async ({ context, input }) => {
       getAuthenticatedAdminUserId(context.hono);
 
       return {
         success: true as const,
-        data: await OrderService.getAllOrders(),
+        ...(await OrderService.getAllOrders(input)),
       };
     }),
-    listForUser: os.order.listForUser.handler(async ({ context }) => {
+    listForUser: os.order.listForUser.handler(async ({ context, input }) => {
       const userId = getAuthenticatedUserId(context.hono);
 
       return {
         success: true as const,
-        data: await OrderService.getUserOrders(userId),
+        ...(await OrderService.getUserOrders(userId, input)),
       };
     }),
   },

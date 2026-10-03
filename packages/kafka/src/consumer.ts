@@ -1,272 +1,242 @@
-import type {
-  Consumer,
-  ConsumerSubscribeTopics,
-  EachBatchPayload,
-  EachMessagePayload,
-  Kafka,
-} from "kafkajs";
+import type { Consumer, Kafka, Producer } from "kafkajs";
+import { ensureTopics } from "./admin";
 import {
   attachKafkaInstrumentation,
-  getTraceIdFromTraceparent,
   type KafkaEventClient,
   readKafkaHeader,
+  withKafkaTrace,
 } from "./instrumentation";
+import { validateTopicMessage } from "./schemas";
 import type { MessageForTopic, TopicName } from "./types";
 
-export interface TopicHandler<TTopic extends TopicName = TopicName> {
-  topicName: TTopic;
-  topicHandler: (message: MessageForTopic<TTopic>) => Promise<void>;
+export type MessageContext = {
+  topic: string;
+  partition: number;
+  offset: string;
+  traceparent?: string;
+};
+export interface TopicHandler<T extends TopicName = TopicName> {
+  topicName: T;
+  topicHandler: (
+    message: MessageForTopic<T>,
+    context?: MessageContext,
+  ) => Promise<void>;
 }
-
-export type AnyTopicHandler = {
-  [TTopic in TopicName]: TopicHandler<TTopic>;
-}[TopicName];
+export type AnyTopicHandler = { [T in TopicName]: TopicHandler<T> }[TopicName];
 
 export class KafkaConsumer {
-  private kafkaConsumer: Consumer;
-  private handlers: Map<string, (message: unknown) => Promise<void>> =
-    new Map();
+  private consumer: Consumer;
+  private deadLetterProducer: Producer;
   private started = false;
-  private removeInstrumentation: (() => void) | null = null;
-
+  private startPromise: Promise<void> | undefined;
+  private healthy = false;
+  private quarantined = new Map<string, number>();
+  metrics() {
+    return [...this.quarantined]
+      .map(
+        ([topic, count]) =>
+          `ecommerce_kafka_quarantined_total{group=${JSON.stringify(this.groupId)},topic=${JSON.stringify(topic)}} ${count}\n`,
+      )
+      .join("");
+  }
+  private removeInstrumentation: (() => void) | undefined;
+  private removeCrash: (() => void) | undefined;
+  private removeJoin: (() => void) | undefined;
   constructor(
     private kafka: Kafka,
     private groupId: string,
   ) {
-    this.kafkaConsumer = this.createKafkaConsumer();
-  }
-
-  public async start(
-    topics: Array<AnyTopicHandler>,
-    options: {
-      fromBeginning?: boolean;
-    } = {},
-  ): Promise<void> {
-    if (this.started) {
-      return;
-    }
-
-    // Store handlers
-    topics.forEach(({ topicName, topicHandler }) => {
-      this.handlers.set(
-        topicName,
-        topicHandler as (message: unknown) => Promise<void>,
-      );
-    });
-
-    const subscribeTopics: ConsumerSubscribeTopics = {
-      topics: topics.map((t) => t.topicName),
-      fromBeginning: options.fromBeginning ?? false,
-    };
-
-    try {
-      await this.kafkaConsumer.connect();
-      console.log(`Kafka consumer connected: ${this.groupId}`);
-
-      await this.kafkaConsumer.subscribe(subscribeTopics);
-
-      await this.kafkaConsumer.run({
-        eachMessage: async (messagePayload: EachMessagePayload) => {
-          const { topic, partition, message } = messagePayload;
-          const prefix = `${topic}[${partition} | ${message.offset}] / ${message.timestamp}`;
-          const startedAt = performance.now();
-
-          try {
-            const handler = this.handlers.get(topic);
-            if (handler) {
-              const value = message.value?.toString();
-              if (value) {
-                const parsedMessage = JSON.parse(value);
-                await handler(parsedMessage);
-                this.logMessageTelemetry({
-                  durationMs: performance.now() - startedAt,
-                  offset: message.offset,
-                  operationName: "receive",
-                  operationType: "receive",
-                  partition,
-                  topic,
-                  traceparent: readKafkaHeader(
-                    message.headers as Record<string, unknown> | undefined,
-                    "traceparent",
-                  ),
-                });
-                console.log(`- ${prefix} processed successfully`);
-              }
-            } else {
-              console.warn(`No handler found for topic: ${topic}`);
-            }
-          } catch (error) {
-            console.error(`Error processing message ${prefix}:`, error);
-            throw error;
-          }
-        },
-      });
-      this.started = true;
-    } catch (error) {
-      console.error("Error in consumer:", error);
-      throw error;
-    }
-  }
-
-  public async startBatch(
-    topics: Array<AnyTopicHandler>,
-    options: {
-      fromBeginning?: boolean;
-    } = {},
-  ): Promise<void> {
-    if (this.started) {
-      return;
-    }
-
-    // Store handlers
-    topics.forEach(({ topicName, topicHandler }) => {
-      this.handlers.set(
-        topicName,
-        topicHandler as (message: unknown) => Promise<void>,
-      );
-    });
-
-    const subscribeTopics: ConsumerSubscribeTopics = {
-      topics: topics.map((t) => t.topicName),
-      fromBeginning: options.fromBeginning ?? false,
-    };
-
-    try {
-      await this.kafkaConsumer.connect();
-      console.log(`Kafka consumer connected: ${this.groupId}`);
-
-      await this.kafkaConsumer.subscribe(subscribeTopics);
-
-      await this.kafkaConsumer.run({
-        eachBatchAutoResolve: false,
-        eachBatch: async (eachBatchPayload: EachBatchPayload) => {
-          const {
-            batch,
-            commitOffsetsIfNecessary,
-            heartbeat,
-            isRunning,
-            isStale,
-            resolveOffset,
-          } = eachBatchPayload;
-          const handler = this.handlers.get(batch.topic);
-
-          if (!handler) {
-            console.warn(`No handler found for topic: ${batch.topic}`);
-            return;
-          }
-
-          for (const message of batch.messages) {
-            if (!isRunning() || isStale()) {
-              break;
-            }
-
-            const prefix = `${batch.topic}[${batch.partition} | ${message.offset}] / ${message.timestamp}`;
-            const startedAt = performance.now();
-            try {
-              const value = message.value?.toString();
-              if (value) {
-                const parsedMessage = JSON.parse(value);
-                await handler(parsedMessage);
-                this.logMessageTelemetry({
-                  durationMs: performance.now() - startedAt,
-                  offset: message.offset,
-                  operationName: "receive",
-                  operationType: "receive",
-                  partition: batch.partition,
-                  topic: batch.topic,
-                  traceparent: readKafkaHeader(
-                    message.headers as Record<string, unknown> | undefined,
-                    "traceparent",
-                  ),
-                });
-                resolveOffset(message.offset);
-                await heartbeat();
-                console.log(`- ${prefix} processed successfully`);
-              }
-            } catch (error) {
-              console.error(`Error processing message ${prefix}:`, error);
-              throw error;
-            }
-          }
-
-          await commitOffsetsIfNecessary();
-        },
-      });
-      this.started = true;
-    } catch (error) {
-      console.error("Error in batch consumer:", error);
-      throw error;
-    }
-  }
-
-  public async shutdown(): Promise<void> {
-    if (!this.started) {
-      return;
-    }
-
-    try {
-      await this.kafkaConsumer.disconnect();
-      this.removeInstrumentation?.();
-      this.removeInstrumentation = null;
-      this.started = false;
-      console.log(`Kafka consumer disconnected: ${this.groupId}`);
-    } catch (error) {
-      console.error("Error disconnecting the consumer:", error);
-      throw error;
-    }
-  }
-
-  private createKafkaConsumer(): Consumer {
-    const consumer = this.kafka.consumer({
-      groupId: this.groupId,
+    this.consumer = kafka.consumer({
+      groupId,
       allowAutoTopicCreation: false,
+      sessionTimeout: 30000,
+      retry: { restartOnFailure: async () => true },
     });
-
-    this.removeInstrumentation = attachKafkaInstrumentation(
-      consumer as unknown as KafkaEventClient,
-      {
-        clientId: this.groupId,
-        clientType: "consumer",
-      },
-    );
-
-    return consumer;
+    this.deadLetterProducer = kafka.producer({
+      allowAutoTopicCreation: false,
+      idempotent: true,
+    });
   }
-
-  private logMessageTelemetry(input: {
-    durationMs: number;
-    offset: string;
-    operationName: "receive";
-    operationType: "receive";
-    partition: number;
-    topic: string;
-    traceparent?: string;
-  }) {
-    console.info(
-      JSON.stringify({
-        event: "messaging.kafka.consume",
-        timestamp: new Date().toISOString(),
-        traceId: getTraceIdFromTraceparent(input.traceparent),
-        attributes: {
-          "messaging.destination.name": input.topic,
-          "messaging.kafka.destination.partition": input.partition,
-          "messaging.kafka.message.offset": input.offset,
-          "messaging.operation.name": input.operationName,
-          "messaging.operation.type": input.operationType,
-          "messaging.system": "kafka",
-        },
-        measurements: {
-          "messaging.process.duration_ms": Number(input.durationMs.toFixed(2)),
-        },
-      }),
+  isReady() {
+    return this.healthy;
+  }
+  async start(
+    topics: AnyTopicHandler[],
+    options: { fromBeginning?: boolean } = {},
+  ) {
+    if (this.started) return;
+    if (this.startPromise) return this.startPromise;
+    this.startPromise = this.connect(topics, options).finally(() => {
+      this.startPromise = undefined;
+    });
+    return this.startPromise;
+  }
+  private async connect(
+    topics: AnyTopicHandler[],
+    options: { fromBeginning?: boolean },
+  ) {
+    this.removeInstrumentation = attachKafkaInstrumentation(
+      this.consumer as unknown as KafkaEventClient,
+      { clientId: this.groupId, clientType: "consumer" },
     );
+    this.removeCrash = this.consumer.on(this.consumer.events.CRASH, () => {
+      this.healthy = false;
+    });
+    this.removeJoin = this.consumer.on(this.consumer.events.GROUP_JOIN, () => {
+      this.healthy = true;
+    });
+    for (const subscription of topics)
+      if (!this.quarantined.has(subscription.topicName))
+        this.quarantined.set(subscription.topicName, 0);
+    const handlers = new Map(
+      topics.map(({ topicName, topicHandler }) => [
+        topicName,
+        topicHandler as (
+          message: unknown,
+          context: MessageContext,
+        ) => Promise<void>,
+      ]),
+    );
+    try {
+      await ensureTopics(
+        this.kafka,
+        topics.map((t) => `${t.topicName}.${this.groupId}.dead-letter`),
+      );
+      await this.deadLetterProducer.connect();
+      await this.consumer.connect();
+      await this.consumer.subscribe({
+        topics: topics.map((t) => t.topicName),
+        fromBeginning: options.fromBeginning ?? true,
+      });
+      await this.consumer.run({
+        eachMessage: async ({ topic, partition, message, heartbeat }) => {
+          const context = {
+            topic,
+            partition,
+            offset: message.offset,
+            traceparent: readKafkaHeader(message.headers, "traceparent"),
+          };
+          const handler = handlers.get(topic as TopicName);
+          if (!handler) throw new Error("No handler registered.");
+          const version = readKafkaHeader(message.headers, "schema-version");
+          let payload: unknown;
+          let failure: unknown;
+          try {
+            if (version && version !== "1")
+              throw new Error("Unsupported event schema version.");
+            payload = validateTopicMessage(
+              topic as TopicName,
+              JSON.parse(message.value?.toString() ?? "null"),
+            );
+          } catch (error) {
+            failure = error;
+          }
+          if (!failure) {
+            for (let attempt = 0; attempt < 5; attempt++) {
+              let heartbeatFailure: unknown;
+              let beating = false;
+              const timer = setInterval(() => {
+                if (beating) return;
+                beating = true;
+                void heartbeat()
+                  .catch((error) => {
+                    heartbeatFailure = error;
+                  })
+                  .finally(() => {
+                    beating = false;
+                  });
+              }, 2000);
+              try {
+                await withKafkaTrace(context.traceparent, () =>
+                  handler(payload, context),
+                );
+                if (heartbeatFailure) throw heartbeatFailure;
+                this.healthy = true;
+                return;
+              } catch (error) {
+                failure = error;
+              } finally {
+                clearInterval(timer);
+              }
+              await heartbeat();
+              await new Promise((resolve) =>
+                setTimeout(
+                  resolve,
+                  Math.min(4000, 250 * 2 ** attempt) + Math.random() * 100,
+                ),
+              );
+            }
+          }
+          // The source offset may advance only after Kafka accepts quarantine.
+          await this.deadLetterProducer.send({
+            topic: `${topic}.${this.groupId}.dead-letter`,
+            messages: [
+              {
+                key: `${topic}:${partition}:${message.offset}`,
+                value: JSON.stringify({
+                  source: context,
+                  groupId: this.groupId,
+                  key: message.key?.toString("base64") ?? null,
+                  value: message.value?.toString("base64") ?? null,
+                  headers: Object.fromEntries(
+                    Object.entries(message.headers ?? {}).map(
+                      ([key, value]) => [
+                        key,
+                        Array.isArray(value)
+                          ? value.map((v) => Buffer.from(v).toString("base64"))
+                          : value === undefined
+                            ? null
+                            : Buffer.from(value).toString("base64"),
+                      ],
+                    ),
+                  ),
+                  errorType:
+                    failure instanceof Error ? failure.name : "ProcessingError",
+                  quarantinedAt: new Date().toISOString(),
+                }),
+              },
+            ],
+          });
+          this.quarantined.set(topic, (this.quarantined.get(topic) ?? 0) + 1);
+          console.error("Kafka message quarantined", {
+            topic,
+            partition,
+            offset: message.offset,
+            groupId: this.groupId,
+          });
+        },
+      });
+      this.started = true;
+    } catch (error) {
+      this.healthy = false;
+      await Promise.allSettled([
+        this.consumer.disconnect(),
+        this.deadLetterProducer.disconnect(),
+      ]);
+      this.removeInstrumentation?.();
+      this.removeCrash?.();
+      this.removeJoin?.();
+      throw error;
+    }
+  }
+  async startBatch(
+    topics: AnyTopicHandler[],
+    options: { fromBeginning?: boolean } = {},
+  ) {
+    return this.start(topics, options);
+  }
+  async shutdown() {
+    await this.startPromise?.catch(() => {});
+    this.healthy = false;
+    await Promise.allSettled([
+      this.consumer.disconnect(),
+      this.deadLetterProducer.disconnect(),
+    ]);
+    this.removeInstrumentation?.();
+    this.removeCrash?.();
+    this.removeJoin?.();
+    this.started = false;
   }
 }
-
-// Factory function for backward compatibility
-export const createConsumer = (
-  kafka: Kafka,
-  groupId: string,
-): KafkaConsumer => {
-  return new KafkaConsumer(kafka, groupId);
-};
+export const createConsumer = (kafka: Kafka, groupId: string) =>
+  new KafkaConsumer(kafka, groupId);

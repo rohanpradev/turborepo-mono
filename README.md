@@ -8,7 +8,7 @@ This is not a single demo app in a big folder. It is a real distributed commerce
 
 - **Turborepo workspace** with strict environment pass-through, task caching, package boundaries, and shared TypeScript config.
 - **Customer storefront** in `apps/client` with catalog browsing, search, filters, cart state, checkout, order return flow, SEO metadata, sitemap, and service diagnostics.
-- **Admin operations app** in `apps/admin` for product/catalog operations, customer/order visibility, payment events, service health, and Kafka-backed payment activity.
+- **Admin operations app** in `apps/admin` for catalog and stock management, customer/order visibility, durable recent payment activity, and service health.
 - **Typed Hono microservices** for product, payment, and order domains, all with Zod contracts, OpenAPI metadata, Scalar API docs, structured error payloads, request IDs, CORS, compression, secure headers, timing, and readiness endpoints.
 - **Clerk auth everywhere it matters**: Next.js auth UI, service middleware, bearer-token authorization, admin role/session-claim checks, and local `ADMIN_USER_IDS` recovery support.
 - **Kafka integration** for catalog sync and payment/order workflows with typed topics, durable topic defaults, instrumentation hooks, and explicit topic creation.
@@ -33,12 +33,14 @@ flowchart LR
   storefront --> order["Order Service\nHono + MongoDB"]
   admin --> order
 
-  product --> postgres["PostgreSQL\nProduct Catalog"]
+  product --> postgres["PostgreSQL\nCatalog + Inventory"]
+  payment --> paymentdb["PostgreSQL\nPayment Inbox + Outbox"]
+  payment -- "Reserve / commit / release" --> product
   order --> mongo["MongoDB\nOrder Read Model"]
 
   product -- "product.created / updated / deleted" --> kafka["Kafka"]
   kafka --> payment
-  payment -- "stripe.checkout.completed / payment.successful" --> kafka
+  payment -- "payment.successful" --> kafka
   kafka --> order
   payment --> stripe["Stripe"]
 
@@ -54,7 +56,7 @@ For engineering standards and verification policy, see [docs/QUALITY.md](docs/QU
 For service and Kafka telemetry behavior, see [docs/TELEMETRY.md](docs/TELEMETRY.md).
 For Prometheus, Grafana, Traefik, and Kubernetes metrics, see [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md).
 For Stripe deployment, webhook, Clerk-auth, and incident procedures, see [docs/STRIPE_OPERATIONS.md](docs/STRIPE_OPERATIONS.md).
-For the current expert gap assessment and prioritized roadmap, see [docs/EXPERT_MICROSERVICES_IMPROVEMENT_PLAN.md](docs/EXPERT_MICROSERVICES_IMPROVEMENT_PLAN.md).
+For stock, durable payment recovery and verified implementation evidence, see [docs/OPERATIONS.md](docs/OPERATIONS.md) and [docs/IMPLEMENTATION-2026-10-02.md](docs/IMPLEMENTATION-2026-10-02.md).
 
 ## Apps And Packages
 
@@ -92,19 +94,19 @@ For the current expert gap assessment and prioritized roadmap, see [docs/EXPERT_
 ## Event Flow
 
 1. Product admins create/update/delete catalog products in `apps/admin`.
-2. `product-service` validates payloads with shared Zod schemas, writes through Prisma, and publishes catalog events to Kafka.
+2. `product-service` validates payloads, atomically writes catalog changes and an outbox, and relays events to Kafka.
 3. `payment-service` consumes catalog events and keeps Stripe product/price state aligned.
 4. Customers browse and check out through `apps/client`.
 5. Authenticated checkout and return-status calls stay same-origin at the storefront, which forwards a short-lived Clerk bearer token to `payment-service`.
-6. Stripe webhooks land in `payment-service`, which verifies the raw body and publishes `stripe.checkout.completed` before responding.
-7. A payment worker enriches the session through Stripe and publishes `payment.successful`.
+6. Checkout persists an immutable US/USD purchase snapshot and reserves finite variant stock. Signed Stripe webhooks enter a durable PostgreSQL inbox before acknowledgement.
+7. Leased payment workers verify the paid session, commit stock, and atomically persist the payment with a publication job. That job publishes `payment.successful` to Kafka independently of webhook intake.
 8. `order-service` consumes successful payment events and idempotently updates the MongoDB order read model.
 9. Storefront and admin apps query typed APIs through `packages/api-client`.
 
 ## Prerequisites
 
 - `Bun >= 1.4.2`
-- `Node >= 20.19.0`
+- `Node >= 24.0.0`
 - Docker with Compose
 - `mkcert` for locally trusted `*.localhost` TLS certificates
 - `docker login dhi.io` if you want the full Docker Hardened Images path
@@ -175,6 +177,8 @@ Useful follow-ups:
 
 ```bash
 make k8s-doctor
+make k8s-install-kubectl # checksum-verified project-local client, if needed
+make k8s-verify          # rollout, in-cluster readiness, and HTTPS checks
 make k8s-status
 make k8s-test
 make k8s-clear
@@ -316,7 +320,7 @@ The Docker path uses the digest-pinned official Bun 1.4 image for application bu
 | Compose service | Image / Build | Purpose |
 | --- | --- | --- |
 | `traefik` | `traefik:v3.7.13` | TLS router, API gateway, dashboard |
-| `docker-socket-proxy` | `ghcr.io/tecnativa/docker-socket-proxy:v0.4.2` | Restricted Docker API surface for Traefik discovery |
+| `docker-socket-proxy` | `ghcr.io/tecnativa/docker-socket-proxy:v0.5.0` | Restricted Docker API surface for Traefik discovery |
 | `postgres` | `dhi.io/postgres:18.6-debian13` | Product catalog database |
 | `mongodb` | `dhi.io/mongodb:8.3.11-debian13` | Order read-model database |
 | `kafka-broker-1..3` | `dhi.io/kafka:4.3.1-debian13-native` | Three-broker Kafka cluster |
@@ -326,9 +330,11 @@ The Docker path uses the digest-pinned official Bun 1.4 image for application bu
 | `order-service` | `docker/Dockerfile.order-service` | Order API and MongoDB read model |
 | `client` | `docker/Dockerfile.client` | Customer storefront |
 | `admin` | `docker/Dockerfile.admin` | Admin operations dashboard |
-| `stripe-cli` | `stripe/stripe-cli:v1.51.0` | Local webhook forwarding |
+| `stripe-cli` | `stripe/stripe-cli:v1.52.0` | Local webhook forwarding |
 
 The five application Dockerfiles use Turbo pruning, Bun frozen installs, and hardened Bun runtime images. Frontend images build standalone Next.js output, while service images copy only runtime code, generated clients, shared packages, and production dependencies.
+
+Docker discovery uses an internal network shared only by Traefik and the socket proxy. Application containers cannot reach the proxy, and its write API is explicitly disabled.
 
 Useful Docker commands:
 
@@ -414,7 +420,6 @@ Core API groups:
 
 See [the verified improvements and operational guide](docs/QUALITY_VERIFICATION.md) for database index deployment, graceful shutdown, catalog accessibility, and the real-database CI test suite.
 
-See [the September 20 upgrade and verification report](docs/UPGRADE_REVIEW_2026-09-20.md) for current versions and validation. See [the earlier package research and implementation review](docs/LATEST_PACKAGE_REVIEW.md) for the dated release audit, shadcn/Next.js changes, outbox concurrency fix, and CI verification scope.
 
 ## CI image publishing
 

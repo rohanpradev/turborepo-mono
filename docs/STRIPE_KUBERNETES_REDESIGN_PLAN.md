@@ -1,5 +1,9 @@
 # Stripe and Kubernetes Reliability Redesign
 
+Historical design. The October 2026 implementation supersedes the broker-backed
+webhook intake and startup-readiness details below; see
+[ADR 0002](adr/0002-payment-inventory.md) and [OPERATIONS.md](OPERATIONS.md).
+
 Date: 2026-07-14
 
 ## Objective

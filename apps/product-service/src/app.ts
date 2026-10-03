@@ -8,6 +8,7 @@ import {
 } from "@repo/hono-utils";
 import { clerkAuthMiddleware, type ServiceVariables } from "@/middleware/auth";
 import { healthRoutes } from "@/routes/healthRoutes";
+import { inventoryRoutes } from "@/routes/inventoryRoutes";
 import { productRouter } from "@/rpc";
 
 const serviceInfoSchema = z.object({
@@ -43,7 +44,9 @@ const app = createServiceApp<{ Variables: ServiceVariables }>({
   theme: "kepler",
 });
 
+app.route("/internal/inventory", inventoryRoutes);
 app.use("*", createCorsMiddleware());
+app.route("/", healthRoutes);
 app.use("*", clerkAuthMiddleware);
 app.use(
   "/rpc/product/*",
@@ -54,10 +57,8 @@ app.use(
   }),
 );
 
-app
-  .openapi(rootRoute, (c) =>
-    c.json({ message: "Product Service API", version: "1.2.0" }, 200),
-  )
-  .route("/", healthRoutes);
+app.openapi(rootRoute, (c) =>
+  c.json({ message: "Product Service API", version: "1.2.0" }, 200),
+);
 
 export { app };

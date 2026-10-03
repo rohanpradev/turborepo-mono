@@ -5,10 +5,10 @@
   "scripts": {
     "check-types": "tsc --noEmit",
     "db:generate": "prisma contract emit",
-    "db:validate": "prisma contract emit && prisma migration check",
+    "db:validate": "prisma migration check",
     "db:migrate": "prisma contract emit && prisma db update --advance-ref db",
     "db:plan": "prisma contract emit && prisma migration plan",
-    "db:deploy": "prisma db migrate",
+    "db:deploy": "prisma db migrate && bun run src/deploy-inventory.ts",
     "db:verify": "prisma db verify",
     "db:adopt": "prisma contract emit && prisma db verify --schema-only --strict && prisma db sign"
   },
@@ -20,9 +20,11 @@
   "devDependencies": {
     "@types/bun": "catalog:",
     "@types/pg": "catalog:",
-    "@repo/typescript-config": "workspace:*"
+    "@repo/typescript-config": "workspace:*",
+    "typescript": "catalog:"
   },
   "exports": {
     ".": "./src/index.ts"
-  }
+  },
+  "private": true
 }

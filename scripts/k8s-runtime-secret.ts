@@ -81,6 +81,18 @@ const parseDotenv = (contents: string) => {
 
 const selectedSecrets: Array<SecretEntry> = [
   {
+    key: "PAYMENT_DATABASE_URL",
+    required: true,
+    sources: ["K8S_PAYMENT_DATABASE_URL", "PAYMENT_DATABASE_URL"],
+  },
+  {
+    key: "INTERNAL_SERVICE_TOKEN",
+    required: true,
+    sources: ["INTERNAL_SERVICE_TOKEN"],
+  },
+  { key: "KAFKA_SASL_USERNAME", sources: ["KAFKA_SASL_USERNAME"] },
+  { key: "KAFKA_SASL_PASSWORD", sources: ["KAFKA_SASL_PASSWORD"] },
+  {
     key: "DATABASE_URL",
     required: true,
     sources: ["K8S_DATABASE_URL", "DATABASE_URL"],

@@ -42,10 +42,21 @@ export interface PaymentSuccessfulMessage {
   transactionId: string;
   items: Array<{
     productId: string;
+    selectedSize?: string;
+    selectedColor?: string;
     name: string;
     quantity: number;
     price: number;
   }>;
+  deliveryAddress?: {
+    name: string;
+    line1: string;
+    line2?: string | null;
+    city: string;
+    state?: string | null;
+    postalCode: string;
+    country: "US";
+  };
   processedAt: string;
 }
 
@@ -53,7 +64,7 @@ export interface StripeCheckoutCompletedMessage {
   eventId: string;
   eventType: string;
   sessionId: string;
-  source: "webhook" | "checkout-status";
+  source: "webhook" | "checkout-status" | "reconciliation";
   occurredAt: string;
 }
 

@@ -13,6 +13,7 @@ let inFlight: Promise<void> | undefined;
 const nextDelay = (attempts: number) =>
   Math.min(60_000, 1_000 * 2 ** Math.min(attempts, 6));
 
+/** @internal Exported for regression tests. */
 export const relayProductOutboxOnce = async () => {
   const currentTime = nowUtc();
   const claimableEvents = db.orm.public.ProductOutboxEvent.where((event) =>
@@ -26,7 +27,7 @@ export const relayProductOutboxOnce = async () => {
   const event = await claimableEvents
     .orderBy((event) => event.createdAt.asc())
     .first();
-  if (!event) return;
+  if (!event) return false;
 
   // Prisma 8's single-row update first resolves an identity, then updates by
   // primary key. Use the count terminal to keep all lease predicates in the
@@ -40,7 +41,7 @@ export const relayProductOutboxOnce = async () => {
       attempts,
       updatedAt: currentTime,
     });
-  if (claimed !== 1) return;
+  if (claimed !== 1) return false;
 
   // A lease can expire during a slow publish. Only this claim may finalize it;
   // an older worker must never overwrite a newer worker's retry or success.
@@ -80,12 +81,15 @@ export const relayProductOutboxOnce = async () => {
     });
     productServiceRuntime.markNotReady("kafka.producer", message);
   }
+  return true;
 };
 
 const run = async () => {
   if (stopped) return;
   try {
-    await relayProductOutboxOnce();
+    for (let count = 0; count < 25 && !stopped; count++) {
+      if (!(await relayProductOutboxOnce())) break;
+    }
   } catch (error) {
     console.error("Product outbox relay failed:", error);
   } finally {

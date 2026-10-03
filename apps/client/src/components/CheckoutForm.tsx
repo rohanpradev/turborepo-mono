@@ -1,6 +1,9 @@
 "use client";
 
-import { PaymentElement, useCheckout } from "@stripe/react-stripe-js/checkout";
+import {
+  PaymentElement,
+  useCheckoutElements,
+} from "@stripe/react-stripe-js/checkout";
 import { type SubmitEvent, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { ShippingFormInputs as BaseShippingFormInputs } from "@/types";
@@ -14,9 +17,10 @@ const CheckoutForm = ({
 }: {
   shippingForm: ShippingFormInputs;
 }) => {
-  const checkoutState = useCheckout();
+  const checkoutState = useCheckoutElements();
   const [message, setMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [detailsReady, setDetailsReady] = useState(false);
   const [isSyncingDetails, setIsSyncingDetails] = useState(false);
   const checkout =
     checkoutState.type === "success" ? checkoutState.checkout : null;
@@ -27,6 +31,7 @@ const CheckoutForm = ({
 
   useEffect(() => {
     const checkoutApi = checkoutRef.current;
+    setDetailsReady(false);
 
     if (!checkoutSessionId || !checkoutApi) {
       setIsSyncingDetails(false);
@@ -63,6 +68,8 @@ const CheckoutForm = ({
           address: {
             line1: shippingForm.address,
             city: shippingForm.city,
+            state: shippingForm.state,
+            postal_code: shippingForm.postalCode,
             country: shippingForm.country ?? "US",
           },
         });
@@ -70,6 +77,8 @@ const CheckoutForm = ({
 
         if (shippingResult.type === "error") {
           setMessage(shippingResult.error.message);
+        } else {
+          setDetailsReady(true);
         }
       } catch {
         if (isActive) {
@@ -93,6 +102,8 @@ const CheckoutForm = ({
     checkoutSessionId,
     shippingForm.address,
     shippingForm.city,
+    shippingForm.state,
+    shippingForm.postalCode,
     shippingForm.country,
     shippingForm.email,
     shippingForm.name,
@@ -102,7 +113,12 @@ const CheckoutForm = ({
   const handleSubmit = async (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!checkout) {
+    if (
+      !detailsReady ||
+      !checkout?.canConfirm ||
+      isLoading ||
+      isSyncingDetails
+    ) {
       return;
     }
 
@@ -168,6 +184,8 @@ const CheckoutForm = ({
             ["Name", shippingForm.name],
             ["Address", shippingForm.address],
             ["City", shippingForm.city],
+            ["State", shippingForm.state],
+            ["ZIP code", shippingForm.postalCode],
             ["Country", shippingForm.country ?? "US"],
           ].map(([label, value]) => (
             <div key={label} className="min-w-0 space-y-1">
@@ -203,7 +221,12 @@ const CheckoutForm = ({
 
       <Button
         type="submit"
-        disabled={isLoading || isSyncingDetails || !checkout}
+        disabled={
+          !detailsReady ||
+          isLoading ||
+          isSyncingDetails ||
+          !checkout?.canConfirm
+        }
         className="w-full"
         size="lg"
       >

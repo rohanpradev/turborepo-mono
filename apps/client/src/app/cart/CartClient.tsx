@@ -13,7 +13,13 @@ import {
 import type { Route } from "next";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useRef, useState } from "react";
+import {
+  Suspense,
+  type SyntheticEvent,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import ShippingForm from "@/components/ShippingForm";
 import StripePaymentForm from "@/components/StripePaymentForm";
 import { Badge } from "@/components/ui/badge";
@@ -186,7 +192,9 @@ const CartContent = () => {
                               quality={75}
                               className="h-40 w-full object-contain p-4 transition duration-700 group-hover:scale-[1.025] sm:h-full"
                               sizes="(min-width: 640px) 160px, 100vw"
-                              onError={(event) => {
+                              onError={(
+                                event: SyntheticEvent<HTMLImageElement>,
+                              ) => {
                                 event.currentTarget.srcset = "";
                                 event.currentTarget.src = "/featured.png";
                               }}

@@ -1,17 +1,24 @@
 {
   "name": "@repo/kafka",
-  "main": "./src/index.ts",
-  "module": "src/index.ts",
   "type": "module",
   "private": true,
   "scripts": {
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "replay": "bun run src/replay.ts"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
-    "@types/bun": "catalog:"
+    "@types/bun": "catalog:",
+    "typescript": "catalog:"
   },
   "dependencies": {
-    "kafkajs": "catalog:"
+    "kafkajs": "catalog:",
+    "zod": "catalog:"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
   }
 }

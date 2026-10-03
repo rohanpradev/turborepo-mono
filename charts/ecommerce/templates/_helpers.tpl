@@ -71,6 +71,9 @@ app.kubernetes.io/component: {{ .service.name | quote }}
 {{- $repository := required "service image.repository is required" $image.repository -}}
 {{- $tag := default $root.Chart.AppVersion $image.tag -}}
 {{- $digest := default "" $image.digest -}}
+{{- if and $root.Values.global.requireImageDigests (not (regexMatch "^sha256:[a-f0-9]{64}$" $digest)) -}}
+{{- fail "Production profiles require a verified sha256 image digest for every service" -}}
+{{- end -}}
 {{- $reference := $repository -}}
 {{- if $registry -}}
 {{- $reference = printf "%s/%s" ($registry | trimSuffix "/") $repository -}}

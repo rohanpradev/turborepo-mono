@@ -2,8 +2,14 @@ import {
   createShutdownHandler,
   getServerIdleTimeoutSeconds,
   SERVICE_MAX_REQUEST_BODY_SIZE_BYTES,
+  startBackgroundTask,
 } from "@repo/hono-utils";
-import { connectProductDB, disconnectProductDB } from "@repo/product-db";
+import {
+  checkInventory,
+  closeInventory,
+  connectProductDB,
+  disconnectProductDB,
+} from "@repo/product-db";
 import { app } from "@/app";
 import { productServiceRuntime } from "@/runtime";
 import {
@@ -18,6 +24,7 @@ let isShuttingDown = false;
 const bootstrap = async () => {
   try {
     await connectProductDB();
+    await checkInventory();
     if (isShuttingDown) return;
     productServiceRuntime.markReady("database");
     console.log("Connected to product database");
@@ -55,6 +62,20 @@ const server = Bun.serve({
   maxRequestBodySize: SERVICE_MAX_REQUEST_BODY_SIZE_BYTES,
 });
 
+const stopHealth = startBackgroundTask(
+  async () => {
+    await connectProductDB();
+    await checkInventory();
+    if (!isShuttingDown) productServiceRuntime.markReady("database");
+  },
+  5000,
+  () =>
+    productServiceRuntime.markNotReady(
+      "database",
+      "Product storage unavailable.",
+    ),
+);
+
 const shutdown = createShutdownHandler({
   name: "product-service",
   onShutdown: (signal) => {
@@ -71,9 +92,11 @@ const shutdown = createShutdownHandler({
   },
   steps: [
     { name: "HTTP requests", run: () => server.stop() },
+    { name: "health monitor", run: stopHealth },
     { name: "bootstrap", run: () => bootstrapPromise },
     { name: "outbox relay", run: stopProductOutboxRelay },
     { name: "Kafka producer", run: () => producer.shutdown() },
+    { name: "inventory", run: closeInventory },
     { name: "database", run: disconnectProductDB },
   ],
 });

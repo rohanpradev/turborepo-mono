@@ -1,5 +1,23 @@
 {{- range $key, $service := .Values.services }}
 {{- if and $service.enabled $service.autoscaling.enabled }}
+{{- if gt (int $service.autoscaling.minReplicas) (int $service.autoscaling.maxReplicas) }}
+{{- fail (printf "service %s autoscaling.minReplicas must not exceed maxReplicas" $key) }}
+{{- end }}
+{{- if not (or $service.autoscaling.targetCPUUtilizationPercentage $service.autoscaling.targetMemoryUtilizationPercentage) }}
+{{- fail (printf "service %s autoscaling requires at least one utilization target" $key) }}
+{{- end }}
+{{- range $resource, $target := dict "cpu" $service.autoscaling.targetCPUUtilizationPercentage "memory" $service.autoscaling.targetMemoryUtilizationPercentage }}
+{{- if $target }}
+{{- if not (dig "resources" "requests" $resource "" $service) }}
+{{- fail (printf "service %s autoscaling requires resources.requests.%s" $key $resource) }}
+{{- end }}
+{{- if and (eq $key "payment") $.Values.stripeCli.enabled }}
+{{- if not (dig "resources" "requests" $resource "" $.Values.stripeCli) }}
+{{- fail (printf "stripeCli autoscaling requires resources.requests.%s" $resource) }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
