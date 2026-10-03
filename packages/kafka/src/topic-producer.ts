@@ -72,7 +72,10 @@ export class KafkaProducer {
     } = {},
   ): Promise<void> {
     const startedAt = performance.now();
-    const headers = createKafkaTelemetryHeaders(options.headers);
+    const headers = createKafkaTelemetryHeaders({
+      "schema-version": "1",
+      ...options.headers,
+    });
 
     try {
       const payload: ProducerRecord = {

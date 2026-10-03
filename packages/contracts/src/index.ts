@@ -6,6 +6,7 @@ import {
   categoryUpdateSchema,
   checkoutSessionPayloadSchema,
   checkoutSessionStatusQuerySchema,
+  orderListQuerySchema,
   orderRecordSchema,
   productIdParamSchema,
   productListQuerySchema,
@@ -78,10 +79,55 @@ const paymentIntegrationEventsResponseSchema = successResponseSchema(
   }),
 );
 
+const orderListResponseSchema = successResponseSchema(
+  z.array(orderRecordSchema),
+).extend({
+  meta: z.object({
+    page: z.number(),
+    pageSize: z.number(),
+    hasNextPage: z.boolean(),
+  }),
+});
+
 const idPayloadSchema = productIdParamSchema;
 const slugPayloadSchema = categorySlugParamSchema;
 
 export const productContract = {
+  inventory: {
+    availability: oc.input(productIdParamSchema).output(
+      successResponseSchema(
+        z.array(
+          z.object({
+            size: z.string(),
+            color: z.string(),
+            available: z.number().int().nonnegative(),
+          }),
+        ),
+      ),
+    ),
+    list: oc.input(productIdParamSchema).output(
+      successResponseSchema(
+        z.array(
+          z.object({
+            size: z.string(),
+            color: z.string(),
+            onHand: z.number().int(),
+            reserved: z.number().int(),
+          }),
+        ),
+      ),
+    ),
+    set: oc
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          size: z.string().min(1).max(100),
+          color: z.string().min(1).max(100),
+          onHand: z.number().int().min(0).max(1000000),
+        }),
+      )
+      .output(messageResponseSchema),
+  },
   product: {
     list: oc
       .input(productListQuerySchema.optional())
@@ -126,12 +172,8 @@ export const productContract = {
 
 export const orderContract = {
   order: {
-    listForUser: oc
-      .input(z.void())
-      .output(successResponseSchema(z.array(orderRecordSchema))),
-    listAll: oc
-      .input(z.void())
-      .output(successResponseSchema(z.array(orderRecordSchema))),
+    listForUser: oc.input(orderListQuerySchema).output(orderListResponseSchema),
+    listAll: oc.input(orderListQuerySchema).output(orderListResponseSchema),
   },
 };
 
@@ -145,6 +187,22 @@ export const paymentContract = {
       .output(checkoutSessionStatusResponseSchema),
   },
   ops: {
+    activities: oc.input(z.void()).output(
+      successResponseSchema(
+        z.array(
+          z.object({
+            amountCents: z.number().int(),
+            checkoutTimestamp: z.string(),
+            completedTimestamp: z.string().nullable(),
+            itemCount: z.number().int(),
+            paymentIntentId: z.string().nullable(),
+            sessionId: z.string(),
+            status: z.enum(["paid", "pending"]),
+            userId: z.string(),
+          }),
+        ),
+      ),
+    ),
     integrationEvents: oc
       .input(z.void())
       .output(paymentIntegrationEventsResponseSchema),

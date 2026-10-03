@@ -18,4 +18,5 @@ metrics:
       enabled: true
 
 service:
-  type: LoadBalancer
+  spec:
+    type: LoadBalancer

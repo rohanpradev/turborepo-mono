@@ -67,7 +67,7 @@ make k8s-uninstall
 
 The local workflow installs Traefik as a standard Kubernetes Ingress controller and deploys app routes with `ingressClassName: traefik`.
 
-The deployment toolchain is pinned to Helm 4.3.0, kubeconform 0.8.0, Traefik chart 41.6.0 with Traefik 3.7.13, kube-prometheus-stack 91.5.2, and Gateway API 1.6.2. The Gateway manifest is SHA-256 verified before apply. Kubernetes 1.35 and 1.36 form the project deployment baseline; Kubernetes 1.37 is kept as an experimental render and schema-validation target until project runtime qualification is complete. The chart's strict values schema rejects unknown root, service, and job fields. CI checks explicit Ingress, Gateway, local, and local-full profiles across both tiers. Schema validation explicitly skips Gateway, GatewayClass, HTTPRoute, ServiceMonitor, and PrometheusRule; every other missing schema fails the check. These CRD-backed resources require live-cluster validation in addition to Helm rendering. Environment-owned values live under `deploy/environments`, while chart-only validation fixtures live under `charts/ecommerce/ci`. Traefik and kube-prometheus-stack CRDs are applied before controller upgrades because Helm does not upgrade CRDs automatically.
+The deployment toolchain is pinned to Helm 4.3.0, kubeconform 0.8.0, Traefik chart 41.6.1 with Traefik 3.7.13, kube-prometheus-stack 91.9.0, and Gateway API 1.6.2. The Gateway manifest is SHA-256 verified before apply. Kubernetes 1.35 and 1.36 form the project deployment baseline; Kubernetes 1.37 is kept as an experimental render and schema-validation target until project runtime qualification is complete. The chart's strict values schema rejects unknown root, service, and job fields. CI checks explicit Ingress, Gateway, local, and local-full profiles across both tiers. Schema validation explicitly skips Gateway, GatewayClass, HTTPRoute, ServiceMonitor, and PrometheusRule; every other missing schema fails the check. These CRD-backed resources require live-cluster validation in addition to Helm rendering. Environment-owned values live under `deploy/environments`, while chart-only validation fixtures live under `charts/ecommerce/ci`. Traefik and kube-prometheus-stack CRDs are applied before controller upgrades because Helm does not upgrade CRDs automatically.
 
 For Prometheus, Grafana, app metrics, Traefik metrics, and alert rules, run:
 
@@ -100,6 +100,8 @@ make k8s-runtime-secret
 The migration is a `pre-install,pre-upgrade` hook, so its Secret must already exist. The chart deliberately rejects `secrets.create=true` while that hook is enabled; provision the external Secret before invoking Helm.
 
 For real environments, prefer your cluster secret manager or External Secrets operator and set `HELM_RUNTIME_SECRET` to the secret name.
+
+Synchronization validates the replacement before updating the existing Secret in place. It never deletes a Secret. If the selected name belongs to a Helm release, use a new external name, for example `make k8s-deploy HELM_RUNTIME_SECRET=ecommerce-runtime-external`. Keep that override for subsequent deployments. Reusing a Helm-owned name is unsafe because Helm can delete its old resource when the chart stops rendering it.
 
 ## TLS
 

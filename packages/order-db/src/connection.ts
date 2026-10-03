@@ -77,3 +77,9 @@ export const disconnectOrderDB = async () => {
   await mongoose.disconnect();
   connectPromise = null;
 };
+
+export const checkOrderDB = async () => {
+  if (mongoose.connection.readyState !== 1 || !mongoose.connection.db)
+    throw new Error("Order database unavailable.");
+  await mongoose.connection.db.command({ ping: 1 }, { timeoutMS: 3000 });
+};

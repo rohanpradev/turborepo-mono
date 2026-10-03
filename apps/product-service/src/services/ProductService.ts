@@ -26,7 +26,7 @@ type ProductFilters = {
   limit?: number;
 };
 
-import { nowUtc, toUtcISOString } from "@/utils/timestamps";
+import { nowUtc, toUtcISOString } from "../utils/timestamps";
 
 const toProductRecord = (product: Product): ProductRecord => {
   const images =

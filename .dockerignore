@@ -1,5 +1,6 @@
 # Dependencies
 node_modules
+**/node_modules
 .pnp
 .pnp.js
 
@@ -24,7 +25,9 @@ generated
 
 # Environment and local state
 .env*
+**/.env*
 .runtime
+**/.runtime
 tmp
 tmp/
 
@@ -46,4 +49,6 @@ bun-debug.log*
 *.log
 *.pem
 *.key
+**/*.pem
+**/*.key
 tests

@@ -3,7 +3,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "replay": "bun run src/replay.ts"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
@@ -11,7 +12,8 @@
     "typescript": "catalog:"
   },
   "dependencies": {
-    "kafkajs": "catalog:"
+    "kafkajs": "catalog:",
+    "zod": "catalog:"
   },
   "exports": {
     ".": {

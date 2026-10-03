@@ -40,6 +40,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { buildProductPayload, type ProductFormState } from "@/lib/product-form";
+import InventoryManager from "./InventoryManager";
 
 type CatalogManagerProps = {
   children?: ReactNode;
@@ -480,6 +481,7 @@ const CatalogManager = ({
                     <span className="sr-only">Delete {product.name}</span>
                   </Button>
                 </div>
+                <InventoryManager product={product} />
               </article>
             ))}
           </div>

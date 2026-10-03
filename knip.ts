@@ -35,17 +35,15 @@ export default defineConfig((options) => {
         entry: ["src/index.ts!", "src/scripts/*.ts!"],
       },
       "apps/order-service": production ? { entry: ["src/index.ts!"] } : {},
-      "apps/payment-service": production ? { entry: ["src/index.ts!"] } : {},
-      "packages/hono-utils": {
-        // Required peer of the Clerk Hono adapter, resolved in this workspace.
-        ignoreDependencies: ["@clerk/backend"],
-      },
+      "apps/payment-service": { entry: ["src/index.ts!", "src/scripts/*.ts!"] },
+      "packages/kafka": production ? { entry: ["src/replay.ts!"] } : {},
       "packages/typescript-config": { ignoreUnresolved: ["next"] },
       "packages/order-db": production
         ? { entry: ["src/deploy-indexes.ts!"] }
         : {},
       "packages/product-db": production
         ? {
+            entry: ["src/deploy-inventory.ts!"],
             // Prisma runs in deployment jobs; production mode skips db:* scripts.
             ignoreDependencies: ["prisma"],
           }

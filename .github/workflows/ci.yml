@@ -26,11 +26,11 @@ env:
   BUILDKIT_IMAGE: moby/buildkit:v0.33.0@sha256:6c2fa84a6b61ccd72899dde4239f8d5717f05f9a8ca6f3cad185fb1a95a94de3
   HELM_VERSION: 4.3.0
   KUBECONFORM_IMAGE: ghcr.io/yannh/kubeconform:v0.8.0@sha256:faffaf43f95aa6425306e1ab8d6fcad72acb9049158f38e574c085ea1ec0f64e
-  K8S_SUPPORTED_VERSIONS: 1.35.8 1.36.4
-  K8S_EXPERIMENTAL_VERSIONS: 1.37.0
+  K8S_SUPPORTED_VERSIONS: 1.35.9 1.36.5
+  K8S_EXPERIMENTAL_VERSIONS: 1.37.1
   NODE_VERSION: 24.21.0
   REGISTRY: ghcr.io
-  TURBO_VERSION: 2.11.4
+  TURBO_VERSION: 2.11.7
   NEXT_TELEMETRY_DISABLED: 1
   TURBO_TELEMETRY_DISABLED: 1
 
@@ -100,7 +100,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: node_modules/.cache/knip
-          key: ${{ runner.os }}-knip-${{ hashFiles('bun.lock', 'knip.json') }}
+          key: ${{ runner.os }}-knip-${{ hashFiles('bun.lock', 'knip.ts') }}
           restore-keys: |
             ${{ runner.os }}-knip-
 
@@ -210,7 +210,27 @@ jobs:
         options: >-
           --health-cmd "mongosh --quiet --eval 'db.adminCommand({ ping: 1 })'"
           --health-interval 5s --health-timeout 5s --health-retries 12
+      kafka:
+        image: apache/kafka:4.1.2@sha256:5cc2a2fd93fa2687b44015eee04fb2c3edd9e526bd64bf8bec5ff1e268772e0e
+        env:
+          KAFKA_NODE_ID: 1
+          KAFKA_PROCESS_ROLES: broker,controller
+          KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://127.0.0.1:9092
+          KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+          KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+          KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+          KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+          KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+        ports:
+          - 9092:9092
+        options: >-
+          --health-cmd "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"
+          --health-interval 10s --health-timeout 10s --health-retries 12
     env:
+      INTEGRATION_KAFKA_BROKERS: 127.0.0.1:9092
       INTEGRATION_DATABASE_URL: postgresql://postgres:integration-only-password@127.0.0.1:5432/ecommerce_test
       INTEGRATION_MONGO_URL: mongodb://127.0.0.1:27017/ecommerce_test
     steps:

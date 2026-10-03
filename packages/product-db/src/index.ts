@@ -14,3 +14,13 @@ export type ProductJsonInput =
   FieldInputTypes["public"]["ProductOutboxEvent"]["payload"];
 export { and, not, or } from "@prisma/orm-postgres/orm-client";
 export { connectProductDB, db, disconnectProductDB } from "./client";
+
+export {
+  checkInventory,
+  closeInventory,
+  finishReservation,
+  InventoryConflict,
+  listStock,
+  reserveStock,
+  setStock,
+} from "./inventory";

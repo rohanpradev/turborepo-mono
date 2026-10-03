@@ -244,7 +244,7 @@ const main = () => {
 
   if (kubernetesVersions.length === 0) {
     throw new Error(
-      "Pass at least one Kubernetes version, for example: bun run helm:assert-profiles -- 1.36.4.",
+      "Pass at least one Kubernetes version, for example: bun run helm:assert-profiles -- 1.36.5.",
     );
   }
 

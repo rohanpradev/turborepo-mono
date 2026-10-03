@@ -8,7 +8,14 @@ import { Suspense } from "react";
 import RefreshButton from "@/components/RefreshButton";
 import { Button } from "@/components/ui/button";
 
-const OrdersContent = async () => {
+const OrdersContent = async ({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) => {
+  const rawPage = Number((await searchParams).page ?? 1);
+  const page =
+    Number.isInteger(rawPage) && rawPage >= 1 && rawPage <= 10000 ? rawPage : 1;
   // Authentication and private order data must be read for the current request.
   await connection();
   const isClerkConfigured = Boolean(
@@ -51,10 +58,16 @@ const OrdersContent = async () => {
 
   let orders: Array<OrderRecord> = [];
   let error: string | null = null;
+  let hasNextPage = false;
   try {
-    const response = await listUserOrders(getOrderServiceServerUrl(), {
-      token,
-    });
+    const response = await listUserOrders(
+      getOrderServiceServerUrl(),
+      {
+        token,
+      },
+      { page, limit: 25 },
+    );
+    hasNextPage = response.meta.hasNextPage;
     orders = response.data;
   } catch {
     error = "Unable to load your orders right now. Please try again.";
@@ -117,7 +130,12 @@ const OrdersContent = async () => {
                         key={`${order._id}-${baseKey}-${occurrence}`}
                         className="flex items-center justify-between gap-3 rounded-md bg-muted/60 px-3 py-2"
                       >
-                        <span>{product.name}</span>
+                        <span>
+                          {product.name}
+                          {product.selectedSize || product.selectedColor
+                            ? ` · ${[product.selectedSize, product.selectedColor].filter(Boolean).join(" / ")}`
+                            : ""}
+                        </span>
                         <span>
                           {product.quantity} x{" "}
                           {formatUsdFromCents(product.price)}
@@ -139,11 +157,27 @@ const OrdersContent = async () => {
           No orders yet.
         </div>
       )}
+      <nav aria-label="Order history pages" className="flex gap-3">
+        {page > 1 && (
+          <Button href={`/orders?page=${page - 1}` as Route} variant="outline">
+            Previous
+          </Button>
+        )}
+        {hasNextPage && (
+          <Button href={`/orders?page=${page + 1}` as Route} variant="outline">
+            Next
+          </Button>
+        )}
+      </nav>
     </section>
   );
 };
 
-export default function OrdersPage() {
+export default function OrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   return (
     <Suspense
       fallback={
@@ -152,7 +186,7 @@ export default function OrdersPage() {
         </p>
       }
     >
-      <OrdersContent />
+      <OrdersContent searchParams={searchParams} />
     </Suspense>
   );
 }

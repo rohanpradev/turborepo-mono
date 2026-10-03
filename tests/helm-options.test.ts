@@ -34,7 +34,7 @@ test.skipIf(!Bun.which("helm"))(
         resources.filter(({ kind }) => kind === "Job").filter(selects),
       ).toHaveLength(0);
     }
-    expect(resources.filter(({ kind }) => kind === "Job")).toHaveLength(3);
+    expect(resources.filter(({ kind }) => kind === "Job")).toHaveLength(4);
   },
 );
 

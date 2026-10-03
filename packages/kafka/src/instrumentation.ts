@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import type { InstrumentationEvent } from "kafkajs";
 
 export type KafkaInstrumentationEvent<T = unknown> = InstrumentationEvent<T>;
@@ -24,6 +25,11 @@ type KafkaInstrumentationOptions = {
 };
 
 export type KafkaTelemetryHeaders = Record<string, string>;
+const traceContext = new AsyncLocalStorage<string | undefined>();
+export const withKafkaTrace = <T>(
+  traceparent: string | undefined,
+  run: () => T,
+): T => traceContext.run(traceparent, run);
 
 export type TraceContext = {
   version: string;
@@ -131,7 +137,9 @@ export const readKafkaHeader = (
 export const createKafkaTelemetryHeaders = (
   headers: KafkaTelemetryHeaders = {},
 ): KafkaTelemetryHeaders => {
-  const trace = parseTraceparent(headers.traceparent);
+  const trace = parseTraceparent(
+    headers.traceparent ?? traceContext.getStore(),
+  );
 
   return {
     ...headers,
@@ -177,6 +185,12 @@ export const attachKafkaInstrumentation = (
 
     removers.push(
       client.on(eventName, (event) => {
+        if (
+          !options.logger &&
+          level === "debug" &&
+          process.env.KAFKA_LOG_LEVEL !== "debug"
+        )
+          return;
         const payload = {
           ...buildPayload(event, options),
           ...(payloadBuilder?.(event) ?? {}),

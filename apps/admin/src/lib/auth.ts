@@ -1,15 +1,9 @@
 import "server-only";
 
 import { auth } from "@clerk/nextjs/server";
+import { type CustomJwtSessionClaims, isPlatformAdmin } from "@repo/types";
 import { notFound } from "next/navigation";
 import { cache } from "react";
-
-type AdminSessionClaims = {
-  role?: string;
-  metadata?: { role?: string };
-  publicMetadata?: { role?: string };
-  public_metadata?: { role?: string };
-};
 
 const isClerkConfigured = Boolean(
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
@@ -23,12 +17,6 @@ const adminUserIds = new Set(
     .map((userId) => userId.trim())
     .filter(Boolean) ?? [],
 );
-
-const getClaimRole = (claims: AdminSessionClaims | null | undefined) =>
-  claims?.role ??
-  claims?.metadata?.role ??
-  claims?.publicMetadata?.role ??
-  claims?.public_metadata?.role;
 
 /**
  * Protects each privileged resource directly. Proxy redirects are a UX layer;
@@ -45,11 +33,11 @@ export const requireAdminAccess = cache(async () => {
     return session.redirectToSignIn();
   }
 
-  const claims = session.sessionClaims as AdminSessionClaims | null;
-  const isAdmin =
-    session.has({ role: "org:admin" }) ||
-    getClaimRole(claims) === "admin" ||
-    adminUserIds.has(session.userId);
+  const isAdmin = isPlatformAdmin(
+    session.userId,
+    session.sessionClaims as CustomJwtSessionClaims,
+    adminUserIds,
+  );
 
   if (!isAdmin) {
     notFound();

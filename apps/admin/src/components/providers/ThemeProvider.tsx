@@ -33,13 +33,17 @@ function getStoredTheme(defaultTheme: Theme) {
     return defaultTheme;
   }
 
-  const storedTheme = window.localStorage.getItem(STORAGE_KEY);
-  if (
-    storedTheme === "light" ||
-    storedTheme === "dark" ||
-    storedTheme === "system"
-  ) {
-    return storedTheme;
+  try {
+    const storedTheme = window.localStorage.getItem(STORAGE_KEY);
+    if (
+      storedTheme === "light" ||
+      storedTheme === "dark" ||
+      storedTheme === "system"
+    ) {
+      return storedTheme;
+    }
+  } catch {
+    // Privacy settings can make even reading localStorage throw.
   }
 
   return defaultTheme;
@@ -88,8 +92,13 @@ export function ThemeProvider({
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>("light");
 
   useEffect(() => {
-    const initialTheme = getStoredTheme(defaultTheme);
-    setThemeState(initialTheme);
+    const syncStoredTheme = () => setThemeState(getStoredTheme(defaultTheme));
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === STORAGE_KEY || event.key === null) syncStoredTheme();
+    };
+    syncStoredTheme();
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, [defaultTheme]);
 
   useEffect(() => {
@@ -126,7 +135,11 @@ export function ThemeProvider({
     const normalizedTheme =
       nextTheme === "system" && !enableSystem ? "light" : nextTheme;
 
-    window.localStorage.setItem(STORAGE_KEY, normalizedTheme);
+    try {
+      window.localStorage.setItem(STORAGE_KEY, normalizedTheme);
+    } catch {
+      // Keep the theme usable for this visit when persistence is unavailable.
+    }
     setThemeState(normalizedTheme);
   };
 

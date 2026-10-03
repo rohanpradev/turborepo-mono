@@ -1,18 +1,8 @@
 import { Order } from "@repo/order-db";
 import type { OrderRecord } from "@repo/types";
 
-type StoredOrder = {
+type StoredOrder = Omit<OrderRecord, "_id" | "createdAt" | "updatedAt"> & {
   _id: { toString(): string };
-  orderId?: string;
-  userId: string;
-  email: string;
-  amount: number;
-  status: "success" | "failed";
-  products: Array<{
-    name: string;
-    price: number;
-    quantity: number;
-  }>;
   createdAt?: Date;
   updatedAt?: Date;
 };
@@ -25,7 +15,14 @@ const toOrderRecord = (order: StoredOrder) => {
     email: order.email,
     amount: order.amount,
     status: order.status,
+    currency: order.currency ?? "usd",
+    transactionId: order.transactionId,
+    fulfillmentStatus: order.fulfillmentStatus ?? "unfulfilled",
+    deliveryAddress: order.deliveryAddress,
     products: order.products.map((product) => ({
+      productId: product.productId,
+      selectedSize: product.selectedSize,
+      selectedColor: product.selectedColor,
       name: product.name,
       price: product.price,
       quantity: product.quantity,
@@ -35,18 +32,27 @@ const toOrderRecord = (order: StoredOrder) => {
   } satisfies OrderRecord;
 };
 
+const list = async (
+  filter: { userId?: string },
+  query: { page: number; limit: number },
+) => {
+  const records = (await Order.find(filter)
+    .sort({ createdAt: -1, _id: -1 })
+    .skip((query.page - 1) * query.limit)
+    .limit(query.limit + 1)
+    .maxTimeMS(3000)
+    .lean()) as StoredOrder[];
+  return {
+    data: records.slice(0, query.limit).map(toOrderRecord),
+    meta: {
+      page: query.page,
+      pageSize: query.limit,
+      hasNextPage: records.length > query.limit,
+    },
+  };
+};
 export const OrderService = {
-  async getUserOrders(userId: string): Promise<OrderRecord[]> {
-    const orders = (await Order.find({ userId })
-      .sort({ createdAt: -1 })
-      .lean()) as StoredOrder[];
-    return orders.map(toOrderRecord);
-  },
-
-  async getAllOrders(): Promise<OrderRecord[]> {
-    const orders = (await Order.find()
-      .sort({ createdAt: -1 })
-      .lean()) as StoredOrder[];
-    return orders.map(toOrderRecord);
-  },
+  getUserOrders: (userId: string, query: { page: number; limit: number }) =>
+    list({ userId }, query),
+  getAllOrders: (query: { page: number; limit: number }) => list({}, query),
 };

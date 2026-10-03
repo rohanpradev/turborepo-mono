@@ -9,6 +9,7 @@ const stripeWebhookSecretPattern = /^whsec_[A-Za-z0-9]+$/;
 const getStripeKeyMode = (value?: string) =>
   value?.trim().match(stripeSecretKeyPattern)?.[1] ?? null;
 
+/** @internal Exported for regression tests. */
 export const isStripeConfigured = () =>
   getStripeKeyMode(process.env.STRIPE_SECRET_KEY) !== null;
 
@@ -23,7 +24,8 @@ export const getStripeClient = () => {
         name: "ecommerce-payment-service",
         version: "1.0.0",
       },
-      maxNetworkRetries: 2,
+      maxNetworkRetries: 1,
+      timeout: 5000,
     });
   }
 
@@ -54,3 +56,6 @@ export const getStripeWebhookSecret = () => {
     ? envSecret
     : null;
 };
+
+/** @internal Integration test fixture type. */
+export type StripeClientForTesting = Stripe;

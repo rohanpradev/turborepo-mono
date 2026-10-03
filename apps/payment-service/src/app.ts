@@ -49,6 +49,7 @@ const app = createServiceApp<{ Variables: ServiceVariables }>({
 });
 
 app.use("*", createCorsMiddleware());
+app.route("/", healthRoutes);
 app.use("*", clerkAuthMiddleware);
 app.use(
   "/rpc/payment/*",
@@ -63,7 +64,6 @@ app
   .openapi(rootRoute, (c) =>
     c.json({ message: "Payment Service API", version: "1.0.0" }, 200),
   )
-  .route("/", healthRoutes)
   .route("/", webhookRoutes);
 
 export { app };

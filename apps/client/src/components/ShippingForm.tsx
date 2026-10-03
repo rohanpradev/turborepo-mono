@@ -18,6 +18,8 @@ const ShippingForm = ({
     phone: initialValues?.phone ?? "",
     address: initialValues?.address ?? "",
     city: initialValues?.city ?? "",
+    state: initialValues?.state ?? "",
+    postalCode: initialValues?.postalCode ?? "",
   }));
   const [errors, setErrors] = useState<
     Partial<Record<keyof ShippingFormInputs, string>>
@@ -215,6 +217,39 @@ const ShippingForm = ({
           </p>
         )}
       </div>
+      {(["state", "postalCode"] as const).map((field) => (
+        <div key={field} className="flex flex-col gap-1">
+          <label
+            htmlFor={field}
+            className="text-xs font-semibold text-foreground"
+          >
+            {field === "state" ? "State (two-letter code)" : "ZIP code"}
+          </label>
+          <Input
+            id={field}
+            autoComplete={
+              field === "state"
+                ? "shipping address-level1"
+                : "shipping postal-code"
+            }
+            maxLength={field === "state" ? 2 : 10}
+            required
+            value={values[field]}
+            onChange={(event) => updateField(field, event.target.value)}
+            aria-invalid={Boolean(errors[field])}
+            aria-describedby={errors[field] ? `${field}-error` : undefined}
+          />
+          {errors[field] && (
+            <p
+              id={`${field}-error`}
+              role="alert"
+              className="text-xs text-destructive"
+            >
+              {errors[field]}
+            </p>
+          )}
+        </div>
+      ))}
       <Button type="submit" className="w-full gap-2">
         Continue to secure payment
         <ArrowRight className="h-4 w-4" />

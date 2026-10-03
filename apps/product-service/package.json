@@ -11,7 +11,8 @@
     "@repo/contracts": "workspace:*",
     "@repo/product-db": "workspace:*",
     "@repo/types": "workspace:*",
-    "@orpc/server": "catalog:"
+    "@orpc/server": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

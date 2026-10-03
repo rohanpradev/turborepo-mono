@@ -246,11 +246,17 @@ k8s-tls-secret: docker-certs k8s-namespace ## Sync the local mkcert certificate 
 	$(KUBECTL) -n $(TRAEFIK_NAMESPACE) create secret tls $(TRAEFIK_GATEWAY_TLS_SECRET) --cert=$(LOCAL_TLS_CERT_FILE) --key=$(LOCAL_TLS_KEY_FILE) --dry-run=client -o yaml | $(KUBECTL) apply -f -
 
 k8s-runtime-secret: ensure-env k8s-namespace ## Sync app runtime secrets from .env into Kubernetes
-	@if [ "$$($(KUBECTL) -n $(HELM_NAMESPACE) get secret $(HELM_RUNTIME_SECRET) -o jsonpath='{.metadata.annotations.meta\.helm\.sh/release-name}' 2>/dev/null)" = "$(HELM_RELEASE)" ]; then \
-		echo "$(YELLOW)Replacing Helm-managed $(HELM_RUNTIME_SECRET) with an external runtime secret$(NC)"; \
-		$(KUBECTL) -n $(HELM_NAMESPACE) delete secret $(HELM_RUNTIME_SECRET); \
-	fi
-	@K8S_DATABASE_URL="$(K8S_DATABASE_URL)" K8S_MONGO_URL="$(K8S_MONGO_URL)" bun run scripts/k8s-runtime-secret.ts --require-commerce --env-file .env --name $(HELM_RUNTIME_SECRET) --namespace $(HELM_NAMESPACE) | $(KUBECTL) apply -f -
+	@set -eu; umask 077; \
+		manifest="$$(mktemp)"; \
+		trap 'rm -f "$$manifest"' EXIT; \
+		trap 'exit 1' HUP INT TERM; \
+		K8S_DATABASE_URL="$(K8S_DATABASE_URL)" K8S_PAYMENT_DATABASE_URL="$(K8S_PAYMENT_DATABASE_URL)" K8S_MONGO_URL="$(K8S_MONGO_URL)" bun run scripts/k8s-runtime-secret.ts --require-commerce --env-file .env --name "$(HELM_RUNTIME_SECRET)" --namespace "$(HELM_NAMESPACE)" > "$$manifest"; \
+		owner="$$($(KUBECTL) -n "$(HELM_NAMESPACE)" get secret "$(HELM_RUNTIME_SECRET)" --ignore-not-found -o jsonpath='{.metadata.annotations.meta\.helm\.sh/release-name}')"; \
+		if [ -n "$$owner" ]; then \
+			echo "$(RED)Secret $(HELM_RUNTIME_SECRET) belongs to Helm release $$owner. Use a new HELM_RUNTIME_SECRET name for synchronization and deployment; Helm may delete its old secret during an upgrade.$(NC)" >&2; \
+			exit 1; \
+		fi; \
+		$(KUBECTL) apply -f "$$manifest"
 
 k8s-build-images: ensure-env docker-auth ## Build local web, public catalog, and checkout images for Kubernetes
 	@echo "$(BLUE)Building local web, public catalog, and checkout images for Kubernetes...$(NC)"

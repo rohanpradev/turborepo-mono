@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -71,3 +71,91 @@ test("minikube image loading stops at the first failed import", () => {
     );
   });
 });
+
+for (const scenario of [
+  { name: "invalid replacement", generate: 42, lookup: 0, owner: "", apply: 0 },
+  { name: "lookup failure", generate: 0, lookup: 42, owner: "", apply: 0 },
+  {
+    name: "Helm-owned secret",
+    generate: 0,
+    lookup: 0,
+    owner: "ecommerce",
+    apply: 0,
+  },
+  {
+    name: "another release's secret",
+    generate: 0,
+    lookup: 0,
+    owner: "other",
+    apply: 0,
+  },
+  { name: "apply failure", generate: 0, lookup: 0, owner: "", apply: 42 },
+  { name: "external secret", generate: 0, lookup: 0, owner: "", apply: 0 },
+]) {
+  test(`runtime secret synchronization handles ${scenario.name} without deletion`, () => {
+    withTools((directory) => {
+      // Exercise only the real synchronization recipe, without cluster setup.
+      const makefile = join(directory, "test.mk");
+      writeFileSync(
+        makefile,
+        `SHELL := /bin/bash\n.SHELLFLAGS := -o pipefail -c\ninclude ${process.cwd()}/make/kubernetes.mk\n`,
+      );
+      tool(directory, "mktemp", 'exec /usr/bin/mktemp "$TMPDIR/secret.XXXXXX"');
+      tool(
+        directory,
+        "bun",
+        `echo SYNTHETIC_SECRET_PAYLOAD; exit ${scenario.generate}`,
+      );
+      const kubectl = tool(
+        directory,
+        "kubectl",
+        `echo "KUBECTL:$*" >&2
+case "$*" in
+  *"get secret"*) echo '${scenario.owner}'; exit ${scenario.lookup};;
+  "apply -f "*)
+    test -f "$3" || exit 43
+    test "$(find "$3" -perm 600)" = "$3" || exit 44
+    grep -q '^SYNTHETIC_SECRET_PAYLOAD$' "$3" || exit 45
+    exit ${scenario.apply};;
+  *) exit 46;;
+esac`,
+      );
+      const result = Bun.spawnSync(
+        [
+          "make",
+          "--no-print-directory",
+          "-f",
+          makefile,
+          "-o",
+          "ensure-env",
+          "-o",
+          "k8s-namespace",
+          "k8s-runtime-secret",
+          `KUBECTL=${kubectl}`,
+          "HELM_NAMESPACE=isolated-test",
+          "HELM_RUNTIME_SECRET=runtime",
+        ],
+        {
+          env: {
+            ...process.env,
+            PATH: `${directory}:${process.env.PATH}`,
+            TMPDIR: directory,
+          },
+        },
+      );
+      const output =
+        new TextDecoder().decode(result.stdout) +
+        new TextDecoder().decode(result.stderr);
+      const shouldApply =
+        !scenario.generate && !scenario.lookup && !scenario.owner;
+      expect(result.exitCode === 0).toBe(shouldApply && !scenario.apply);
+      expect(output.includes("KUBECTL:apply")).toBe(shouldApply);
+      expect(output).not.toContain("delete secret");
+      expect(output).not.toContain("SYNTHETIC_SECRET_PAYLOAD");
+      if (scenario.generate) expect(output).not.toContain("KUBECTL:");
+      expect(
+        readdirSync(directory).filter((file) => file.startsWith("secret.")),
+      ).toEqual([]);
+    });
+  });
+}

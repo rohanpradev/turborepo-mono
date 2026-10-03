@@ -2,8 +2,10 @@ import {
   createShutdownHandler,
   getServerIdleTimeoutSeconds,
   SERVICE_MAX_REQUEST_BODY_SIZE_BYTES,
+  startBackgroundTask,
 } from "@repo/hono-utils";
 import {
+  checkOrderDB,
   connectOrderDB,
   disconnectOrderDB,
   Order,
@@ -79,6 +81,23 @@ const server = Bun.serve({
   maxRequestBodySize: SERVICE_MAX_REQUEST_BODY_SIZE_BYTES,
 });
 
+const stopHealth = startBackgroundTask(
+  async () => {
+    await checkOrderDB();
+    if (isShuttingDown) return;
+    orderServiceRuntime.markReady("database");
+    consumer.isReady()
+      ? orderServiceRuntime.markReady("kafka.consumer")
+      : orderServiceRuntime.markNotReady(
+          "kafka.consumer",
+          "Consumer unavailable.",
+        );
+  },
+  5000,
+  () =>
+    orderServiceRuntime.markNotReady("database", "Order storage unavailable."),
+);
+
 const shutdown = createShutdownHandler({
   name: "order-service",
   onShutdown: (signal) => {
@@ -96,6 +115,7 @@ const shutdown = createShutdownHandler({
   },
   steps: [
     { name: "HTTP requests", run: () => server.stop() },
+    { name: "health monitor", run: stopHealth },
     { name: "bootstrap", run: () => bootstrapPromise },
     { name: "Kafka consumer", run: () => consumer.shutdown() },
     { name: "database", run: disconnectOrderDB },

@@ -62,7 +62,7 @@ describe("Helm profile policy", () => {
   });
 
   test("accepts the expected resource contract", () => {
-    expect(assertProfilePolicy(manifest, profile, "1.36.4")).toBe(2);
+    expect(assertProfilePolicy(manifest, profile, "1.36.5")).toBe(2);
   });
 
   test("rejects forbidden resource kinds", () => {
@@ -75,7 +75,7 @@ metadata:
 `;
 
     expect(() =>
-      assertProfilePolicy(invalidManifest, profile, "1.36.4"),
+      assertProfilePolicy(invalidManifest, profile, "1.36.5"),
     ).toThrow("must not render HTTPRoute");
   });
 
@@ -83,13 +83,13 @@ metadata:
     const invalidManifest = manifest.replace(":1.2.3", ":latest");
 
     expect(() =>
-      assertProfilePolicy(invalidManifest, profile, "1.36.4"),
+      assertProfilePolicy(invalidManifest, profile, "1.36.5"),
     ).toThrow("forbidden latest image tags");
   });
 
   test("rejects omitted image tags in rendered workloads", () => {
     expect(() =>
-      assertProfilePolicy(manifest.replace(":1.2.3", ""), profile, "1.36.4"),
+      assertProfilePolicy(manifest.replace(":1.2.3", ""), profile, "1.36.5"),
     ).toThrow("forbidden latest image tags");
   });
 });
@@ -117,7 +117,7 @@ spec:
 
 test("rejects database Jobs in application disruption budgets", () => {
   expect(() =>
-    assertProfilePolicy(jobBudgetManifest, profile, "1.36.4"),
+    assertProfilePolicy(jobBudgetManifest, profile, "1.36.5"),
   ).toThrow("Job deploy-db must not be selected");
 });
 
@@ -126,7 +126,7 @@ test("accepts Jobs excluded from the budget without changing network labels", ()
     "  selector:\n",
     "  selector:\n    matchExpressions:\n      - key: app.kubernetes.io/job-name\n        operator: DoesNotExist\n",
   );
-  expect(assertProfilePolicy(isolated, profile, "1.36.4")).toBe(4);
+  expect(assertProfilePolicy(isolated, profile, "1.36.5")).toBe(4);
 });
 
 test("rejects Services that select database Jobs", () => {
@@ -136,7 +136,7 @@ test("rejects Services that select database Jobs", () => {
       "    matchLabels:\n      app.kubernetes.io/component:",
       "    app.kubernetes.io/component:",
     );
-  expect(() => assertProfilePolicy(serviceManifest, profile, "1.36.4")).toThrow(
+  expect(() => assertProfilePolicy(serviceManifest, profile, "1.36.5")).toThrow(
     "must not be selected by Service",
   );
   expect(
@@ -146,7 +146,7 @@ test("rejects Services that select database Jobs", () => {
         "  selector:\n    app.kubernetes.io/workload-type: deployment\n",
       ),
       profile,
-      "1.36.4",
+      "1.36.5",
     ),
   ).toBe(4);
 });

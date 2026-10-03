@@ -6,7 +6,6 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@clerk/backend": "catalog:",
     "@clerk/hono": "catalog:",
     "@hono/zod-openapi": "catalog:",
     "@orpc/server": "catalog:",

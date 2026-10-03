@@ -1,5 +1,6 @@
+import { createHash } from "node:crypto";
 import { ApiClientError, getProduct } from "@repo/api-client";
-import { createHttpException } from "@repo/hono-utils";
+import { createORPCException } from "@repo/hono-utils";
 import {
   type CheckoutSessionPayload,
   MAX_USD_AMOUNT_CENTS,
@@ -8,9 +9,13 @@ import {
 } from "@repo/types";
 import type Stripe from "stripe";
 import { recordIntegrationEvent } from "@/observability/integrationEvents";
-import { StripeCatalogService } from "@/services/StripeCatalogService";
 import { enqueuePaidCheckoutSession } from "@/services/StripePaymentEventService";
 import { getStripeClient } from "@/utils/stripe";
+import {
+  type CheckoutSnapshot,
+  getPaymentStore,
+} from "../storage/payment-store";
+import { reserveCheckoutStock } from "./InventoryService";
 
 type CreateCheckoutSessionInput = {
   payload: CheckoutSessionPayload;
@@ -78,7 +83,7 @@ const fetchCatalogProduct = async (
     }
 
     if (error instanceof ApiClientError) {
-      throw createHttpException(
+      throw createORPCException(
         502,
         "Unable to verify the cart against the product catalog.",
         { productServiceStatus: error.status },
@@ -142,7 +147,7 @@ export const resolveCheckoutCatalog = async (
       const product = await getProductOnce(item.id);
 
       if (!product) {
-        throw createHttpException(
+        throw createORPCException(
           409,
           "Cart contains a product that is no longer available.",
           { productId: item.id },
@@ -150,7 +155,7 @@ export const resolveCheckoutCatalog = async (
       }
 
       if (!product.sizes.includes(item.selectedSize)) {
-        throw createHttpException(
+        throw createORPCException(
           409,
           "Cart contains a size that is no longer available.",
           { productId: item.id, selectedSize: item.selectedSize },
@@ -158,7 +163,7 @@ export const resolveCheckoutCatalog = async (
       }
 
       if (!product.colors.includes(item.selectedColor)) {
-        throw createHttpException(
+        throw createORPCException(
           409,
           "Cart contains a color that is no longer available.",
           { productId: item.id, selectedColor: item.selectedColor },
@@ -173,9 +178,6 @@ export const resolveCheckoutCatalog = async (
 const getCanonicalCartTotal = (items: Array<CheckoutCatalogItem>) =>
   items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 
-const getProductImageUrls = (product: ProductRecord) =>
-  Object.values(product.images).filter((image) => /^https?:\/\//.test(image));
-
 const isCheckoutSessionOwnedBy = (
   session: Pick<Stripe.Checkout.Session, "client_reference_id" | "metadata">,
   userId: string,
@@ -186,32 +188,6 @@ const isCheckoutSessionOwnedBy = (
   ].filter((ownerId): ownerId is string => Boolean(ownerId));
 
   return ownerIds.length > 0 && ownerIds.every((ownerId) => ownerId === userId);
-};
-
-const createCheckoutIdempotencyKey = async (
-  input: CreateCheckoutSessionInput,
-  canonicalTotal: number,
-) => {
-  const digestInput = JSON.stringify({
-    checkoutAttemptId: input.payload.checkoutAttemptId,
-    userId: input.userId,
-    cart: input.payload.cart.map((item) => ({
-      id: item.id,
-      quantity: item.quantity,
-      selectedColor: item.selectedColor,
-      selectedSize: item.selectedSize,
-    })),
-    canonicalTotal,
-  });
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(digestInput),
-  );
-  const hex = [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-
-  return `checkout:${hex}`;
 };
 
 export const StripeCheckoutService = {
@@ -231,116 +207,107 @@ export const StripeCheckoutService = {
       return null;
     }
 
-    const catalogItems = await resolveCheckoutCatalog(
-      input.payload,
-      input.telemetryHeaders,
-    );
-    const canonicalTotal = getCanonicalCartTotal(catalogItems);
-
-    if (canonicalTotal < MIN_USD_CHARGE_CENTS) {
-      throw createHttpException(
-        409,
-        "Cart total is below the minimum amount accepted for checkout.",
-        {
-          minimumTotalAmount: MIN_USD_CHARGE_CENTS,
-          totalAmount: canonicalTotal,
-        },
+    const store = getPaymentStore();
+    if (!(await store.allow(`checkout:${input.userId}`, 10)))
+      throw createORPCException(
+        429,
+        "Too many checkout attempts. Please wait a minute.",
       );
-    }
-
-    if (canonicalTotal > MAX_USD_AMOUNT_CENTS) {
-      throw createHttpException(
+    const checkoutId = createHash("sha256")
+      .update(`${input.userId}:${input.payload.checkoutAttemptId}`)
+      .digest("hex");
+    const cartHash = createHash("sha256")
+      .update(JSON.stringify(input.payload.cart))
+      .digest("hex");
+    let record = await store.checkout(checkoutId);
+    if (
+      record &&
+      (record.cart_hash !== cartHash || record.snapshot.userId !== input.userId)
+    )
+      throw createORPCException(
         409,
-        "Cart total exceeds the maximum amount accepted for checkout.",
-        {
-          maximumTotalAmount: MAX_USD_AMOUNT_CENTS,
-          totalAmount: canonicalTotal,
-        },
+        "This checkout attempt belongs to a different cart.",
       );
-    }
-
-    const lineItems = await mapWithConcurrency(
-      catalogItems,
-      CHECKOUT_OUTBOUND_CONCURRENCY,
-      async (item) => {
-        const productId = item.product.id.toString();
-        const existingPriceId = await StripeCatalogService.getCheckoutPriceId(
-          productId,
-          item.product.price,
-          "usd",
+    if (!record) {
+      const catalogItems = await resolveCheckoutCatalog(
+        input.payload,
+        input.telemetryHeaders,
+      );
+      const total = getCanonicalCartTotal(catalogItems);
+      if (total < MIN_USD_CHARGE_CENTS || total > MAX_USD_AMOUNT_CENTS)
+        throw createORPCException(
+          409,
+          "Cart total is outside the supported payment range.",
         );
-
-        if (existingPriceId) {
-          recordIntegrationEvent({
-            source: "checkout",
-            type: "checkout.line_item.catalog_price",
-            message: "Using synced Stripe catalog price for checkout item.",
-            details: {
-              productId: item.id,
-              stripePriceId: existingPriceId,
-            },
-          });
-          return {
-            price: existingPriceId,
-            quantity: item.quantity,
-          };
-        }
-
-        recordIntegrationEvent({
-          source: "checkout",
-          type: "checkout.line_item.inline_price",
-          message: "Using inline Stripe price data for checkout item.",
-          details: {
-            productId: item.id,
-            price: item.product.price,
-          },
-        });
-        return {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: item.product.name,
-              description: item.product.shortDescription,
-              images: getProductImageUrls(item.product),
-              metadata: {
-                sourceProductId: productId,
-                selectedColor: item.selectedColor,
-                selectedSize: item.selectedSize,
-              },
-            },
-            unit_amount: item.product.price,
-          },
+      const snapshot: CheckoutSnapshot = {
+        id: checkoutId,
+        userId: input.userId,
+        currency: "usd",
+        total,
+        createdAt: Date.now(),
+        expiresAt: Date.now() + 60 * 60 * 1000,
+        items: catalogItems.map((item) => ({
+          productId: String(item.id),
+          name: item.product.name,
+          description: item.product.shortDescription,
+          price: item.product.price,
           quantity: item.quantity,
-        };
-      },
-    );
-
-    const session = await stripe.checkout.sessions.create(
-      {
-        // Stripe Checkout's customizable on-site flow uses the "elements" UI mode.
-        ui_mode: "elements",
-        mode: "payment",
-        line_items: lineItems,
-        client_reference_id: input.userId,
-        phone_number_collection: {
-          enabled: true,
-        },
-        shipping_address_collection: {
-          allowed_countries: ["US"],
-        },
-        return_url: `${process.env.CLIENT_APP_URL ?? "http://localhost:3002"}/return?session_id={CHECKOUT_SESSION_ID}`,
-        metadata: {
-          userId: input.userId,
-          canonicalTotalAmount: canonicalTotal.toString(),
-        },
-      },
-      {
-        idempotencyKey: await createCheckoutIdempotencyKey(
-          input,
-          canonicalTotal,
-        ),
-      },
-    );
+          selectedColor: item.selectedColor,
+          selectedSize: item.selectedSize,
+        })),
+      };
+      record = await store.saveCheckout(snapshot, cartHash);
+    }
+    const snapshot = record.snapshot;
+    if (snapshot.expiresAt <= Date.now())
+      throw createORPCException(
+        409,
+        "This checkout expired. Start a new checkout.",
+      );
+    await reserveCheckoutStock(snapshot);
+    const session = record.session_id
+      ? await stripe.checkout.sessions.retrieve(record.session_id)
+      : await stripe.checkout.sessions.create(
+          {
+            ui_mode: "elements",
+            mode: "payment",
+            allowed_payment_method_types: ["card"],
+            line_items: snapshot.items.map((item) => ({
+              price_data: {
+                currency: snapshot.currency,
+                unit_amount: item.price,
+                product_data: {
+                  name: `${item.name} (${item.selectedSize}, ${item.selectedColor})`,
+                  description: item.description,
+                  metadata: {
+                    sourceProductId: item.productId,
+                    selectedSize: item.selectedSize,
+                    selectedColor: item.selectedColor,
+                  },
+                },
+              },
+              quantity: item.quantity,
+            })),
+            client_reference_id: input.userId,
+            phone_number_collection: { enabled: true },
+            shipping_address_collection: { allowed_countries: ["US"] },
+            expires_at: Math.floor(snapshot.expiresAt / 1000),
+            return_url: `${process.env.CLIENT_APP_URL ?? "http://localhost:3002"}/return?session_id={CHECKOUT_SESSION_ID}`,
+            metadata: {
+              userId: input.userId,
+              checkoutId,
+              canonicalTotalAmount: String(snapshot.total),
+            },
+          },
+          { idempotencyKey: `checkout:${checkoutId}` },
+        );
+    await store.attachSession(checkoutId, session.id);
+    if (session.status !== "open")
+      throw createORPCException(
+        409,
+        "This checkout has already completed or expired.",
+      );
+    const canonicalTotal = snapshot.total;
 
     if (!session.client_secret) {
       throw new Error(
@@ -384,6 +351,12 @@ export const StripeCheckoutService = {
       });
       return { kind: "not_configured" } as const;
     }
+
+    if (!(await getPaymentStore().allow(`status:${userId}`, 60)))
+      throw createORPCException(
+        429,
+        "Too many status requests. Please wait a minute.",
+      );
 
     try {
       const session = await stripe.checkout.sessions.retrieve(sessionId, {

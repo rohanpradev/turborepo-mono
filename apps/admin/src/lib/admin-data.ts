@@ -1,12 +1,11 @@
 import "server-only";
 
 import {
-  getPaymentIntegrationEvents,
   type ListProductsResponse,
   listCategories,
   listOrders,
+  listPaymentActivities,
   listProducts,
-  type PaymentIntegrationEventsResponse,
   type ProductListQuery,
 } from "@repo/api-client";
 import {
@@ -16,9 +15,6 @@ import {
 } from "@repo/api-client/server";
 import type { CategoryRecord, OrderRecord, ProductRecord } from "@repo/types";
 import { requireAdminAccess } from "@/lib/auth";
-
-type IntegrationEvent =
-  PaymentIntegrationEventsResponse["data"]["recentEvents"][number];
 
 export type AdminPaymentActivity = {
   amountCents: number;
@@ -47,9 +43,6 @@ const liveFetchOptions = {
 
 const isString = (value: unknown): value is string => typeof value === "string";
 
-const isNumber = (value: unknown): value is number =>
-  typeof value === "number" && Number.isFinite(value);
-
 export const formatCustomerLabel = (userId: string) =>
   userId === "unknown"
     ? "Unknown / test session"
@@ -66,87 +59,14 @@ export const formatTimestamp = (timestamp: string) => {
       }).format(value);
 };
 
-export const loadPaymentEvents = async () => {
+export const loadPaymentActivities = async () => {
   const { token } = await requireAdminAccess();
-  const response = await getPaymentIntegrationEvents(
-    getPaymentServiceServerUrl(),
-    { fetchOptions: liveFetchOptions, token },
-  );
-
-  return response.data.recentEvents;
-};
-
-export const buildPaymentActivities = (
-  events: Array<IntegrationEvent>,
-): Array<AdminPaymentActivity> => {
-  const activities = new Map<string, AdminPaymentActivity>();
-
-  for (const event of events) {
-    if (event.type !== "checkout.session.created") {
-      continue;
-    }
-
-    const sessionId = event.details?.sessionId;
-    const userId = event.details?.userId;
-
-    if (!isString(sessionId) || !isString(userId)) {
-      continue;
-    }
-
-    const itemCount = isNumber(event.details?.itemCount)
-      ? event.details.itemCount
-      : 0;
-
-    activities.set(sessionId, {
-      amountCents: isNumber(event.details?.totalAmount)
-        ? event.details.totalAmount
-        : 0,
-      checkoutTimestamp: event.timestamp,
-      completedTimestamp: null,
-      itemCount,
-      paymentIntentId: null,
-      sessionId,
-      status: "pending",
-      userId,
-    });
-  }
-
-  for (const event of events) {
-    if (event.type !== "payment.successful.published") {
-      continue;
-    }
-
-    const sessionId = event.details?.orderId;
-    if (!isString(sessionId)) {
-      continue;
-    }
-
-    const existing = activities.get(sessionId);
-    if (!existing) {
-      continue;
-    }
-
-    activities.set(sessionId, {
-      ...existing,
-      amountCents: isNumber(event.details?.amount)
-        ? event.details.amount
-        : existing.amountCents,
-      completedTimestamp: event.timestamp,
-      itemCount: isNumber(event.details?.itemCount)
-        ? event.details.itemCount
-        : existing.itemCount,
-      paymentIntentId: isString(event.details?.transactionId)
-        ? event.details.transactionId
-        : null,
-      status: "paid",
-    });
-  }
-
-  return Array.from(activities.values()).sort((left, right) => {
-    const leftTimestamp = left.completedTimestamp ?? left.checkoutTimestamp;
-    const rightTimestamp = right.completedTimestamp ?? right.checkoutTimestamp;
-    return rightTimestamp.localeCompare(leftTimestamp);
-  });
+  return (
+    await listPaymentActivities(getPaymentServiceServerUrl(), {
+      fetchOptions: liveFetchOptions,
+      token,
+    })
+  ).data;
 };
 
 export const buildCustomerSummaries = (

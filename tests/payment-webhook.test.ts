@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import type { StripeCheckoutCompletedMessage } from "@repo/kafka";
-import { clearProcessedEventsForTesting } from "../apps/payment-service/src/observability/processedEvents";
 import {
   STRIPE_WEBHOOK_MAX_BODY_SIZE_BYTES,
   webhookRoutes,
@@ -35,7 +34,6 @@ const createStripeSignature = async (payload: string, secret: string) => {
 
 afterEach(() => {
   setStripeClientForTesting(undefined);
-  clearProcessedEventsForTesting();
 
   if (originalStripeSecretKey === undefined) {
     delete process.env.STRIPE_SECRET_KEY;
@@ -77,57 +75,61 @@ describe("payment-service Stripe webhook", () => {
     });
   });
 
-  it("verifies and enqueues paid Checkout Sessions without Stripe enrichment", async () => {
-    const webhookSecret = "whsec_webhooktest123";
-    const event = {
-      id: "evt_checkout_completed_123",
-      object: "event",
-      api_version: "2026-03-25.dahlia",
-      created: 1_784_042_400,
-      data: {
-        object: {
-          id: "cs_test_completed_123",
-          object: "checkout.session",
-          payment_status: "paid",
+  it.each(["2026-03-25.dahlia", "2026-09-30.endive"])(
+    "verifies and enqueues %s Checkout Sessions without Stripe enrichment",
+    async (apiVersion) => {
+      const webhookSecret = "whsec_webhooktest123";
+      const event = {
+        id: "evt_checkout_completed_123",
+        object: "event",
+        api_version: apiVersion,
+        created: 1_784_042_400,
+        data: {
+          object: {
+            id: "cs_test_completed_123",
+            object: "checkout.session",
+            payment_status: "paid",
+          },
         },
-      },
-      livemode: false,
-      pending_webhooks: 1,
-      request: null,
-      type: "checkout.session.completed",
-    };
-    const rawPayload = JSON.stringify(event);
-    const signature = await createStripeSignature(rawPayload, webhookSecret);
-    const enqueued: Array<StripeCheckoutCompletedMessage> = [];
+        livemode: false,
+        pending_webhooks: 1,
+        request: null,
+        type: "checkout.session.completed",
+      };
+      const rawPayload = JSON.stringify(event);
+      const signature = await createStripeSignature(rawPayload, webhookSecret);
+      const enqueued: Array<StripeCheckoutCompletedMessage> = [];
 
-    process.env.STRIPE_SECRET_KEY = "sk_test_webhooktest123";
-    process.env.STRIPE_WEBHOOK_SECRET = webhookSecret;
-    delete process.env.STRIPE_WEBHOOK_SECRET_FILE;
+      process.env.STRIPE_SECRET_KEY = "sk_test_webhooktest123";
+      process.env.STRIPE_WEBHOOK_SECRET = webhookSecret;
+      delete process.env.STRIPE_WEBHOOK_SECRET_FILE;
 
-    const enqueue = async (message: StripeCheckoutCompletedMessage) => {
-      enqueued.push(message);
-    };
-    const first = await StripeWebhookService.handleEvent(
-      Buffer.from(rawPayload),
-      signature,
-      enqueue,
-    );
-    const replay = await StripeWebhookService.handleEvent(
-      Buffer.from(rawPayload),
-      signature,
-      enqueue,
-    );
+      const enqueue = async (message: StripeCheckoutCompletedMessage) => {
+        enqueued.push(message);
+      };
+      const first = await StripeWebhookService.handleEvent(
+        Buffer.from(rawPayload),
+        signature,
+        enqueue,
+      );
+      const replay = await StripeWebhookService.handleEvent(
+        Buffer.from(rawPayload),
+        signature,
+        enqueue,
+      );
 
-    expect(first).toEqual({ status: "ok" });
-    expect(replay).toEqual({ status: "ok" });
-    expect(enqueued).toHaveLength(1);
-    expect(enqueued[0]).toMatchObject({
-      eventId: event.id,
-      eventType: event.type,
-      sessionId: event.data.object.id,
-      source: "webhook",
-    });
-  });
+      expect(first).toEqual({ status: "ok" });
+      expect(replay).toEqual({ status: "ok" });
+      // Every verified delivery reaches the durable inbox; its unique key deduplicates.
+      expect(enqueued).toHaveLength(2);
+      expect(enqueued[0]).toMatchObject({
+        eventId: event.id,
+        eventType: event.type,
+        sessionId: event.data.object.id,
+        source: "webhook",
+      });
+    },
+  );
 
   it("rejects a signature created with a different endpoint secret", async () => {
     const rawPayload = JSON.stringify({

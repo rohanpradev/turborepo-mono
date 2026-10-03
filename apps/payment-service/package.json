@@ -3,7 +3,10 @@
   "type": "module",
   "scripts": {
     "dev": "bun run --watch src/index.ts",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "db:deploy": "bun run src/scripts/migrate.ts",
+    "reconcile": "bun run src/scripts/reconcile.ts",
+    "redrive": "bun run src/scripts/redrive.ts"
   },
   "dependencies": {
     "@repo/hono-utils": "workspace:*",
@@ -13,13 +16,15 @@
     "@repo/types": "workspace:*",
     "@orpc/server": "catalog:",
     "hono": "catalog:",
-    "stripe": "catalog:"
+    "stripe": "catalog:",
+    "pg": "catalog:"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "@types/bun": "catalog:",
     "@types/node": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "@types/pg": "catalog:"
   },
   "private": true
 }

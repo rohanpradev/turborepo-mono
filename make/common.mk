@@ -40,19 +40,19 @@ KUBECTL_VERSION ?= $(K8S_TARGET_VERSION)
 KUBECTL_LOCAL = $(RUNTIME_DIR)/bin/kubectl-$(KUBECTL_VERSION)
 KUBECTL ?= $(if $(wildcard $(KUBECTL_LOCAL)),$(KUBECTL_LOCAL),kubectl)
 HELM_VERSION ?= 4.3.0
-K8S_TARGET_VERSION ?= 1.36.4
-K8S_SUPPORTED_VERSIONS ?= 1.35.8 1.36.4
-K8S_EXPERIMENTAL_VERSIONS ?= 1.37.0
+K8S_TARGET_VERSION ?= 1.36.5
+K8S_SUPPORTED_VERSIONS ?= 1.35.9 1.36.5
+K8S_EXPERIMENTAL_VERSIONS ?= 1.37.1
 K8S_VERSION_TIER ?= supported
 K8S_POD_SECURITY_LEVEL ?= restricted
 K8S_POD_SECURITY_VERSION ?= v1.35
 KUBECONFORM_IMAGE ?= ghcr.io/yannh/kubeconform:v0.8.0@sha256:faffaf43f95aa6425306e1ab8d6fcad72acb9049158f38e574c085ea1ec0f64e
 GATEWAY_API_VERSION ?= 1.6.2
 GATEWAY_API_MANIFEST_SHA256 ?= faede450fa178126aba41337737b97d351ebe87d93c910237ce1e072d1ca40d9
-TRAEFIK_CHART_VERSION ?= 41.6.0
+TRAEFIK_CHART_VERSION ?= 41.6.1
 TRAEFIK_IMAGE_VERSION ?= v3.7.13
 TRAEFIK_IMAGE_DIGEST ?= sha256:24841fe2de7304c149343d877d2923b4c8800a38ba015dea9174c23b20e344a0
-OBS_CHART_VERSION ?= 91.5.2
+OBS_CHART_VERSION ?= 91.9.0
 HELM_CHART ?= charts/ecommerce
 HELM_RELEASE ?= ecommerce
 HELM_NAMESPACE ?= ecommerce
@@ -74,6 +74,7 @@ PROMETHEUS_PORT ?= 9090
 HELM_RENDERED_FILE ?= $(RUNTIME_DIR)/$(HELM_RELEASE)-rendered.yaml
 HELM_PACKAGE_DIR ?= $(RUNTIME_DIR)/helm-packages
 K8S_DATABASE_URL ?= postgresql://postgres:postgres@host.docker.internal:5432/product_db?schema=public
+K8S_PAYMENT_DATABASE_URL ?= postgresql://postgres:postgres@host.docker.internal:5432/product_db
 K8S_MONGO_URL ?= mongodb://host.docker.internal:27017/order_db
 # These values are compiled into browser bundles. Keep them aligned with the
 # local Traefik port-forward instead of assuming the host's privileged 443.
@@ -95,8 +96,8 @@ export K8S_IMAGE_TAG
 K8S_IMAGE_SET_ARGS ?= --set-string services.product.image.tag=$(K8S_IMAGE_TAG) --set-string services.order.image.tag=$(K8S_IMAGE_TAG) --set-string services.payment.image.tag=$(K8S_IMAGE_TAG) --set-string services.client.image.tag=$(K8S_IMAGE_TAG) --set-string services.admin.image.tag=$(K8S_IMAGE_TAG)
 K8S_LOCAL_IMAGES ?= turborepo-monorepo-product-service:$(K8S_IMAGE_TAG) turborepo-monorepo-order-service:$(K8S_IMAGE_TAG) turborepo-monorepo-payment-service:$(K8S_IMAGE_TAG) turborepo-monorepo-client:$(K8S_IMAGE_TAG) turborepo-monorepo-admin:$(K8S_IMAGE_TAG)
 HELM_UPGRADE_ARGS ?= --rollback-on-failure --wait --timeout $(K8S_ROLLOUT_TIMEOUT)
-DHI_CHECK_IMAGES ?= dhi.io/postgres:18.6-debian13@sha256:63836d2fab4781db2f073b4e64c6f4cf1ce8042d2d894f62df54bf4ba2b63daf dhi.io/kafka:4.3.1-debian13-native@sha256:42acf0d63c66d9618c386c01952c3c212f53c4d4a7687c0ebc636092c901c68a
-DHI_AMD64_CHECK_IMAGES ?= dhi.io/mongodb:8.3.11-debian13@sha256:afbf632eee0bdcceee6bd5b1ca9f9e7a1ce07eca1094568102a6c824ec0a26e1
+DHI_CHECK_IMAGES ?= dhi.io/postgres:18.6-debian13@sha256:8ebb9c5029314e1700be34df809897f32a29a5064e579038f861c6e0ed5f028b dhi.io/kafka:4.3.1-debian13-native@sha256:acb17aecd630d0b855630cdd186b8ccb311ef4f64a8bf257b2e444deae0bab60
+DHI_AMD64_CHECK_IMAGES ?= dhi.io/mongodb:8.3.11-debian13@sha256:f65e3024ffddc94842026277a1070c29f2a3ac11b84d483c90c9f63ee6b97c01
 DOCKER_SMOKE_TIMEOUT ?= 10
 DOCKER_IMAGE_LOCK_FILE ?= docker/compose.images.lock.yml
 LOCAL_TLS_CERT_DIR ?= docker/certs

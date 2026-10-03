@@ -4,6 +4,7 @@ import {
   createORPCException,
   getAuthenticatedAdminUserId,
 } from "@repo/hono-utils";
+import { InventoryConflict, listStock, setStock } from "@repo/product-db";
 import type { Context } from "hono";
 import { CategoryService } from "@/services/CategoryService";
 import { ProductService } from "@/services/ProductService";
@@ -40,6 +41,42 @@ const requireAdmin = (context: RPCContext) =>
   getAuthenticatedAdminUserId(context.hono);
 
 export const productRouter = os.router({
+  inventory: {
+    availability: os.inventory.availability.handler(async ({ input }) => ({
+      success: true as const,
+      data: (await listStock(input.id)).map(
+        ({ size, color, onHand, reserved }) => ({
+          size,
+          color,
+          available: onHand - reserved,
+        }),
+      ),
+    })),
+    list: os.inventory.list.handler(async ({ context, input }) => {
+      requireAdmin(context);
+      return { success: true as const, data: await listStock(input.id) };
+    }),
+    set: os.inventory.set.handler(async ({ context, input }) => {
+      const actor = requireAdmin(context);
+      const product = await ProductService.getProduct(input.id);
+      if (
+        !product?.sizes.includes(input.size) ||
+        !product.colors.includes(input.color)
+      )
+        throw createORPCException(400, "Choose an existing product variant.");
+      try {
+        await setStock(input.id, input.size, input.color, input.onHand, actor);
+      } catch (error) {
+        if (!(error instanceof InventoryConflict))
+          throw createORPCException(503, "Inventory storage is unavailable.");
+        throw createORPCException(
+          409,
+          "Stock cannot be reduced below reserved quantities.",
+        );
+      }
+      return { success: true as const, message: "Stock updated" };
+    }),
+  },
   category: {
     create: os.category.create.handler(async ({ context, input }) => {
       requireAdmin(context);
@@ -98,6 +135,11 @@ export const productRouter = os.router({
     }),
     delete: os.product.delete.handler(async ({ context, input }) => {
       requireAdmin(context);
+      if ((await listStock(input.id)).length > 0)
+        throw createORPCException(
+          409,
+          "Set every variant stock count to zero before deleting this product. Reserved units must be resolved first.",
+        );
       const deleted = await ProductService.deleteProduct(input.id);
 
       if (!deleted) {

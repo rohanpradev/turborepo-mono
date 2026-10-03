@@ -13,6 +13,18 @@ export interface CustomJwtSessionClaims {
   };
 }
 
+/** Platform administration is independent of organization membership. */
+export const isPlatformAdmin = (
+  userId: string,
+  claims: CustomJwtSessionClaims | null | undefined,
+  allowedUserIds: ReadonlySet<string>,
+) =>
+  allowedUserIds.has(userId) ||
+  (claims?.role ??
+    claims?.metadata?.role ??
+    claims?.publicMetadata?.role ??
+    claims?.public_metadata?.role) === "admin";
+
 export const UserFormSchema = z.object({
   firstName: z
     .string({ error: "First name is required!" })

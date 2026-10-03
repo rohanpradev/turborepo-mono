@@ -94,8 +94,10 @@ export type DeleteCategoryResponse = {
 export type ProductHealthResponse = ServiceHealthResponse<"product-service">;
 export type OrderHealthResponse = ServiceHealthResponse<"order-service">;
 export type PaymentHealthResponse = ServiceHealthResponse<"payment-service">;
-export type ListOrdersResponse = SuccessResponse<Array<OrderRecord>>;
-export type ListUserOrdersResponse = SuccessResponse<Array<OrderRecord>>;
+export type ListOrdersResponse = SuccessResponse<Array<OrderRecord>> & {
+  meta: { page: number; pageSize: number; hasNextPage: boolean };
+};
+export type ListUserOrdersResponse = ListOrdersResponse;
 export type CreateCheckoutSessionRequest = CheckoutSessionPayload;
 export type CreateCheckoutSessionResponse = SuccessResponse<{
   clientSecret: string;
@@ -419,12 +421,17 @@ export const getPaymentServiceHealth = async (
 export const listOrders = async (
   baseUrl: string,
   options: AuthenticatedFetchOptions,
-) => rpcCall(() => createOrderRpcClient(baseUrl, options).order.listAll());
+  query: { page?: number; limit?: number } = {},
+) => rpcCall(() => createOrderRpcClient(baseUrl, options).order.listAll(query));
 
 export const listUserOrders = async (
   baseUrl: string,
   options: AuthenticatedFetchOptions,
-) => rpcCall(() => createOrderRpcClient(baseUrl, options).order.listForUser());
+  query: { page?: number; limit?: number } = {},
+) =>
+  rpcCall(() =>
+    createOrderRpcClient(baseUrl, options).order.listForUser(query),
+  );
 
 export const createCheckoutSession = async (
   baseUrl: string,
@@ -455,4 +462,29 @@ export const getPaymentIntegrationEvents = async (
       fetchOptions: options.fetchOptions,
       token: options.token,
     }).ops.integrationEvents(),
+  );
+
+export const listProductStock = (baseUrl: string, id: number, token: string) =>
+  rpcCall(() =>
+    createProductRpcClient(baseUrl, { token }).inventory.list({ id }),
+  );
+export const setProductStock = (
+  baseUrl: string,
+  input: { id: number; size: string; color: string; onHand: number },
+  token: string,
+) =>
+  rpcCall(() =>
+    createProductRpcClient(baseUrl, { token }).inventory.set(input),
+  );
+
+export const listPaymentActivities = (
+  baseUrl: string,
+  options: AuthenticatedFetchOptions,
+) => rpcCall(() => createPaymentRpcClient(baseUrl, options).ops.activities());
+
+export const getProductAvailability = (baseUrl: string, id: number) =>
+  rpcCall(() =>
+    createProductRpcClient(baseUrl, {
+      fetchOptions: { cache: "no-store" },
+    }).inventory.availability({ id }),
   );

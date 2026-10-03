@@ -2,6 +2,7 @@ import {
   getPaymentIntegrationEvents,
   getPaymentServiceHealth,
   getPaymentServiceUrl,
+  listPaymentActivities,
 } from "@repo/api-client";
 import { getPaymentServiceServerUrl } from "@repo/api-client/server";
 import { formatUsdFromCents } from "@repo/types";
@@ -47,7 +48,7 @@ const PaymentsPage = async () => {
   const paymentServiceUrl = getPaymentServiceServerUrl();
   const paymentServicePublicUrl = getPaymentServiceUrl();
 
-  const [paymentHealth, paymentEvents] = await Promise.all([
+  const [paymentHealth, paymentEvents, storedActivities] = await Promise.all([
     getPaymentServiceHealth(paymentServiceUrl, liveFetchOptions).catch(
       (error) => ({
         error:
@@ -65,6 +66,10 @@ const PaymentsPage = async () => {
           ? error.message
           : "Unable to load payment integration events.",
     })),
+    listPaymentActivities(paymentServiceUrl, {
+      fetchOptions: liveFetchOptions,
+      token,
+    }).catch(() => null),
   ]);
 
   const eventPayload = "data" in paymentEvents ? paymentEvents.data : null;
@@ -78,18 +83,14 @@ const PaymentsPage = async () => {
         event.source === "webhook",
     ),
   );
-  const successfulPayments = uniquePaymentsByTransaction(
-    paymentTimelineEvents.filter(
-      (event) => event.type === "payment.successful.published",
-    ),
+  const checkoutSessions = storedActivities?.data ?? [];
+  const successfulPayments = checkoutSessions.filter(
+    (activity) => activity.status === "paid",
   );
-  const checkoutSessions = paymentTimelineEvents.filter(
-    (event) => event.type === "checkout.session.created",
+  const recentRevenueCents = successfulPayments.reduce(
+    (total, activity) => total + activity.amountCents,
+    0,
   );
-  const recentRevenueCents = successfulPayments.reduce((total, event) => {
-    const amount = event.details?.amount;
-    return total + (typeof amount === "number" ? amount : 0);
-  }, 0);
 
   return (
     <section className="space-y-6 py-4">
@@ -127,13 +128,13 @@ const PaymentsPage = async () => {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <article className="rounded-2xl border bg-card p-5 shadow-sm">
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-            Published Payments
+            Verified Payments
           </p>
           <p className="mt-3 text-3xl font-semibold">
-            {successfulPayments.length}
+            {storedActivities ? successfulPayments.length : "Unavailable"}
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
-            Recent successful payment events observed by the payment service.
+            Verified payments among the latest 100 stored checkouts.
           </p>
         </article>
         <article className="rounded-2xl border bg-card p-5 shadow-sm">
@@ -141,11 +142,13 @@ const PaymentsPage = async () => {
             Recent Revenue
           </p>
           <p className="mt-3 text-3xl font-semibold">
-            {formatUsdFromCents(recentRevenueCents)}
+            {storedActivities
+              ? formatUsdFromCents(recentRevenueCents)
+              : "Unavailable"}
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
-            Sum of the recent successful payment events currently retained in
-            memory.
+            Sum of verified payments in this stored activity window; not
+            lifetime revenue.
           </p>
         </article>
         <article className="rounded-2xl border bg-card p-5 shadow-sm">
@@ -153,10 +156,10 @@ const PaymentsPage = async () => {
             Checkout Sessions
           </p>
           <p className="mt-3 text-3xl font-semibold">
-            {checkoutSessions.length}
+            {storedActivities ? checkoutSessions.length : "Unavailable"}
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
-            Checkout sessions created by the live payment service.
+            The latest 100 checkouts, retained across service restarts.
           </p>
         </article>
         <article className="rounded-2xl border bg-card p-5 shadow-sm">
@@ -226,9 +229,10 @@ const PaymentsPage = async () => {
         <section className="rounded-2xl border bg-card p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-lg font-semibold">Payment Timeline</h2>
+              <h2 className="text-lg font-semibold">Diagnostic Event Feed</h2>
               <p className="text-sm text-muted-foreground">
-                Recent payment and checkout events from the payment service.
+                Recent diagnostic events from this service instance. This
+                temporary feed is not the payment ledger.
               </p>
             </div>
             {eventPayload ? (

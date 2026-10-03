@@ -170,7 +170,7 @@ describe("database guarantees", () => {
         updatedAt: current,
         availableAt: current,
       });
-      let work: Promise<void> | undefined;
+      let work: Promise<boolean> | undefined;
       try {
         work = relayProductOutboxOnce();
         await started.promise;

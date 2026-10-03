@@ -3,11 +3,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   buildCustomerSummaries,
-  buildPaymentActivities,
   formatCustomerLabel,
   formatTimestamp,
   loadOptionalAdminOrders,
-  loadPaymentEvents,
+  loadPaymentActivities,
 } from "@/lib/admin-data";
 import { requireAdminAccess } from "@/lib/auth";
 
@@ -21,12 +20,11 @@ export const metadata: Metadata = {
 
 const UsersPage = async () => {
   await requireAdminAccess();
-  const [events, orders] = await Promise.all([
-    loadPaymentEvents(),
+  const [activities, orders] = await Promise.all([
+    loadPaymentActivities(),
     loadOptionalAdminOrders(),
   ]);
 
-  const activities = buildPaymentActivities(events);
   const customers = buildCustomerSummaries(activities, orders ?? []);
   const paidActivities = activities.filter(
     (activity) => activity.status === "paid",
@@ -50,10 +48,11 @@ const UsersPage = async () => {
               Live customer directory from checkout behavior
             </h1>
             <p className="max-w-3xl text-sm text-muted-foreground">
-              This page is derived from real checkout and payment events.
-              Customer revenue and payment counts come from successful payments,
-              with order-service data layered in when the signed-in admin token
-              is authorized to read it.
+              This page shows the latest 100 stored checkouts and 25 orders.
+              Totals describe this recent window, not lifetime revenue. Customer
+              revenue and payment counts come from successful payments, with
+              order-service data layered in when the signed-in admin token is
+              authorized to read it.
             </p>
           </div>
           <Link href="/payments" className="text-sm underline">
@@ -78,7 +77,7 @@ const UsersPage = async () => {
           </p>
           <p className="mt-3 text-3xl font-semibold">{paidActivities.length}</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            Successful checkout sessions that published `payment.successful`.
+            Checkout sessions with verified payments.
           </p>
         </article>
         <article className="rounded-2xl border bg-card p-5 shadow-sm">

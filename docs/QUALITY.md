@@ -129,3 +129,11 @@ make docker-test
 - `NEXT_PUBLIC_IMAGE_REMOTE_HOSTS` is a build-time setting. Pass it through Compose or the repository variable of the same name in CI, then rebuild both web images. Changing a running container's environment does not rewrite Next.js's standalone image configuration.
 
 These conventions follow the version-matched Next.js guides bundled with the installed framework and the official [server/client boundary](https://nextjs.org/docs/app/getting-started/server-and-client-components#preventing-environment-poisoning), [Turborepo task](https://turborepo.dev/docs/crafting-your-repository/configuring-tasks), and [internal package](https://turborepo.dev/docs/core-concepts/internal-packages) guidance.
+
+### Package documentation and strict dependency checks
+
+The [September 28 package review](PACKAGE_REVIEW-2026-09-28.md) records installed versions, official documentation, findings and verification limits for every direct external package. The [October 2 upgrade](UPGRADE-2026-10-02.md) records the subsequent package updates, Prisma compatibility override, infrastructure fixes, and live container verification.
+
+`bun run knip` checks both the complete development graph and the strict production graph. Keep production entry points in `knip.ts`; annotate exports that exist only for regression tests with `@internal`. Keep exceptions narrow and explained. Operational scripts and `knip.ts` are type-checked by the root tooling task.
+
+Local Bun installs disable the transitive fallback with `hoist = false`. The explicit root `undici-types` development dependency is needed while `bun-types` 1.4.2 imports it without declaring it. Remove that workaround only after a frozen install and type checks succeed without it. Docker continues to use explicitly hoisted installs for portable image layers.

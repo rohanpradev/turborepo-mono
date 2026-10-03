@@ -19,6 +19,15 @@ export const shippingFormSchema = z.object({
     }, "Phone number must contain between 7 and 15 digits."),
   address: z.string().trim().min(1, "Enter a street address."),
   city: z.string().trim().min(1, "Enter a city."),
+  state: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z]{2}$/, "Enter a two-letter state code."),
+  postalCode: z
+    .string()
+    .trim()
+    .regex(/^\d{5}(-\d{4})?$/, "Enter a valid ZIP code."),
 });
 
 export type ShippingFormInputs = z.infer<typeof shippingFormSchema>;

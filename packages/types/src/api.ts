@@ -18,7 +18,7 @@ export const categorySlugParamSchema = z.strictObject({
 export const productListQuerySchema = z.strictObject({
   sort: productSortSchema.optional(),
   category: z.string().min(1).optional(),
-  search: z.string().min(1).optional(),
+  search: z.string().min(1).max(200).optional(),
   page: z.coerce.number().int().positive().max(10_000).optional(),
   limit: z.coerce.number().int().positive().max(100).optional(),
 });
@@ -41,9 +41,9 @@ const isSupportedImagePath = (value: string) => {
 };
 
 const productBaseSchema = z.strictObject({
-  name: z.string().min(1),
+  name: z.string().min(1).max(200),
   shortDescription: z.string().min(1).max(60),
-  description: z.string().min(1),
+  description: z.string().min(1).max(10000),
   price: z.number().int().nonnegative().max(MAX_USD_AMOUNT_CENTS),
   categorySlug: z.string().min(1),
   sizes: z.array(z.string().min(1)).min(1),
@@ -84,7 +84,7 @@ export const productUpdateSchema = productBaseSchema
   });
 
 export const categoryPayloadSchema = z.strictObject({
-  name: z.string().min(1),
+  name: z.string().min(1).max(200),
   slug: z.string().min(1),
 });
 
@@ -139,8 +139,28 @@ export const checkoutSessionStatusQuerySchema = z.strictObject({
 
 export const orderStatusSchema = z.enum(["success", "failed"]);
 
+export const deliveryAddressSchema = z.object({
+  name: z.string(),
+  line1: z.string(),
+  line2: z.string().nullable().optional(),
+  city: z.string(),
+  state: z.string().nullable().optional(),
+  postalCode: z.string(),
+  country: z.literal("US"),
+});
+
+export const orderListQuerySchema = z
+  .object({
+    page: z.number().int().min(1).max(10000).default(1),
+    limit: z.number().int().min(1).max(100).default(25),
+  })
+  .default({ page: 1, limit: 25 });
+
 export const orderProductSchema = z.object({
-  name: z.string().min(1),
+  productId: z.string().optional(),
+  selectedSize: z.string().optional(),
+  selectedColor: z.string().optional(),
+  name: z.string().min(1).max(200),
   price: z.number().nonnegative(),
   quantity: z.number().int().positive(),
 });
@@ -152,6 +172,12 @@ export const orderRecordSchema = z.object({
   email: z.email(),
   amount: z.number().nonnegative(),
   status: orderStatusSchema,
+  currency: z.string().length(3).optional(),
+  transactionId: z.string().optional(),
+  fulfillmentStatus: z
+    .enum(["unfulfilled", "fulfilled", "cancelled"])
+    .optional(),
+  deliveryAddress: deliveryAddressSchema.optional(),
   products: z.array(orderProductSchema),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),

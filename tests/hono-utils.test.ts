@@ -257,3 +257,54 @@ describe("@repo/hono-utils", () => {
     );
   });
 });
+
+describe("Hono middleware boundaries", () => {
+  it("limits non-RPC request bodies before their handler runs", async () => {
+    const app = createServiceApp({
+      title: "Body boundary",
+      version: "1",
+      description: "Test",
+      tags: [],
+    });
+    let invoked = false;
+    app.post("/internal/test", (c) => {
+      invoked = true;
+      return c.json({ ok: true });
+    });
+    const response = await app.request("/internal/test", {
+      method: "POST",
+      body: "x".repeat(1024 * 1024 + 1),
+    });
+    expect(response.status).toBe(413);
+    expect(invoked).toBe(false);
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(response.headers.get("x-request-id")).toBeTruthy();
+  });
+  it("preserves protocol error headers while returning the standard JSON error", async () => {
+    const { createHttpException } = await import(
+      "../packages/hono-utils/src/index"
+    );
+    const app = createServiceApp({
+      title: "Error boundary",
+      version: "1",
+      description: "Test",
+      tags: [],
+    });
+    app.get("/limited", () => {
+      const error = createHttpException(429, "Slow down");
+      error.getResponse = () =>
+        new Response("provider response", {
+          status: 429,
+          headers: { "retry-after": "60" },
+        });
+      throw error;
+    });
+    const response = await app.request("/limited");
+    expect(response.status).toBe(429);
+    expect(response.headers.get("retry-after")).toBe("60");
+    expect(await response.json()).toMatchObject({
+      success: false,
+      error: "Slow down",
+    });
+  });
+});

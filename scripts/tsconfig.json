@@ -1,4 +1,4 @@
 {
   "extends": "../packages/typescript-config/bun-service.json",
-  "include": ["*.ts"]
+  "include": ["*.ts", "../knip.ts"]
 }

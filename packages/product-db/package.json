@@ -8,7 +8,7 @@
     "db:validate": "prisma migration check",
     "db:migrate": "prisma contract emit && prisma db update --advance-ref db",
     "db:plan": "prisma contract emit && prisma migration plan",
-    "db:deploy": "prisma db migrate",
+    "db:deploy": "prisma db migrate && bun run src/deploy-inventory.ts",
     "db:verify": "prisma db verify",
     "db:adopt": "prisma contract emit && prisma db verify --schema-only --strict && prisma db sign"
   },
