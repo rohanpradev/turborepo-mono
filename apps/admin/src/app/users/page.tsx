@@ -10,8 +10,6 @@ import {
 } from "@/lib/admin-data";
 import { requireAdminAccess } from "@/lib/auth";
 
-export const dynamic = "force-dynamic";
-
 export const metadata: Metadata = {
   title: "Customers",
   description:

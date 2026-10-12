@@ -4,8 +4,9 @@ import {
   getProductAvailability,
 } from "@repo/api-client";
 import { getProductServiceServerUrl } from "@repo/api-client/server";
-import { formatUsdFromCents } from "@repo/types";
+import { formatUsdFromCents, type ProductRecord } from "@repo/types";
 import type { Metadata } from "next";
+import { navigation } from "next/cache";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -102,6 +103,59 @@ export const generateMetadata = async ({
   };
 };
 
+async function LiveProductOptions({
+  product,
+  selectedSize,
+  selectedColor,
+  structuredData,
+}: {
+  product: ProductRecord;
+  selectedSize: string;
+  selectedColor: string;
+  structuredData: { offers: Record<string, unknown>; [key: string]: unknown };
+}) {
+  // Stock must be checked when navigating, and must not hold up the product summary.
+  await navigation();
+  const availability = await getProductAvailability(
+    getProductServiceServerUrl(),
+    product.id,
+  )
+    .then((response) => response.data)
+    .catch(() => null);
+  const jsonLd = {
+    ...structuredData,
+    offers: {
+      ...structuredData.offers,
+      availability: availability
+        ? availability.some((row) => row.available > 0)
+          ? "https://schema.org/InStock"
+          : "https://schema.org/OutOfStock"
+        : undefined,
+    },
+  };
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: toJsonLd(jsonLd) }}
+      />
+      <ProductInteraction
+        product={product}
+        available={
+          availability
+            ? (availability.find(
+                (row) =>
+                  row.size === selectedSize && row.color === selectedColor,
+              )?.available ?? 0)
+            : null
+        }
+        selectedSize={selectedSize}
+        selectedColor={selectedColor}
+      />
+    </>
+  );
+}
+
 const ProductPage = async ({
   params,
   searchParams,
@@ -122,12 +176,6 @@ const ProductPage = async ({
     notFound();
   }
 
-  const availability = await getProductAvailability(
-    getProductServiceServerUrl(),
-    productId,
-  )
-    .then((response) => response.data)
-    .catch(() => null);
   const requestedSize = getSingleSearchParam(resolvedSearchParams.size);
   const requestedColor = getSingleSearchParam(resolvedSearchParams.color);
   const selectedSize =
@@ -164,11 +212,6 @@ const ProductPage = async ({
     name: product.name,
     offers: {
       "@type": "Offer",
-      availability: availability
-        ? availability.some((row) => row.available > 0)
-          ? "https://schema.org/InStock"
-          : "https://schema.org/OutOfStock"
-        : undefined,
       price: (product.price / 100).toFixed(2),
       priceCurrency: "USD",
       url: productUrl,
@@ -179,10 +222,6 @@ const ProductPage = async ({
 
   return (
     <div className="min-w-0 pb-12 pt-2">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: toJsonLd(productJsonLd) }}
-      />
       <nav
         aria-label="Breadcrumb"
         className="mb-5 text-xs text-muted-foreground"
@@ -296,17 +335,9 @@ const ProductPage = async ({
                 </div>
               }
             >
-              <ProductInteraction
+              <LiveProductOptions
                 product={product}
-                available={
-                  availability
-                    ? (availability.find(
-                        (row) =>
-                          row.size === selectedSize &&
-                          row.color === selectedColor,
-                      )?.available ?? 0)
-                    : null
-                }
+                structuredData={productJsonLd}
                 selectedSize={selectedSize}
                 selectedColor={selectedColor}
               />

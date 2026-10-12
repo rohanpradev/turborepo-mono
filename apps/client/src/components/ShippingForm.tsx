@@ -1,6 +1,6 @@
 import { ArrowRight, CheckCircle2, LockKeyhole } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useEffect, useState } from "react";
+import { type SubmitEvent, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { type ShippingFormInputs, shippingFormSchema } from "@/types";
@@ -40,7 +40,7 @@ const ShippingForm = ({
     setErrors((current) => ({ ...current, [field]: undefined }));
   };
 
-  const handleShippingForm = (event: FormEvent<HTMLFormElement>) => {
+  const handleShippingForm = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     const parsed = shippingFormSchema.safeParse(values);
 

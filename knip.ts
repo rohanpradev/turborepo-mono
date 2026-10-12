@@ -3,10 +3,7 @@ import { defineConfig } from "knip/config";
 export default defineConfig((options) => {
   const production = options.production || options.strict;
   return {
-    ignore: [
-      "packages/product-db/migrations/**",
-      "packages/product-db/src/contract.prisma",
-    ],
+    ignore: ["packages/product-db/migrations/**"],
     ignoreBinaries: ["make"],
     // bun-types 1.4.2 imports undici-types without declaring it.
     ignoreDependencies: ["undici-types"],

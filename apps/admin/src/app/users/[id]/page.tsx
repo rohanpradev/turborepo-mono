@@ -10,8 +10,6 @@ import {
 } from "@/lib/admin-data";
 import { requireAdminAccess } from "@/lib/auth";
 
-export const dynamic = "force-dynamic";
-
 const UserDetailsPage = async ({ params }: PageProps<"/users/[id]">) => {
   await requireAdminAccess();
   const { id } = await params;

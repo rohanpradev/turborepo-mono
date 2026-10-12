@@ -144,9 +144,9 @@ export function ThemeProvider({
   };
 
   return (
-    <ThemeContext.Provider value={{ resolvedTheme, setTheme, theme }}>
+    <ThemeContext value={{ resolvedTheme, setTheme, theme }}>
       {children}
-    </ThemeContext.Provider>
+    </ThemeContext>
   );
 }
 

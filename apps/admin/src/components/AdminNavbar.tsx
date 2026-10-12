@@ -1,7 +1,8 @@
 import { currentUser } from "@clerk/nextjs/server";
+import { navigation } from "next/cache";
 import Navbar from "@/components/Navbar";
 
-export const adminViewerFallback = {
+const adminViewerFallback = {
   avatarUrl: null,
   displayName: "Admin Operator",
   email: null,
@@ -23,6 +24,7 @@ const getAdminViewer = async () => {
 };
 
 export default async function AdminNavbar() {
+  await navigation();
   const viewer = await getAdminViewer();
 
   return <Navbar viewer={viewer} />;

@@ -71,8 +71,8 @@ stripeCli:
   enabled: false
   image:
     repository: stripe/stripe-cli
-    tag: v1.52.0
-    digest: sha256:da11dbbdb78100602014096a6cbf764b211243111b3b8a57309d18c3939c9777
+    tag: v1.53.1
+    digest: sha256:11c46caeead82e329f14823dd622d494b4cc8c1b9766f724d122d2af42c97540
     pullPolicy: IfNotPresent
   forwardTo: http://127.0.0.1:8002/api/webhooks/stripe
   webhookSecretFile: /var/run/stripe/webhook-secret

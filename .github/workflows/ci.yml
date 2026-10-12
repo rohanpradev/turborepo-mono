@@ -19,11 +19,11 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  BUN_VERSION: 1.4.2
-  BUN_DEV_IMAGE: oven/bun:1.4.2@sha256:9114c058aeae42162ee16dd5084b95fe9473970bb6bcb5b232ab1630f0546895
-  BUN_RUNTIME_IMAGE: oven/bun:1.4.2@sha256:9114c058aeae42162ee16dd5084b95fe9473970bb6bcb5b232ab1630f0546895
-  BUILDX_VERSION: v0.37.1
-  BUILDKIT_IMAGE: moby/buildkit:v0.33.0@sha256:6c2fa84a6b61ccd72899dde4239f8d5717f05f9a8ca6f3cad185fb1a95a94de3
+  BUN_VERSION: 1.4.3
+  BUN_DEV_IMAGE: oven/bun:1.4.3@sha256:ec06c3b6cea04192ae6770c434f668ca41d343ad19fa6472216c7b48be39c598
+  BUN_RUNTIME_IMAGE: oven/bun:1.4.3@sha256:ec06c3b6cea04192ae6770c434f668ca41d343ad19fa6472216c7b48be39c598
+  BUILDX_VERSION: v0.38.0
+  BUILDKIT_IMAGE: moby/buildkit:v0.34.0@sha256:b059f8d7226d0b326bc871af489a5dddf65e36af4d20d14251b072974d9ee87c
   HELM_VERSION: 4.3.0
   KUBECONFORM_IMAGE: ghcr.io/yannh/kubeconform:v0.8.0@sha256:faffaf43f95aa6425306e1ab8d6fcad72acb9049158f38e574c085ea1ec0f64e
   K8S_SUPPORTED_VERSIONS: 1.35.9 1.36.5
@@ -60,7 +60,7 @@ jobs:
           bun-version: ${{ env.BUN_VERSION }}
 
       - name: Setup Node.js environment
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -160,7 +160,7 @@ jobs:
 
       - name: Upload Turbo diagnostics
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: turbo-diagnostics
           path: |
@@ -183,7 +183,7 @@ jobs:
 
       - name: SonarQube Scan
         if: env.SONAR_TOKEN != '' && env.SONAR_PROJECT_KEY != ''
-        uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8.2.2
+        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
         env:
           SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ env.SONAR_HOST_URL }}
@@ -194,7 +194,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:18.6@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
+        image: postgres:18.6@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
         env:
           POSTGRES_PASSWORD: integration-only-password
           POSTGRES_DB: ecommerce_test
@@ -204,14 +204,14 @@ jobs:
           --health-cmd "pg_isready -U postgres -d ecommerce_test"
           --health-interval 5s --health-timeout 5s --health-retries 12
       mongodb:
-        image: mongo:8.3.11@sha256:5d7043a4ffe02b9ed1b6e0bab057546981af5ca0a79107e9c461e49bc44c0a7b
+        image: mongo:8.3.11@sha256:d731d77bfd7afd66bd487bdf627b5bf7ce4c3602ec461d635977021db529ebbc
         ports:
           - 27017:27017
         options: >-
           --health-cmd "mongosh --quiet --eval 'db.adminCommand({ ping: 1 })'"
           --health-interval 5s --health-timeout 5s --health-retries 12
       kafka:
-        image: apache/kafka:4.1.2@sha256:5cc2a2fd93fa2687b44015eee04fb2c3edd9e526bd64bf8bec5ff1e268772e0e
+        image: apache/kafka:4.3.1@sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837
         env:
           KAFKA_NODE_ID: 1
           KAFKA_PROCESS_ROLES: broker,controller
@@ -241,7 +241,7 @@ jobs:
         with:
           bun-version: ${{ env.BUN_VERSION }}
       - name: Setup Node.js environment
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Install dependencies

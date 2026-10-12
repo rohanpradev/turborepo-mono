@@ -76,7 +76,7 @@ services:
 
   traefik:
     <<: *runtime-security
-    image: traefik:v3.7.13@sha256:24841fe2de7304c149343d877d2923b4c8800a38ba015dea9174c23b20e344a0
+    image: traefik:v3.7.14@sha256:575fa15b135078fe5e50aa847987d96dbddd7b093c172429618404df73f3fa7c
     read_only: true
     tmpfs:
       - /tmp:size=32m,mode=1777
@@ -182,7 +182,7 @@ services:
 
   mongodb-ready:
     <<: *runtime-security
-    image: oven/bun:1.4.2@sha256:9114c058aeae42162ee16dd5084b95fe9473970bb6bcb5b232ab1630f0546895
+    image: oven/bun:1.4.3@sha256:ec06c3b6cea04192ae6770c434f668ca41d343ad19fa6472216c7b48be39c598
     command:
       [
         "bun",
@@ -563,7 +563,7 @@ services:
 
   stripe-cli:
     <<: *app-service
-    image: stripe/stripe-cli:v1.52.0@sha256:da11dbbdb78100602014096a6cbf764b211243111b3b8a57309d18c3939c9777
+    image: stripe/stripe-cli:v1.53.1@sha256:11c46caeead82e329f14823dd622d494b4cc8c1b9766f724d122d2af42c97540
     environment:
       STRIPE_API_KEY: ${STRIPE_API_KEY:-}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}

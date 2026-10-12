@@ -80,16 +80,18 @@ For stock, durable payment recovery and verified implementation evidence, see [d
 | Layer | Technology |
 | --- | --- |
 | Monorepo | Turborepo, Bun workspaces, Bun catalogs |
-| Frontend | Next.js 16.3, React 19, Tailwind CSS 4, Radix UI, Lucide |
+| Frontend | Next.js 16.4, React 19.3, Tailwind CSS 4, Radix UI, Lucide |
 | APIs | Hono 4.13, Zod, OpenAPI, Scalar API Reference |
 | Auth | Clerk for frontend sessions and service bearer auth |
 | Payments | Stripe Checkout and webhooks |
 | Events | Kafka with typed topics and topic management |
 | Data | PostgreSQL + Prisma, MongoDB + Mongoose |
 | Quality | Biome, Syncpack, Knip, Bun test/coverage, Bun audit, stable TypeScript 7 with TypeScript 6 tooling compatibility |
-| Runtime | Bun 1.4.2, digest-pinned Compose images, Traefik 3.7.13, Docker Hardened Images |
-| Platform | Helm 4.3.0, Kubernetes 1.35-1.36 supported (1.37 experimental), Gateway API 1.6.2 |
+| Runtime | Bun 1.4.3, digest-pinned Compose images, Traefik 3.7.14, Docker Hardened Images |
+| Platform | Helm 4.3.0, Kubernetes 1.35-1.36 supported (1.37 experimental), Gateway API 1.6.3 |
 | CI/CD | GitHub Actions, Helm lint plus kubeconform schema matrix, Docker Buildx, GHCR images, SBOM, provenance |
+
+See the [10 October upgrade report](docs/UPGRADE_2026-10-10.md) for feature adoption, verification, and the required one-time Prisma adoption for existing databases.
 
 ## Event Flow
 
@@ -105,7 +107,7 @@ For stock, durable payment recovery and verified implementation evidence, see [d
 
 ## Prerequisites
 
-- `Bun >= 1.4.2`
+- `Bun >= 1.4.3`
 - `Node >= 24.0.0`
 - Docker with Compose
 - `mkcert` for locally trusted `*.localhost` TLS certificates
@@ -319,7 +321,7 @@ The Docker path uses the digest-pinned official Bun 1.4 image for application bu
 
 | Compose service | Image / Build | Purpose |
 | --- | --- | --- |
-| `traefik` | `traefik:v3.7.13` | TLS router, API gateway, dashboard |
+| `traefik` | `traefik:v3.7.14` | TLS router, API gateway, dashboard |
 | `docker-socket-proxy` | `ghcr.io/tecnativa/docker-socket-proxy:v0.5.0` | Restricted Docker API surface for Traefik discovery |
 | `postgres` | `dhi.io/postgres:18.6-debian13` | Product catalog database |
 | `mongodb` | `dhi.io/mongodb:8.3.11-debian13` | Order read-model database |
@@ -330,7 +332,7 @@ The Docker path uses the digest-pinned official Bun 1.4 image for application bu
 | `order-service` | `docker/Dockerfile.order-service` | Order API and MongoDB read model |
 | `client` | `docker/Dockerfile.client` | Customer storefront |
 | `admin` | `docker/Dockerfile.admin` | Admin operations dashboard |
-| `stripe-cli` | `stripe/stripe-cli:v1.52.0` | Local webhook forwarding |
+| `stripe-cli` | `stripe/stripe-cli:v1.53.1` | Local webhook forwarding |
 
 The five application Dockerfiles use Turbo pruning, Bun frozen installs, and hardened Bun runtime images. Frontend images build standalone Next.js output, while service images copy only runtime code, generated clients, shared packages, and production dependencies.
 

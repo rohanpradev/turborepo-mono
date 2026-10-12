@@ -6,6 +6,7 @@ import {
 } from "@repo/types";
 import { ArrowLeft, ArrowRight, ExternalLink, Search } from "lucide-react";
 import type { Metadata, Route } from "next";
+import { navigation } from "next/cache";
 import Form from "next/form";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -16,7 +17,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { loadCatalogSnapshot } from "@/lib/admin-data";
 
-export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Products",
   description:
@@ -26,6 +26,7 @@ export const metadata: Metadata = {
 export default async function ProductsPage({
   searchParams,
 }: PageProps<"/products">) {
+  await navigation();
   const query = catalogQuery(await searchParams);
   const { categories, products, pagination } = await loadCatalogSnapshot(query);
   const pageHref = (page: number) =>

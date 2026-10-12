@@ -4,16 +4,39 @@ Prisma 8 contract, PostgreSQL runtime, and migration graph for the product servi
 
 ## Version compatibility
 
-The root catalog pins `@prisma/orm-postgres` to `8.0.0-rc.14` and the CLI to
-`8.0.0-rc.19`. The root override also pins `@prisma/orm-toolchain` to
-`8.0.0-rc.14`: this CLI ships with `rc.13`, whose schema descriptors are
-incompatible with the `rc.14` framework. Without the override, contract emission
-fails with `CONTRACT.PACK_CONTRIBUTION_INVALID` at `enum`.
+The root catalog pins `@prisma/orm-postgres` to `8.0.0-rc.17` and the CLI to
+`8.0.0-rc.22`. Both now resolve toolchain `rc.17`, so the previous toolchain
+override is removed. Contract generation and migration checks must remain part
+of every upgrade.
 
-Revisit this override when upgrading Prisma. Verify contract emission, migration
-validation, and the disposable database suite before removing it. The integration
-runner regenerates and validates the contract before applying migrations so it
-tests the current schema with the installed toolchain.
+### Existing databases: one-time contract-format transition
+
+The rc.15 format uses `dataType` instead of `nativeType` and explicit list element
+nullability. The official converter updated the emitted contract, historical
+snapshot, migration references and hashes together; it does not change application
+tables. The old baseline storage hash `a8000c3ac164e1ad0f87693c340a4cf4ce40daae9027550506caa9530a9a1d28`
+is now `65a2e3fdd7d073ff6b91467777940a26a791ca4982ed6903bca77195f39927e7`.
+
+Before deploying this revision against an existing database, stop the old app
+writers, take a backup, install this revision's locked dependencies, and set
+`DATABASE_URL` to that database. From this package run:
+
+```sh
+bun run db:generate
+bun run db:validate
+bun run db:adopt
+bun run db:deploy
+bun run db:verify
+```
+
+`db:adopt` verifies the schema strictly before signing the new contract marker.
+Do not bypass a schema mismatch. Fresh databases only need `db:deploy`.
+Do not roll back to the old contract against a newly signed database without
+restoring its matching marker/backup. Deployment jobs deliberately do not sign
+existing databases automatically.
+
+See [the upstream rc.15 migration](https://github.com/prisma/orm/releases/tag/v8.0.0-rc.15)
+and [the repository upgrade report](../../docs/UPGRADE_2026-10-10.md).
 
 ## Runtime
 

@@ -22,8 +22,8 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
-  type FormEvent,
   type ReactNode,
+  type SubmitEvent,
   useEffect,
   useMemo,
   useRef,
@@ -182,7 +182,7 @@ const CatalogManager = ({
     return mutation(token);
   };
 
-  const handleProductSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleProductSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (mutationInFlight.current) return;
     mutationInFlight.current = true;
@@ -259,7 +259,7 @@ const CatalogManager = ({
     }
   };
 
-  const handleCategorySubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleCategorySubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (mutationInFlight.current) return;
     mutationInFlight.current = true;
