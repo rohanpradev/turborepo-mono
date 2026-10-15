@@ -3,8 +3,8 @@ import type {
   StripeCheckoutCompletedMessage,
 } from "@repo/kafka";
 import type Stripe from "stripe";
-import { getStripeClient } from "@/utils/stripe";
 import { getPaymentStore } from "../storage/payment-store";
+import { getStripeClient } from "../utils/stripe";
 import { commitCheckoutStock } from "./InventoryService";
 
 const getPaymentIntentId = (session: Stripe.Checkout.Session) =>

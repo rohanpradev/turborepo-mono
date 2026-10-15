@@ -7,7 +7,7 @@ global:
   imagePullPolicy: IfNotPresent
   imagePullSecrets: []
   enableServiceLinks: false
-  # Allow endpoint removal to propagate before the app's 25-second shutdown.
+  # Allow endpoint removal to propagate, then at least 25 seconds for app shutdown.
   terminationGracePeriodSeconds: 40
   preStopDelaySeconds: 5
   podAnnotations: {}

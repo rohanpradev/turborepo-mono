@@ -67,7 +67,7 @@ make docker-test
 - Run `bun outdated --recursive` before dependency refreshes.
 - Run `bun install` after package or catalog edits so `bun.lock` stays authoritative.
 - Run `bun dedupe` after dependency refreshes; CI enforces `bun dedupe --check`.
-- Use `bun run test:changed` for a focused local loop and the parallel isolated suite for full verification.
+- Use `bun run test:changed` for a focused local loop and the parallel isolated suite for full verification. All unit test commands use `bun test --check`; the integration runner also checks test types before execution. A type error fails the command before tests run.
 - Review `bun run deps:licenses` when introducing production dependencies; CI publishes the JSON inventory.
 - CI and Dockerfile tool versions should stay aligned with root tool versions.
 
@@ -91,10 +91,12 @@ make docker-test
 ## Docker Standards
 
 - Application Dockerfiles use Turbo pruning before installs.
+- All image builds run type checks before producing the runner stage. Keep development dependencies in build stages; copy production workspace dependency links from the production install, including nested workspace dependencies.
 - Frontend images build standalone Next.js output.
 - Service images copy only runtime source, generated clients, shared packages, and production dependencies.
 - Runtime containers use Docker Hardened Images where available.
 - Compose app services use read-only filesystems, tmpfs for `/tmp`, `no-new-privileges`, and dropped Linux capabilities.
+- Bun's transpiler cache writes under `/tmp`. Bun image and Compose health checks bypass proxies and abort their loopback requests after three seconds.
 - Traefik routes only explicitly labelled services.
 - `make docker-validate` must pass without starting containers.
 - `make docker-test` is the source of truth for the complete containerized platform.
@@ -104,6 +106,7 @@ make docker-test
 - Helm charts must render deterministic manifests with `make helm-template`.
 - Application pods run as non-root with read-only root filesystems, dropped capabilities, and explicit `/tmp` volumes.
 - Workloads expose readiness and liveness probes before being routed.
+- The termination grace period must leave at least 25 seconds after the pre-stop delay for the application's shutdown handler. Helm rejects smaller drain budgets.
 - Runtime secrets stay outside committed values files.
 - Kubernetes routing is owned by Helm through Gateway API HTTPRoutes locally, with standard Ingress still supported for clusters that enable the Kubernetes Ingress provider.
 - Docker Compose uses non-conflicting local ports when a local Kubernetes Traefik gateway is active.
@@ -121,9 +124,9 @@ make docker-test
 ## Workspace and Next.js maintenance
 
 - Every workspace is private; each workspace that runs type checks declares its own TypeScript compiler dependency through the root catalog. Shared packages expose explicit public entry points.
-- `bun run check-types` checks application/package code and the operational scripts in `scripts/tsconfig.json`. CI runs the same tasks.
+- `bun run check-types` uses Bun 1.4.3's built-in checker for application/package code and the operational scripts in `scripts/tsconfig.json`. Web checks still run `next typegen` first. CI runs the same tasks; TypeScript remains installed for editors and the independent Next.js build checker.
 - Database validation depends on contract generation in Turborepo. Only `db:generate` owns the generated contract outputs; its inputs exclude those outputs to avoid self-invalidating cache keys. When running directly inside `packages/product-db`, run `db:generate` before `db:validate`.
-- `NODE_ENV` participates in task hashes. Web type checks restore their generated route types and incremental compiler cache. Tasks that verify or modify a live database are never cached.
+- `NODE_ENV` participates in task hashes. Web type checks restore their generated route types. `bun check` emits no incremental compiler cache; Next.js builds may still produce their own. Tasks that verify or modify a live database are never cached.
 - Import runtime service URLs from `@repo/api-client/server` in Next.js server modules. This entry point and the admin data-access modules use `server-only` to reject accidental browser imports. Browser-safe API methods remain at `@repo/api-client`.
 - Authenticated RPC requests always use `cache: "no-store"`, including when a caller supplies a cache policy. Public catalog requests retain their explicit policy.
 - `NEXT_PUBLIC_IMAGE_REMOTE_HOSTS` is a build-time setting. Pass it through Compose or the repository variable of the same name in CI, then rebuild both web images. Changing a running container's environment does not rewrite Next.js's standalone image configuration.
@@ -136,4 +139,8 @@ The [September 28 package review](PACKAGE_REVIEW-2026-09-28.md) records installe
 
 `bun run knip` checks both the complete development graph and the strict production graph. Keep production entry points in `knip.ts`; annotate exports that exist only for regression tests with `@internal`. Keep exceptions narrow and explained. Operational scripts and `knip.ts` are type-checked by the root tooling task.
 
-Local Bun installs disable the transitive fallback with `hoist = false`. The explicit root `undici-types` development dependency is needed while `bun-types` 1.4.2 imports it without declaring it. Remove that workaround only after a frozen install and type checks succeed without it. Docker continues to use explicitly hoisted installs for portable image layers.
+Local Bun installs disable the transitive fallback with `hoist = false`. Bun's 1.4.3 declarations now declare their `undici-types` dependency, so the root workaround has been removed after frozen installation and strict library checks. The local isolated store remains portable; the shared global store requires an explicit `globalStore = true` opt-in. Docker continues to use explicitly hoisted installs for portable image layers.
+
+Tests have explicit strict configurations in `tests/tsconfig.json` and `integration-tests/tsconfig.json`. Modules imported directly across app boundaries by tests use relative internal imports so checking them does not depend on another app's private `@/` alias. Fetch mocks preserve Bun's `fetch.preconnect` shape without unchecked function casts. Knip's narrow Bun-command exception and explicit operational entry points account for its current parser's lack of `bun check` and `bun run --check` support.
+
+See the [Bun 1.4.3 adoption review](BUN_1.4.3_UPGRADE.md) for the complete release feature assessment and validation results.

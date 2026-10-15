@@ -8,14 +8,14 @@ import {
   type ProductRecord,
 } from "@repo/types";
 import type Stripe from "stripe";
-import { recordIntegrationEvent } from "@/observability/integrationEvents";
-import { enqueuePaidCheckoutSession } from "@/services/StripePaymentEventService";
-import { getStripeClient } from "@/utils/stripe";
+import { recordIntegrationEvent } from "../observability/integrationEvents";
 import {
   type CheckoutSnapshot,
   getPaymentStore,
 } from "../storage/payment-store";
+import { getStripeClient } from "../utils/stripe";
 import { reserveCheckoutStock } from "./InventoryService";
+import { enqueuePaidCheckoutSession } from "./StripePaymentEventService";
 
 type CreateCheckoutSessionInput = {
   payload: CheckoutSessionPayload;

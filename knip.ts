@@ -4,9 +4,8 @@ export default defineConfig((options) => {
   const production = options.production || options.strict;
   return {
     ignore: ["packages/product-db/migrations/**"],
-    ignoreBinaries: ["make"],
-    // bun-types 1.4.2 imports undici-types without declaring it.
-    ignoreDependencies: ["undici-types"],
+    // Knip does not yet recognize `check` as a built-in Bun subcommand.
+    ignoreBinaries: ["make", "check"],
     ignoreExportsUsedInFile: { interface: true, type: true },
     ignoreIssues: {
       "apps/admin/src/components/ui/**": ["exports"],
@@ -15,11 +14,12 @@ export default defineConfig((options) => {
     tags: ["-lintignore"],
     workspaces: {
       ".": {
-        // Make invokes this script; package.json scripts are discovered automatically.
+        // Make and `bun run --check` invoke these operational entry points.
+        // Knip does not yet discover files after Bun's new --check flag.
         entry: [
           "tests/**/*.test.ts",
           "integration-tests/**/*.test.ts",
-          "scripts/k8s-runtime-secret.ts",
+          "scripts/*.ts",
         ],
         project: [
           "scripts/**/*.ts",

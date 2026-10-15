@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { ProductRecord } from "@repo/types";
 import { resolveCheckoutCatalog } from "../apps/payment-service/src/services/StripeCheckoutService";
+import type { ProductRecord } from "../packages/types/src";
 
 describe("payment-service checkout catalog", () => {
   it("fetches duplicate catalog products only once", async () => {

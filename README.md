@@ -17,7 +17,7 @@ This is not a single demo app in a big folder. It is a real distributed commerce
 - **Kubernetes observability** with Prometheus Operator ServiceMonitors, app `/metrics`, Traefik metrics, alert rules, and a Grafana dashboard.
 - **Polyglot persistence** with Prisma/PostgreSQL for product catalog writes and a Kafka-fed MongoDB read model for orders.
 - **Hardened Docker stack** using Docker Hardened Images, Traefik TLS routing, Kafka UI, health waits, read-only app containers, capability drops, and reproducible image locking support.
-- **CI-grade standards**: Biome, Syncpack, Knip, Bun 1.4 isolated parallel tests, lockfile deduplication, Bun audit, production license inventory, type checking, Next builds, Compose validation, Docker image builds, SBOM, and provenance.
+- **CI-grade standards**: Biome, Syncpack, Knip, Bun 1.4.3 checked parallel tests, lockfile deduplication, Bun audit, production license inventory, built-in Bun type checking, Next builds, Compose validation, Docker image builds, SBOM, and provenance.
 
 ## System Map
 
@@ -86,12 +86,14 @@ For stock, durable payment recovery and verified implementation evidence, see [d
 | Payments | Stripe Checkout and webhooks |
 | Events | Kafka with typed topics and topic management |
 | Data | PostgreSQL + Prisma, MongoDB + Mongoose |
-| Quality | Biome, Syncpack, Knip, Bun test/coverage, Bun audit, stable TypeScript 7 with TypeScript 6 tooling compatibility |
+| Quality | Biome, Syncpack, Knip, Bun check/test/coverage, Bun audit, TypeScript 7 for editors and Next builds |
 | Runtime | Bun 1.4.3, digest-pinned Compose images, Traefik 3.7.14, Docker Hardened Images |
-| Platform | Helm 4.3.0, Kubernetes 1.35-1.36 supported (1.37 experimental), Gateway API 1.6.3 |
+| Platform | Helm 4.3.1, Kubernetes 1.35-1.36 supported (1.37 experimental), Gateway API 1.6.3 |
 | CI/CD | GitHub Actions, Helm lint plus kubeconform schema matrix, Docker Buildx, GHCR images, SBOM, provenance |
 
 See the [10 October upgrade report](docs/UPGRADE_2026-10-10.md) for feature adoption, verification, and the required one-time Prisma adoption for existing databases.
+
+The [Bun 1.4.3 adoption review](docs/BUN_1.4.3_UPGRADE.md) records the file plan, release feature decisions, and verification. Workspace checks use `bun check`; service watch mode and tests check types before running. TypeScript stays installed for editor support and Next.js builds.
 
 ## Event Flow
 

@@ -1,7 +1,7 @@
 import type Stripe from "stripe";
-import { recordIntegrationEvent } from "@/observability/integrationEvents";
-import { enqueuePaidCheckoutSession } from "@/services/StripePaymentEventService";
-import { getStripeClient, getStripeWebhookSecret } from "@/utils/stripe";
+import { recordIntegrationEvent } from "../observability/integrationEvents";
+import { getStripeClient, getStripeWebhookSecret } from "../utils/stripe";
+import { enqueuePaidCheckoutSession } from "./StripePaymentEventService";
 
 type WebhookResult =
   | { status: "ok" }

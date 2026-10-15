@@ -28,6 +28,11 @@ const apps = [
 ] as const;
 
 for (const app of apps) {
+  // Each app owns its probe connections; loopback traffic must bypass proxies.
+  using session = new Bun.FetchSession({
+    proxy: false,
+    keepAlive: { idleTimeout: 5, maxIdleSockets: 8 },
+  });
   const source = path.join(root, "apps", app.name);
   const standalone = path.join(source, ".next/standalone/apps", app.name);
   const entry = path.join(standalone, "server.js");
@@ -122,7 +127,7 @@ for (const app of apps) {
     let ready = false;
     while (Date.now() < deadline && child.exitCode === null) {
       try {
-        const response = await fetch(`${origin}/api/health`, {
+        const response = await session.fetch(`${origin}/api/health`, {
           signal: AbortSignal.timeout(1000),
         });
         if (
@@ -141,7 +146,7 @@ for (const app of apps) {
       throw new Error(`${app.name} standalone server did not become healthy.`);
     const assets = new Set<string>();
     for (const page of app.pages) {
-      const response = await fetch(`${origin}${page.path}`, {
+      const response = await session.fetch(`${origin}${page.path}`, {
         signal: AbortSignal.timeout(15_000),
         redirect: "manual",
       });
@@ -186,7 +191,7 @@ for (const app of apps) {
       }
     }
     if (app.name === "client") {
-      const response = await fetch(`${origin}/sitemap.xml`, {
+      const response = await session.fetch(`${origin}/sitemap.xml`, {
         signal: AbortSignal.timeout(20_000),
       });
       const xml = await response.text();
@@ -203,7 +208,7 @@ for (const app of apps) {
     }
     if (app.name === "client") {
       catalogEnabled = true;
-      const response = await fetch(`${origin}/products/1`, {
+      const response = await session.fetch(`${origin}/products/1`, {
         signal: AbortSignal.timeout(15_000),
       });
       if (!response.ok || !response.body)
@@ -239,7 +244,7 @@ for (const app of apps) {
         );
       for (const stock of [0, null]) {
         available = stock;
-        const response = await fetch(`${origin}/products/1`, {
+        const response = await session.fetch(`${origin}/products/1`, {
           signal: AbortSignal.timeout(15_000),
         });
         const html = await response.text();
@@ -264,7 +269,9 @@ for (const app of apps) {
       const url = new URL(asset, origin);
       if (url.origin !== origin)
         throw new Error("Smoke tests require locally served assets.");
-      const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
+      const response = await session.fetch(url, {
+        signal: AbortSignal.timeout(5000),
+      });
       if (!response.ok)
         throw new Error(
           `${app.name} asset ${url.pathname}: HTTP ${response.status}.`,

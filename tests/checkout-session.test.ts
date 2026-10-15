@@ -1,10 +1,10 @@
 import { expect, test } from "bun:test";
-import type { CartItem } from "@repo/types";
 import {
   checkoutAttempt,
   consumeCheckout,
   rememberCheckout,
 } from "../apps/client/src/lib/checkout-session";
+import type { CartItem } from "../packages/types/src";
 
 const storage = () => {
   const values = new Map<string, string>();

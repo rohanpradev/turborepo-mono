@@ -1,6 +1,9 @@
 {{- if ge (int .Values.global.preStopDelaySeconds) (int .Values.global.terminationGracePeriodSeconds) }}
 {{- fail "global.terminationGracePeriodSeconds must exceed global.preStopDelaySeconds to allow application shutdown" }}
 {{- end }}
+{{- if lt (sub (int .Values.global.terminationGracePeriodSeconds) (int .Values.global.preStopDelaySeconds)) 25 }}
+{{- fail "global.terminationGracePeriodSeconds must leave at least 25 seconds after global.preStopDelaySeconds for application shutdown" }}
+{{- end }}
 {{- range $key, $service := .Values.services }}
 {{- if $service.enabled }}
 {{- $topologySpreadConstraints := coalesce $service.topologySpreadConstraints $.Values.global.topologySpreadConstraints }}

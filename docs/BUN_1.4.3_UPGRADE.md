@@ -1,0 +1,124 @@
+# Bun 1.4.3 adoption review
+
+Reviewed on 15 October 2026 against the [official release](https://bun.com/blog/bun-v1.4.3), [Bun 1.4](https://bun.sh/blog/bun-v1.4), [1.4.1](https://bun.com/blog/bun-v1.4.1), [1.4.2](https://bun.com/blog/bun-v1.4.2), and the installed CLI help. Bun 1.4.3 is the latest stable release. The installed runtime, root engine/package-manager settings, CI version, and all five Dockerfiles already select 1.4.3. This work adopts applicable features and updates declarations rather than changing those existing runtime pins.
+
+## File plan, prepared before implementation
+
+| Files | Planned work |
+| --- | --- |
+| `package.json`, `bun.lock` | Update the shared `@types/bun` catalog to 1.4.3; remove the direct `undici-types` workaround after checking the fixed dependency declaration. Replace tooling `tsc --noEmit` with `bun check`; enable checked tests. |
+| `apps/{admin,client}/package.json` | Keep `next typegen`, then use `bun check`. Retain TypeScript for editors and Next builds. |
+| `apps/{order-service,payment-service,product-service}/package.json` | Use `bun check`; check before each development watch restart. |
+| `packages/{api-client,contracts,hono-utils,kafka,order-db,product-db,types}/package.json` | Use Bun's built-in checker with each package's existing TypeScript configuration. Retain TypeScript for editor/tool integration. |
+| `apps/{admin,client}/turbo.json` | Remove the incremental compiler output from the type-check cache; retain generated Next route types. Preserve build outputs and dependency transit tasks. |
+| `tests/tsconfig.json`, `integration-tests/tsconfig.json`, affected test mocks/imports | Give tests explicit strict compiler settings and resolvable cross-workspace imports; fix genuine type errors before enabling `bun test --check`. |
+| `scripts/test-integration.ts` | Type-check integration tests before executing them; preserve disposable database safeguards and sequential migrations. |
+| `scripts/test-web-smoke.ts` | Use a scoped `Bun.FetchSession` with explicit connection cleanup and no proxy for local fixture requests. |
+| `knip.ts` | Remove the obsolete exception for the undeclared type dependency; accommodate the new Bun commands if the installed Knip parser needs it. |
+| `bunfig.toml` | Correct the isolated-store comment to reflect the explicit `globalStore` opt-in; preserve portable local installs. |
+| `.github/workflows/ci.yml` | Include the Bun version and installer configuration in dependency cache keys. CI inherits checked test/type commands from manifests. |
+| `README.md`, `docs/QUALITY.md`, this report | Document the new checker, test coverage of types, and feature decisions; record actual validation results. |
+
+All tracked source, manifests, TypeScript/Turbo/Bun configs, CI, Docker, Compose, Helm, operational scripts, and unit/integration test entry points were inventoried. Feature decisions below apply across those groups; files without an applicable change are intentionally retained.
+
+## Release feature decisions
+
+| Release feature | Repository decision |
+| --- | --- |
+| `bun check`, `bun run --check`, `bun test --check` | Adopt for existing no-emit checks, service watch mode, and tests. Keep workspace orchestration and Prisma generation prerequisites. The checker does not emit declarations or incremental compiler state. See [type-checking docs](https://bun.com/docs/runtime/check). |
+| Updated `@types/bun` dependency declarations | Upgrade; verify isolated frozen installs and strict library checking without the root workaround. |
+| `Bun.FetchSession` | Adopt in the Bun-only standalone smoke runner, which owns a clear per-app lifecycle. Keep the shared API client compatible with browser and Next.js fetch/cache behavior. See [fetch sessions](https://bun.com/docs/runtime/networking/fetch#fetch-sessions). |
+| Idle CPU, large HTTP responses, JSON/RegExp/array operations, rejected promises, memory reclamation | Existing 1.4.3 services and Next standalone processes receive these runtime improvements automatically. Do not rewrite equivalent application code or claim unmeasured speedups. |
+| `CompressionStream` levels | Hono already owns response compression; there is no custom CompressionStream pipeline to tune. |
+| `If-Range` file serving | Next.js owns storefront/admin assets and image optimization; no direct Bun static-file route requires replacement. |
+| Proxy environment handling and TLS verification/root changes | Preserve certificate verification. Smoke fixtures use loopback addresses and explicitly bypass proxy configuration. Production clients retain environment-based proxy behavior. Deployment-specific private roots still need valid configuration. |
+| `--disallow-code-generation-from-strings` | Defer process-wide enforcement: Next, schema validation, and other third-party code may generate functions. Enabling it requires a separate dependency compatibility exercise. |
+| Experimental `Bun.ModuleGraph` | Defer: the existing separately deployed services, explicit shutdown, and test isolation already define ownership. No tenant/module sandbox requirement exists. |
+| Bundler memory, `[hashN]`, metafile improvements | No direct Bun bundling pipeline exists. Next uses its own bundler; service containers run TypeScript source. |
+| Compiled bytecode layout, JIT policy, compile startup improvements | No compiled executable target or representative bytecode-order profile exists. Avoid adding a deployment format solely for this release. |
+| Installer tarball skipping and security fixes | Received through existing frozen installs and runtime pins. Preserve catalog, patch, overrides, lockfile, and Docker's hoisted portable layers. |
+| Parallel/isolate/changed tests, audit/dedupe/licenses, catalogs (1.4 baseline) | Already adopted. Preserve these rather than duplicate their workflows. |
+| Global virtual store, offline/prefer-offline installs, self-contained workspaces (1.4/1.4.1) | Keep the current local isolated store. Global symlinks are unsuitable for copied/pruned Docker layers; a shared global store/offline policy is an environment-specific opt-in. No Electron workspace needs self-contained installs. |
+| Browser/image/markdown/JSON5/JSONL/terminal/cron APIs (1.4 baseline) | No matching production requirement. Preserve Next image handling, structured JSON logs, binary recovery archives, and non-overlapping leased background workers. |
+| Node/Web/TLS/spawn/test compatibility fixes | Validate existing API, webhook, shutdown, subprocess, parallel test, and standalone web behavior with the updated runtime and types. Keep `pg`, Prisma, Mongoose, KafkaJS, and Stripe integrations; replacing data drivers is a separate migration. |
+
+## Validation
+
+Implementation is complete. Checks used Bun 1.4.3 (`c6da4a4d3`), the installed TypeScript 7.0.2, and Node 24.19.0 for tools requiring Node.
+
+| Check | Result |
+| --- | --- |
+| `bun ci --offline --ignore-scripts` | Frozen final lockfile installs successfully from cache; 794 resolved packages, no changes. No dependency lifecycle scripts were needed for this type-only update. |
+| `bun run check-types` | All 12 workspace checkers, root tooling checker, and Prisma generation pass (14 Turbo tasks). Both web apps generate route types before Bun checks. |
+| `bun check --project tests` | Passes with strict test settings and browser types for imported browser modules. |
+| `bun check --project integration-tests` | Passes, including imported service/database code. |
+| Independent `tsc --noEmit --incremental false` | All 15 project configurations pass: 12 workspaces, scripts, unit tests, integration tests. Confirms the migration remains compatible with the installed TypeScript compiler. |
+| `bun check --project scripts --skipLibCheck false` | Passes across 652 files after removing the root type-dependency workaround and deduplicating its transitive resolution. |
+| `bun run test:coverage` | 148 tests pass, 0 fail, 419 assertions across 26 files, including the additional shutdown-budget checks. Checked parallel/isolate execution and LCOV output succeed. |
+| Negative type-error probes | Temporary fixtures confirm both `bun run --check` and `bun test --check` reject TS2322 before executing their bodies. Fixtures were removed. |
+| `bun run build` | Admin and storefront production builds pass with the existing Turbopack configuration and Next's independent TypeScript check. |
+| `bun run test:web` | Both Bun-hosted standalone apps pass health/page/asset checks: 5 storefront pages and 22 assets; 6 admin pages and 15 assets. Product summary streaming and current/sold-out/unavailable stock checks pass using scoped fetch sessions. |
+| `bun run lint:ci` | Passes. |
+| `bun run deps:check`, `bun run deps:dedupe:check` | Pass; one compatible `undici-types` resolution was deduplicated. |
+| `bun run knip`, `bun run boundaries` | Development/strict-production checks and package boundaries pass. |
+| `bun run db:validate` | Prisma contract generation and migration graph checks pass without a live database. |
+| `bun run audit` | No vulnerabilities reported across 729 audited packages. |
+| `make docker-validate` | Both Compose configurations render successfully. |
+| `git diff --check` | Passes. |
+
+The initial sandboxed shutdown test and Turbopack build could not bind temporary ports. They pass with local networking enabled. The admin build also required clearing its generated Turbopack cache, which had retained the earlier sandbox error. No application build configuration was changed to bypass it.
+
+Docker was initially unavailable. During the Docker/Kubernetes follow-up it became reachable, and the container builds and live integration tests below were completed. No hosted CI run, cluster deployment, or recovery drill was performed.
+
+## Additional files identified by checked tests
+
+The initial checked test run found missing test-project configuration, app-private aliases resolved outside their owning project, and incorrectly typed fetch mocks. The following supporting changes allow strict checking without broad alias fallbacks or unchecked fetch casts:
+
+- `apps/client/src/stores/cartStore.ts` and `checkoutStore.ts`: use relative imports of the existing app types.
+- `apps/payment-service/src/routes/webhookRoutes.ts` and `src/services/{StripeCheckoutService,StripePaymentEventService,StripeWebhookService}.ts`: use relative imports within the same service.
+- `apps/product-service/src/services/ProductOutboxRelay.ts`: use relative runtime, Kafka, and timestamp imports.
+- `tests/api-client.test.ts`: use a typed fetch replacement preserving `fetch.preconnect`; capture asynchronous request state in typed objects.
+- `tests/{checkout-session,payment-checkout,payment-webhook}.test.ts`: import shared types through existing source entry points, matching the other root tests and avoiding undeclared root workspace dependencies.
+- `integration-tests/payment-inventory.test.ts`: handle Stripe's optional create-session parameter in its test assertion.
+
+Knip currently parses `bun check` as an external `check` binary and misses script files after `bun run --check`. Its configuration documents a narrow binary exception and explicitly lists operational scripts as entry points. No unused-dependency or type diagnostic is globally disabled.
+
+## Docker and Kubernetes follow-up
+
+Reviewed on 15 October 2026. The follow-up updates `.github/workflows/ci.yml`, `make/common.mk`, all five `docker/Dockerfile.*` files, `.dockerignore`, `compose.yml`, `charts/ecommerce/{Chart.yaml,values.yaml,templates/deployments.yaml}`, `tests/helm-options.test.ts`, and the related documentation.
+
+### Version decisions
+
+- Helm **4.3.0 → 4.3.1**, released on 15 October. The [official release](https://github.com/helm/helm/releases/tag/v4.3.1) fixes CRD-establishment waiting in hook-only operation and updates dependencies. CI and Make now use the same version.
+- kube-prometheus-stack **92.3.0 → 92.8.0**. The [official comparison](https://github.com/prometheus-community/helm-charts/compare/kube-prometheus-stack-92.3.0...kube-prometheus-stack-92.8.0) retains Prometheus Operator 0.94.1 and the same CRD definitions; it updates Grafana/node-exporter chart dependencies, webhook certificate generation, and bundled dashboards. Existing local values render successfully with the new chart.
+- Bun **1.4.3**, Buildx **0.38.0**, BuildKit **0.34.0**, Traefik **3.7.14**/chart **41.7.1**, Gateway API **1.6.3**, and kubeconform **0.8.0** are already current according to their official releases. Existing digest pins were retained.
+- The [Kubernetes release list](https://kubernetes.io/releases/) still lists **1.35.9**, **1.36.5**, and **1.37.1** as the latest patches for these minors. Keep 1.35/1.36 as the deployment baseline and 1.37 as the experimental render target. The local cluster runs **1.36.5+orb1**.
+- Installed the existing checksum-verified, project-local **kubectl 1.36.5** because the system client was 1.33.9. Make selects the ignored `.runtime/bin/kubectl-1.36.5` automatically. The Helm and client/server version-skew checks pass.
+
+The Bun image index digest was verified against the registry: `sha256:ec06c3b6cea04192ae6770c434f668ca41d343ad19fa6472216c7b48be39c598`, with Linux AMD64 and ARM64 manifests. Both controller chart archives were verified against SHA-256 values in their official repository indexes; the Gateway API manifest matches the repository's pinned checksum.
+
+### Container and chart improvements
+
+- Every Docker build runs the new checker. Web images run `next typegen` through `check-types` before their existing production build. Services check source with development dependencies in a separate build stage.
+- Service runner layers take dependency trees exclusively from frozen, production-only, hoisted installs. Both root and workspace-local production dependencies are preserved. Source comes from the pruned context, and the product image receives its generated Prisma contract explicitly. Development dependency links from the checker stage cannot overwrite runtime links.
+- Bun's transpiler cache writes to `/tmp/bun-transpiler`, matching the writable mount in otherwise read-only Compose containers and Kubernetes pods. Existing web `.next/cache` mounts remain necessary for image optimization.
+- All Bun Dockerfile/Compose HTTP probes use `proxy: false` and `AbortSignal.timeout(3000)`, so inherited proxies cannot redirect loopback health checks and stalled requests finish before the outer probe timeout.
+- The build context excludes integration tests and local agent/credential directories in addition to the existing environment, VCS, and generated-file exclusions.
+- Helm chart **0.5.5 → 0.5.6** rejects grace periods leaving fewer than 25 seconds after the pre-stop delay. The default remains 40 seconds with a 5-second delay. Regression checks cover both the rejected 29-second total and accepted 30-second minimum.
+
+### Deployment verification
+
+| Check | Result |
+| --- | --- |
+| Five pruned Docker contexts | Frozen offline hoisted installs and checker commands pass for every app; assembled production service layouts resolve their dependencies and return liveness successfully. |
+| Docker build checks | All five Dockerfiles pass the same build checks used in CI. |
+| Linux ARM64 and AMD64 image builds | All five images build successfully for both release architectures with Bun 1.4.3 (10 builds). AMD64 checks run through local emulation. |
+| Restricted runtime checks | All five image probes pass on both architectures as UID/GID 65532 with read-only roots, dropped capabilities, no external network, and deliberately invalid proxy settings. Service imports succeed with only production dependencies; liveness returns 200 and unready dependencies return 503. |
+| Web image smoke tests | Both web images start on both architectures under the same restrictions and writable cache mounts. Storefront and admin pages plus 8 assets each pass. Storefront native image optimization also passes on both architectures. Temporary containers are removed after testing. |
+| Real PostgreSQL/MongoDB/Kafka integration | **17 tests, 63 assertions, 0 failures** across 3 files. Validates migrations, indexes, pagination, outbox claims, duplicate events, inventory reservation/commit, durable payment work, and catalog reconciliation against disposable dependencies. |
+| Application chart matrix | All four profiles render/lint and pass policy checks on 1.35.9, 1.36.5, and 1.37.1. Strict versioned schema checks pass for all native resources in the 12 combinations. Gateway custom resources retain the documented schema skips. |
+| Controller chart rendering | Traefik 41.7.1 and kube-prometheus-stack 92.8.0 render with the actual repository values. Native-resource schema checks pass: 7 Traefik and 76 monitoring resources. Their custom resources require their respective CRDs for full admission validation. |
+| Kubernetes server-side validation | The live 1.36.5 API server accepts all 22 native Ingress-profile resources, 35 Traefik/monitoring CRD definitions, and the Gateway API manifest using strict/server-side dry runs. No objects are persisted. |
+| Repository checks | Coverage, type checks, lint, dependency alignment/deduplication, Knip, boundaries, Compose rendering, and diff whitespace checks pass. |
+
+A controller/application rollout and admission of custom resource instances remain unverified: the local cluster does not have those controllers' CRDs installed. Existing CRD-before-controller upgrade steps, restricted pod security, digest requirements for staging/production, and disabled production seeding remain in place. The disposable integration containers and their network were removed after the successful run. Verification images remain available locally under `codex-bun143-<service>:verify` (ARM64) and `codex-bun143-<service>:verify-amd64`.

@@ -1,6 +1,7 @@
 [install]
-# Workspace installs use Bun’s local virtual store and isolated linker.
-# The global store is opt-in; Docker uses hoisted installs for portable layers.
+# Workspace installs use Bun's isolated linker and local virtual store.
+# A shared global store requires globalStore = true; keep it off for portable copies.
+# Docker uses explicitly hoisted installs for portable layers.
 # Disable the transitive fallback so undeclared imports fail during development.
 linker = "isolated"
 hoist = false

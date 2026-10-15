@@ -323,7 +323,7 @@ test("checkout retries reuse a durable snapshot, reserve once, and retain varian
           >,
         ) => {
           creates++;
-          expect(params.line_items?.[0]?.price_data?.unit_amount).toBe(1234);
+          expect(params?.line_items?.[0]?.price_data?.unit_amount).toBe(1234);
           expect(options.idempotencyKey).toBe(`checkout:${id}`);
           return session;
         },

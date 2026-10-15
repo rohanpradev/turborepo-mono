@@ -25,7 +25,7 @@ for (const command of [
   ["run", "--cwd", "packages/product-db", "db:deploy"],
   ["run", "--cwd", "packages/order-db", "db:deploy"],
   ["run", "--cwd", "apps/payment-service", "db:deploy"],
-  ["test", "--timeout", "15000", "./integration-tests"],
+  ["test", "--check", "--timeout", "15000", "./integration-tests"],
 ]) {
   const child = Bun.spawn([process.execPath, ...command], {
     cwd: `${import.meta.dir}/..`,

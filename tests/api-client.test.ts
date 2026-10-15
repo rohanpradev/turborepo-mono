@@ -15,6 +15,16 @@ import {
 
 const originalFetch = globalThis.fetch;
 
+const setFetch = (
+  implementation: (
+    ...args: Parameters<typeof fetch>
+  ) => ReturnType<typeof fetch>,
+) => {
+  globalThis.fetch = Object.assign(implementation, {
+    preconnect: originalFetch.preconnect,
+  });
+};
+
 afterEach(() => {
   globalThis.fetch = originalFetch;
 });
@@ -24,10 +34,10 @@ describe("@repo/api-client", () => {
     "never caches authenticated requests, including a caller policy of %s",
     async (cache) => {
       let receivedCache: RequestCache | undefined;
-      globalThis.fetch = (async (_input, init) => {
+      setFetch(async (_input, init) => {
         receivedCache = init?.cache;
         return Response.json({ json: { success: true, data: [] } });
-      }) as typeof fetch;
+      });
 
       await listOrders("https://orders.test", {
         token: "test-token",
@@ -40,10 +50,10 @@ describe("@repo/api-client", () => {
 
   it("preserves an explicit public catalog cache policy", async () => {
     let receivedCache: RequestCache | undefined;
-    globalThis.fetch = (async (_input, init) => {
+    setFetch(async (_input, init) => {
       receivedCache = init?.cache;
       return Response.json({ json: { success: true, data: [] } });
-    }) as typeof fetch;
+    });
 
     await listProducts("https://catalog.test", {}, { cache: "force-cache" });
 
@@ -55,7 +65,7 @@ describe("@repo/api-client", () => {
     async (readOrders) => {
       const controller = new AbortController();
       const started = Promise.withResolvers<Request>();
-      globalThis.fetch = ((input, init) => {
+      setFetch((input, init) => {
         const request = new Request(input, init);
         started.resolve(request);
         return new Promise<Response>((_resolve, reject) => {
@@ -65,7 +75,7 @@ describe("@repo/api-client", () => {
             { once: true },
           );
         });
-      }) as typeof fetch;
+      });
       const pending = readOrders("https://orders.test", {
         token: "test-token",
         fetchOptions: { signal: controller.signal, cache: "no-store" },
@@ -81,12 +91,11 @@ describe("@repo/api-client", () => {
   );
 
   it("calls product list RPC with encoded input", async () => {
-    let capturedUrl: URL | null = null;
-    let capturedRequest: Request | null = null;
+    const captured: { request?: Request; url?: URL } = {};
 
-    globalThis.fetch = (async (input, init) => {
-      capturedRequest = new Request(input, init);
-      capturedUrl = new URL(
+    setFetch(async (input, init) => {
+      captured.request = new Request(input, init);
+      captured.url = new URL(
         input instanceof Request ? input.url : String(input),
       );
 
@@ -111,7 +120,7 @@ describe("@repo/api-client", () => {
           },
         },
       );
-    }) as typeof fetch;
+    });
 
     await listProducts("https://api.localhost", {
       category: "t-shirts",
@@ -120,9 +129,9 @@ describe("@repo/api-client", () => {
       sort: "newest",
     });
 
-    expect(capturedUrl?.pathname).toBe("/rpc/product/product/list");
-    expect(capturedRequest?.method).toBe("POST");
-    expect(capturedRequest && (await capturedRequest.json())).toMatchObject({
+    expect(captured.url?.pathname).toBe("/rpc/product/product/list");
+    expect(captured.request?.method).toBe("POST");
+    expect(captured.request && (await captured.request.json())).toMatchObject({
       json: {
         category: "t-shirts",
         limit: 8,
@@ -133,10 +142,10 @@ describe("@repo/api-client", () => {
   });
 
   it("sends checkout session requests with auth and JSON body", async () => {
-    let capturedRequest: Request | null = null;
+    const captured: { request?: Request; url?: URL } = {};
 
-    globalThis.fetch = (async (input, init) => {
-      capturedRequest = new Request(input, init);
+    setFetch(async (input, init) => {
+      captured.request = new Request(input, init);
 
       return new Response(
         JSON.stringify({
@@ -154,7 +163,7 @@ describe("@repo/api-client", () => {
           },
         },
       );
-    }) as typeof fetch;
+    });
 
     await createCheckoutSession(
       "https://payments.localhost",
@@ -172,17 +181,17 @@ describe("@repo/api-client", () => {
       "test-token",
     );
 
-    expect(capturedRequest?.method).toBe("POST");
-    expect(capturedRequest?.url).toBe(
+    expect(captured.request?.method).toBe("POST");
+    expect(captured.request?.url).toBe(
       "https://payments.localhost/rpc/payment/checkout/createSession",
     );
-    expect(capturedRequest?.headers.get("authorization")).toBe(
+    expect(captured.request?.headers.get("authorization")).toBe(
       "Bearer test-token",
     );
-    expect(capturedRequest?.headers.get("content-type")).toBe(
+    expect(captured.request?.headers.get("content-type")).toBe(
       "application/json",
     );
-    expect(capturedRequest && (await capturedRequest.json())).toMatchObject({
+    expect(captured.request && (await captured.request.json())).toMatchObject({
       json: {
         checkoutAttemptId: "019f50b2-4dd4-7000-8000-000000000001",
         cart: [
@@ -200,7 +209,7 @@ describe("@repo/api-client", () => {
   it("sends catalog mutation requests with admin auth", async () => {
     const capturedRequests: Array<Request> = [];
 
-    globalThis.fetch = (async (input, init) => {
+    setFetch(async (input, init) => {
       const request = new Request(input, init);
       capturedRequests.push(request);
 
@@ -243,7 +252,7 @@ describe("@repo/api-client", () => {
           },
         },
       );
-    }) as typeof fetch;
+    });
 
     const payload = {
       name: "Catalog Product",
@@ -279,10 +288,10 @@ describe("@repo/api-client", () => {
   });
 
   it("sends operational payment requests with admin auth", async () => {
-    let capturedRequest: Request | null = null;
+    const captured: { request?: Request; url?: URL } = {};
 
-    globalThis.fetch = (async (input, init) => {
-      capturedRequest = new Request(input, init);
+    setFetch(async (input, init) => {
+      captured.request = new Request(input, init);
 
       return new Response(
         JSON.stringify({
@@ -301,17 +310,17 @@ describe("@repo/api-client", () => {
           },
         },
       );
-    }) as typeof fetch;
+    });
 
     await getPaymentIntegrationEvents("https://payments.localhost", {
       fetchOptions: { cache: "no-store" },
       token: "admin-token",
     });
 
-    expect(capturedRequest?.url).toBe(
+    expect(captured.request?.url).toBe(
       "https://payments.localhost/rpc/payment/ops/integrationEvents",
     );
-    expect(capturedRequest?.headers.get("authorization")).toBe(
+    expect(captured.request?.headers.get("authorization")).toBe(
       "Bearer admin-token",
     );
   });
@@ -320,15 +329,15 @@ describe("@repo/api-client", () => {
     const controller = new AbortController();
     let receivedSignal: AbortSignal | null | undefined;
     let receivedCache: RequestCache | undefined;
-    let receivedHeader: string | null = null;
-    globalThis.fetch = (async (_input, init) => {
+    const received: { header: string | null } = { header: null };
+    setFetch(async (_input, init) => {
       receivedSignal = init?.signal;
       receivedCache = init?.cache;
-      receivedHeader = new Headers(init?.headers).get("x-request-id");
+      received.header = new Headers(init?.headers).get("x-request-id");
       controller.abort();
       expect(receivedSignal?.aborted).toBe(true);
       throw new DOMException("Request cancelled", "AbortError");
-    }) as typeof fetch;
+    });
     await expect(
       listProducts(
         "https://api.localhost",
@@ -341,7 +350,7 @@ describe("@repo/api-client", () => {
       ),
     ).rejects.toBeInstanceOf(ApiClientError);
     expect(receivedCache).toBe("no-store");
-    expect(receivedHeader).toBe("catalog-test");
+    expect(received.header).toBe("catalog-test");
   });
 
   it("bounds stalled RPC requests with a timeout signal", async () => {
@@ -352,10 +361,10 @@ describe("@repo/api-client", () => {
         timeoutMs = milliseconds;
         return AbortSignal.abort(new DOMException("Timed out", "TimeoutError"));
       };
-      globalThis.fetch = (async (_input, init) => {
+      setFetch(async (_input, init) => {
         expect(init?.signal?.aborted).toBe(true);
         throw init?.signal?.reason;
-      }) as typeof fetch;
+      });
       await expect(
         listProducts("https://api.localhost"),
       ).rejects.toBeInstanceOf(ApiClientError);
@@ -366,10 +375,12 @@ describe("@repo/api-client", () => {
   });
 
   it("rejects malformed successful health responses instead of returning null", async () => {
-    globalThis.fetch = (async () =>
-      new Response("not-json", {
-        headers: { "content-type": "application/json" },
-      })) as typeof fetch;
+    setFetch(
+      async () =>
+        new Response("not-json", {
+          headers: { "content-type": "application/json" },
+        }),
+    );
     await expect(
       getPaymentServiceHealth("https://payments.localhost"),
     ).rejects.toMatchObject({
@@ -379,24 +390,26 @@ describe("@repo/api-client", () => {
   });
 
   it("surfaces typed API errors from JSON responses", async () => {
-    globalThis.fetch = (async () =>
-      new Response(
-        JSON.stringify({
-          json: {
-            code: "SERVICE_UNAVAILABLE",
-            data: null,
-            defined: false,
-            message: "Stripe unavailable",
+    setFetch(
+      async () =>
+        new Response(
+          JSON.stringify({
+            json: {
+              code: "SERVICE_UNAVAILABLE",
+              data: null,
+              defined: false,
+              message: "Stripe unavailable",
+              status: 503,
+            },
+          }),
+          {
             status: 503,
+            headers: {
+              "content-type": "application/json",
+            },
           },
-        }),
-        {
-          status: 503,
-          headers: {
-            "content-type": "application/json",
-          },
-        },
-      )) as typeof fetch;
+        ),
+    );
 
     const failure = getCheckoutSessionStatus(
       "https://payments.localhost",

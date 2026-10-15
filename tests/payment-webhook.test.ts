@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import type { StripeCheckoutCompletedMessage } from "@repo/kafka";
 import {
   STRIPE_WEBHOOK_MAX_BODY_SIZE_BYTES,
   webhookRoutes,
 } from "../apps/payment-service/src/routes/webhookRoutes";
 import { StripeWebhookService } from "../apps/payment-service/src/services/StripeWebhookService";
 import { setStripeClientForTesting } from "../apps/payment-service/src/utils/stripe";
+import type { StripeCheckoutCompletedMessage } from "../packages/kafka/src";
 
 const originalStripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const originalWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;

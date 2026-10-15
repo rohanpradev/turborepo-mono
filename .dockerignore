@@ -52,3 +52,10 @@ bun-debug.log*
 **/*.pem
 **/*.key
 tests
+integration-tests
+
+# Local agent state and credentials never belong in a build context.
+.agents
+.codex
+.aws
+.ssh

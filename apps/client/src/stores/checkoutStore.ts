@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { type ShippingFormInputs, shippingFormSchema } from "@/types";
+import { type ShippingFormInputs, shippingFormSchema } from "../types";
 
 type CheckoutState = {
   hasHydrated: boolean;
