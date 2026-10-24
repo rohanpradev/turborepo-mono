@@ -10,7 +10,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ printf "%s-%s" (include "ecommerce.fullname" $) $name | trunc 63 | trimSuffix "-" }}
+  name: {{ include "ecommerce.resourceName" (dict "root" $ "suffix" $name) }}
   labels:
     {{- include "ecommerce.labels" $ | nindent 4 }}
     app.kubernetes.io/component: {{ $name | quote }}
@@ -42,6 +42,7 @@ spec:
       automountServiceAccountToken: false
       enableServiceLinks: {{ $.Values.global.enableServiceLinks }}
       terminationGracePeriodSeconds: {{ $.Values.global.terminationGracePeriodSeconds }}
+      {{- include "ecommerce.podPlacement" $ | nindent 6 }}
       securityContext:
         {{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
       {{- with $.Values.global.imagePullSecrets }}

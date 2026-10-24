@@ -68,6 +68,8 @@ const remoteImagePatterns = Array.from(
 const workspaceRoot = path.join(__dirname, "../../");
 
 const nextConfig: NextConfig = {
+  cacheComponents: true,
+  partialPrefetching: true,
   deploymentId: process.env.NEXT_DEPLOYMENT_ID || undefined,
   output: "standalone",
   reactCompiler: true,

@@ -5,7 +5,7 @@ import {
 } from "@repo/types";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import type { CartStoreActionsType, CartStoreStateType } from "@/types";
+import type { CartStoreActionsType, CartStoreStateType } from "../types";
 
 const isSameCartItem = (
   left: CartStoreStateType["cart"][number],

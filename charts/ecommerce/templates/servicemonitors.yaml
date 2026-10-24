@@ -2,7 +2,7 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: {{ include "ecommerce.fullname" . }}-apps
+  name: {{ include "ecommerce.resourceName" (dict "root" . "suffix" "apps") }}
   labels:
     {{- include "ecommerce.labels" . | nindent 4 }}
     {{- with .Values.observability.serviceMonitor.labels }}
@@ -48,7 +48,7 @@ spec:
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: {{ include "ecommerce.fullname" . }}-traefik
+  name: {{ include "ecommerce.resourceName" (dict "root" . "suffix" "traefik") }}
   labels:
     {{- include "ecommerce.labels" . | nindent 4 }}
     {{- with .Values.observability.traefik.serviceMonitor.labels }}

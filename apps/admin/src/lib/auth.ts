@@ -2,6 +2,7 @@ import "server-only";
 
 import { auth } from "@clerk/nextjs/server";
 import { type CustomJwtSessionClaims, isPlatformAdmin } from "@repo/types";
+import { navigation } from "next/cache";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 
@@ -23,6 +24,8 @@ const adminUserIds = new Set(
  * this check is the authorization boundary and deliberately fails closed.
  */
 export const requireAdminAccess = cache(async () => {
+  // Prefetch the shared shell; authorize and fetch private data on navigation.
+  await navigation();
   if (!isClerkConfigured) {
     notFound();
   }

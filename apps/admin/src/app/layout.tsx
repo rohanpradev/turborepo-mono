@@ -2,11 +2,14 @@ import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import "./globals.css";
-import AdminNavbar, { adminViewerFallback } from "@/components/AdminNavbar";
+import AdminNavbar from "@/components/AdminNavbar";
 import AppSidebar from "@/components/AppSidebar";
-import Navbar from "@/components/Navbar";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import Loading from "./loading";
+
+// Keep navigation prefetches static; private data starts after navigation().
+export const ensureStatic = "prefetch";
 
 const createMetadataBase = (value: string | undefined, fallback: string) => {
   try {
@@ -58,17 +61,30 @@ export default function RootLayout({
         >
           Skip to main content
         </a>
-        <AppSidebar />
+        <Suspense
+          fallback={
+            <div
+              aria-hidden="true"
+              className="hidden w-64 shrink-0 border-r bg-sidebar md:block"
+            />
+          }
+        >
+          <AppSidebar />
+        </Suspense>
         <main
           id="admin-content"
           className="min-h-screen min-w-0 flex-1 outline-none"
           tabIndex={-1}
         >
-          <Suspense fallback={<Navbar viewer={adminViewerFallback} />}>
+          <Suspense
+            fallback={
+              <div aria-hidden="true" className="h-20 border-b bg-background" />
+            }
+          >
             <AdminNavbar />
           </Suspense>
           <div className="mx-auto w-full max-w-[1500px] px-4 pb-10 sm:px-6 lg:px-8">
-            {children}
+            <Suspense fallback={<Loading />}>{children}</Suspense>
           </div>
         </main>
       </SidebarProvider>
@@ -78,7 +94,13 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="flex min-h-screen antialiased">
-        {isClerkConfigured ? <ClerkProvider>{shell}</ClerkProvider> : shell}
+        {isClerkConfigured ? (
+          <Suspense fallback={<Loading />}>
+            <ClerkProvider>{shell}</ClerkProvider>
+          </Suspense>
+        ) : (
+          shell
+        )}
       </body>
     </html>
   );

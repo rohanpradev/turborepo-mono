@@ -1,0 +1,7 @@
+{
+  "extends": "../packages/typescript-config/bun-service.json",
+  "compilerOptions": {
+    "lib": ["ESNext", "DOM", "DOM.Iterable"]
+  },
+  "include": ["**/*.ts"]
+}

@@ -5,6 +5,7 @@ import {
   InventoryConflict,
   reserveStock,
 } from "@repo/product-db";
+import { productVariantSchema } from "@repo/types";
 import { z } from "zod";
 
 const reservationSchema = z.object({
@@ -15,8 +16,8 @@ const reservationSchema = z.object({
     .array(
       z.object({
         productId: z.number().int().positive(),
-        selectedSize: z.string().min(1).max(100),
-        selectedColor: z.string().min(1).max(100),
+        selectedSize: productVariantSchema,
+        selectedColor: productVariantSchema,
         quantity: z.number().int().min(1).max(9900),
       }),
     )

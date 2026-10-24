@@ -2,8 +2,8 @@
   "name": "order-service",
   "type": "module",
   "scripts": {
-    "dev": "bun run --watch src/index.ts",
-    "check-types": "tsc --noEmit"
+    "dev": "bun run --watch --check src/index.ts",
+    "check-types": "bun check"
   },
   "dependencies": {
     "@repo/hono-utils": "workspace:*",

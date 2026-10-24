@@ -2,7 +2,7 @@
 
 See [payment/inventory decisions](adr/0002-payment-inventory.md),
 [environment setup](../deploy/environments/README.md), and
-[Hono review](HONO_REVIEW-2026-10-03.md).
+[engineering review](ENGINEERING_REVIEW_2026-10-22.md).
 
 ## Local preparation
 

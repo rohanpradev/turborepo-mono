@@ -1,7 +1,6 @@
 # Observability
 
 This repo uses a Kubernetes-native observability stack:
-
 - Prometheus Operator and kube-prometheus-stack for Prometheus, Alertmanager, Grafana, node metrics, and Kubernetes dashboards.
 - `ServiceMonitor` resources for app metrics and Traefik metrics.
 - `PrometheusRule` alerts for readiness, 5xx ratio, and p95 latency.
@@ -39,7 +38,6 @@ make k8s-prometheus
 ```
 
 Default local URLs:
-
 - Grafana: `http://localhost:3000`
 - Prometheus: `http://localhost:9090`
 
@@ -54,7 +52,6 @@ kubectl -n monitoring get secret kube-prometheus-stack-grafana -o jsonpath='{.da
 The Hono services expose Prometheus text metrics at `/metrics` when `PROMETHEUS_METRICS_ENABLED` is not `false`.
 
 Metrics include:
-
 - `ecommerce_http_requests_total`
 - `ecommerce_http_request_duration_seconds`
 - `ecommerce_service_ready`
@@ -84,7 +81,6 @@ observability:
 ## Traefik Metrics
 
 `make k8s-traefik` installs Traefik with:
-
 - Prometheus metrics enabled.
 - EntryPoint, router, and service labels enabled.
 - Internal metrics enabled.
@@ -125,7 +121,6 @@ observability:
 ```
 
 Recommended production checks:
-
 - Keep Prometheus selectors explicit if your platform requires tenancy boundaries.
 - Keep Grafana dashboard discovery scoped by namespace or labels in shared clusters.
 - Tune alert thresholds after collecting baseline traffic.

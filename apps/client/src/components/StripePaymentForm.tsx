@@ -3,10 +3,14 @@
 import { useAuth } from "@clerk/nextjs";
 import { CheckoutElementsProvider } from "@stripe/react-stripe-js/checkout";
 import { type Appearance, loadStripe } from "@stripe/stripe-js";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import CheckoutForm from "@/components/CheckoutForm";
 import { Badge } from "@/components/ui/badge";
-import { checkoutAttempt, rememberCheckout } from "@/lib/checkout-session";
+import {
+  checkoutAttempt,
+  createCheckoutStorage,
+  rememberCheckout,
+} from "@/lib/checkout-session";
 import useCartStore from "@/stores/cartStore";
 import type { ShippingFormInputs as BaseShippingFormInputs } from "@/types";
 
@@ -157,6 +161,13 @@ const AuthenticatedStripePaymentForm = ({
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const storageRef = useRef<ReturnType<typeof createCheckoutStorage> | null>(
+    null,
+  );
+  if (!storageRef.current) {
+    storageRef.current = createCheckoutStorage(() => sessionStorage);
+  }
+  const checkoutStorage = storageRef.current;
 
   useEffect(() => {
     let isActive = true;
@@ -178,7 +189,7 @@ const AuthenticatedStripePaymentForm = ({
 
       try {
         const checkoutPayload = {
-          checkoutAttemptId: checkoutAttempt(sessionStorage, userId, cart),
+          checkoutAttemptId: checkoutAttempt(checkoutStorage, userId, cart),
           cart: cart.map(({ id, quantity, selectedColor, selectedSize }) => ({
             id,
             quantity,
@@ -202,7 +213,7 @@ const AuthenticatedStripePaymentForm = ({
         }
 
         rememberCheckout(
-          sessionStorage,
+          checkoutStorage,
           responseBody.data.sessionId,
           userId,
           cart,
@@ -227,7 +238,7 @@ const AuthenticatedStripePaymentForm = ({
       isActive = false;
       abortController.abort();
     };
-  }, [cart, attempt, isSignedIn, userId]);
+  }, [cart, attempt, isSignedIn, userId, checkoutStorage]);
 
   if (!isLoaded) {
     return (

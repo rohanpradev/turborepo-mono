@@ -4,7 +4,7 @@ import {
   PaymentElement,
   useCheckoutElements,
 } from "@stripe/react-stripe-js/checkout";
-import { type SubmitEvent, useEffect, useRef, useState } from "react";
+import { type SubmitEvent, useEffect, useEffectEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { ShippingFormInputs as BaseShippingFormInputs } from "@/types";
 
@@ -24,13 +24,11 @@ const CheckoutForm = ({
   const [isSyncingDetails, setIsSyncingDetails] = useState(false);
   const checkout =
     checkoutState.type === "success" ? checkoutState.checkout : null;
-  const checkoutRef = useRef<typeof checkout>(null);
+  const currentCheckout = useEffectEvent(() => checkout);
   const checkoutSessionId = checkout?.id ?? null;
 
-  checkoutRef.current = checkout;
-
   useEffect(() => {
-    const checkoutApi = checkoutRef.current;
+    const checkoutApi = currentCheckout();
     setDetailsReady(false);
 
     if (!checkoutSessionId || !checkoutApi) {

@@ -31,6 +31,14 @@ If the system kubectl is outside the supported one-minor client/server skew, run
 
 Services select only pods labelled `app.kubernetes.io/workload-type: deployment`; migration and seed hooks retain component labels for network policy coverage without receiving application traffic. Deployment selectors remain unchanged so existing releases can upgrade in place. During shutdown, the kubelet waits `global.preStopDelaySeconds` (5 seconds by default) before signalling the application, allowing endpoint changes to propagate. The default 40-second termination grace period includes this delay and the application's 25-second cleanup budget. Keep sufficient margin when overriding these values.
 
+Global node selectors, affinity, tolerations, priority classes and image pull
+secrets apply to application pods, migration/seed hooks and Helm health tests.
+This keeps hooks schedulable on the same dedicated nodes as the application.
+Generated names longer than 63 characters retain their component suffix and a
+hash instead of losing their identity through truncation. Internal service URLs
+use the same generated names and configured Service ports. Short names stay
+unchanged; render and review any existing long release names before upgrading.
+
 Each one-command deployment generates an immutable `dev-<UTC timestamp>` image tag and passes it to Helm, so rebuilt images always produce a real rollout. To reproduce or resume a deployment across separate Make invocations, provide the same tag explicitly, for example `make k8s K8S_IMAGE_TAG=dev-my-test`.
 
 Useful lower-level commands:
@@ -67,7 +75,11 @@ make k8s-uninstall
 
 The local workflow installs Traefik as a standard Kubernetes Ingress controller and deploys app routes with `ingressClassName: traefik`.
 
-The deployment toolchain is pinned to Helm 4.3.0, kubeconform 0.8.0, Traefik chart 41.6.1 with Traefik 3.7.13, kube-prometheus-stack 91.9.0, and Gateway API 1.6.2. The Gateway manifest is SHA-256 verified before apply. Kubernetes 1.35 and 1.36 form the project deployment baseline; Kubernetes 1.37 is kept as an experimental render and schema-validation target until project runtime qualification is complete. The chart's strict values schema rejects unknown root, service, and job fields. CI checks explicit Ingress, Gateway, local, and local-full profiles across both tiers. Schema validation explicitly skips Gateway, GatewayClass, HTTPRoute, ServiceMonitor, and PrometheusRule; every other missing schema fails the check. These CRD-backed resources require live-cluster validation in addition to Helm rendering. Environment-owned values live under `deploy/environments`, while chart-only validation fixtures live under `charts/ecommerce/ci`. Traefik and kube-prometheus-stack CRDs are applied before controller upgrades because Helm does not upgrade CRDs automatically.
+The deployment toolchain is pinned to Helm 4.3.1, kubeconform 0.8.0, Traefik chart 42.1.3 with Traefik 3.7.16, kube-prometheus-stack 92.11.0, and Gateway API 1.6.3. The Gateway manifest is SHA-256 verified before apply. Kubernetes 1.35 and 1.36 form the project deployment baseline; Kubernetes 1.37 is kept as an experimental render and schema-validation target until project runtime qualification is complete. The chart's strict values schema rejects unknown root, service, and job fields. CI checks explicit Ingress, Gateway, local, and local-full profiles across both tiers. Schema validation explicitly skips Gateway, GatewayClass, HTTPRoute, ServiceMonitor, and PrometheusRule; every other missing schema fails the check. These CRD-backed resources require live-cluster validation in addition to Helm rendering. Environment-owned values live under `deploy/environments`, while chart-only validation fixtures live under `charts/ecommerce/ci`. Traefik and kube-prometheus-stack CRDs are applied before controller upgrades because Helm does not upgrade CRDs automatically.
+
+The default 40-second termination grace period includes a 5-second pre-stop delay and the application's 25-second drain deadline. Helm rejects values that leave less than 25 seconds after the delay. The Bun images run type checks during builds, retain only production dependency trees in service runners, and place the transpiler cache in the mounted `/tmp`. Web image optimization keeps its separate writable `.next/cache` volume.
+
+The [Bun 1.4.4 review](../../docs/BUN_1.4.4_UPGRADE.md) records the current runtime, dependency, image, and validation decisions. The [Bun 1.4.3 review](../../docs/BUN_1.4.3_UPGRADE.md) preserves historical Docker and Kubernetes deployment evidence and its live-validation limits.
 
 For Prometheus, Grafana, app metrics, Traefik metrics, and alert rules, run:
 
@@ -80,7 +92,6 @@ make k8s-prometheus
 The observed workflow installs kube-prometheus-stack, enables the Traefik metrics service, and deploys this chart with `ServiceMonitor`, `PrometheusRule`, and Grafana dashboard resources.
 
 Local routes:
-
 - `https://shop.localhost`
 - `https://admin.localhost`
 - `https://api.localhost`
@@ -88,6 +99,14 @@ Local routes:
 Docker Compose intentionally uses `https://shop.localhost:8443` so it does not fight Kubernetes for host port 443.
 
 For clusters that use a different Kubernetes Ingress provider, override `ingress.className` in that environment's values file. If Make also installs Traefik for that environment, set `K8S_INGRESS_CLASS_NAME=<your-class>` to the same value. Keep route selection explicit in the values file by enabling exactly one of `ingress` or `gateway`.
+
+When `gateway.create=true`, listeners accept routes from the release namespace
+by default, including when the Gateway resides in another namespace. The policy
+uses the namespace's `kubernetes.io/metadata.name` label. Set a listener's
+`allowedRoutes` to provide an explicit attachment policy. External Gateways must
+allow the application namespace themselves; see the Gateway API's
+[cross-namespace routing guide](https://gateway-api.sigs.k8s.io/guides/user-guides/multiple-ns/)
+and [security guidance](https://gateway-api.sigs.k8s.io/docs/concepts/security/).
 
 ## Secrets
 
@@ -116,7 +135,6 @@ For shared environments, provide a certificate through cert-manager or your ingr
 ## Images
 
 The default local image names match the Docker Compose builds:
-
 - `turborepo-monorepo-client`
 - `turborepo-monorepo-admin`
 - `turborepo-monorepo-product-service`

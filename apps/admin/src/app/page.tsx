@@ -23,8 +23,6 @@ import { Button } from "@/components/ui/button";
 import { formatTimestamp } from "@/lib/admin-data";
 import { requireAdminAccess } from "@/lib/auth";
 
-export const dynamic = "force-dynamic";
-
 const liveFetchOptions = {
   cache: "no-store" as const,
 };

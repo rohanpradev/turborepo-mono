@@ -8,14 +8,14 @@ import {
   type ProductRecord,
 } from "@repo/types";
 import type Stripe from "stripe";
-import { recordIntegrationEvent } from "@/observability/integrationEvents";
-import { enqueuePaidCheckoutSession } from "@/services/StripePaymentEventService";
-import { getStripeClient } from "@/utils/stripe";
+import { recordIntegrationEvent } from "../observability/integrationEvents";
 import {
   type CheckoutSnapshot,
   getPaymentStore,
 } from "../storage/payment-store";
+import { getStripeClient } from "../utils/stripe";
 import { reserveCheckoutStock } from "./InventoryService";
+import { enqueuePaidCheckoutSession } from "./StripePaymentEventService";
 
 type CreateCheckoutSessionInput = {
   payload: CheckoutSessionPayload;
@@ -33,6 +33,21 @@ type CatalogProductFetcher = (
 ) => Promise<ProductRecord | null>;
 
 const CHECKOUT_OUTBOUND_CONCURRENCY = 10;
+const STRIPE_METADATA_MAX_VALUE_LENGTH = 500;
+
+const assertCheckoutVariantSupported = (item: {
+  selectedSize: string;
+  selectedColor: string;
+}) => {
+  if (
+    item.selectedSize.length > STRIPE_METADATA_MAX_VALUE_LENGTH ||
+    item.selectedColor.length > STRIPE_METADATA_MAX_VALUE_LENGTH
+  )
+    throw createORPCException(
+      409,
+      "Cart contains a variant that exceeds the supported length.",
+    );
+};
 
 type CheckoutSessionStatus = {
   sessionId: string;
@@ -127,6 +142,8 @@ export const resolveCheckoutCatalog = async (
   telemetryHeaders?: Record<string, string>,
   fetchProduct: CatalogProductFetcher = fetchCatalogProduct,
 ): Promise<Array<CheckoutCatalogItem>> => {
+  // Validate the whole cart before starting any outbound catalog requests.
+  for (const item of payload.cart) assertCheckoutVariantSupported(item);
   const productRequests = new Map<number, Promise<ProductRecord | null>>();
   const getProductOnce = (productId: number) => {
     const existingRequest = productRequests.get(productId);
@@ -259,6 +276,8 @@ export const StripeCheckoutService = {
       record = await store.saveCheckout(snapshot, cartHash);
     }
     const snapshot = record.snapshot;
+    // Existing snapshots can predate current request/catalog validation.
+    for (const item of snapshot.items) assertCheckoutVariantSupported(item);
     if (snapshot.expiresAt <= Date.now())
       throw createORPCException(
         409,

@@ -10,8 +10,6 @@ import {
 } from "@/lib/admin-data";
 import { requireAdminAccess } from "@/lib/auth";
 
-export const dynamic = "force-dynamic";
-
 const UserDetailsPage = async ({ params }: PageProps<"/users/[id]">) => {
   await requireAdminAccess();
   const { id } = await params;
@@ -56,12 +54,17 @@ const UserDetailsPage = async ({ params }: PageProps<"/users/[id]">) => {
             {customer.paymentCount === 1 ? "" : "s"}
           </span>
         </div>
+        <p className="mt-4 text-sm text-muted-foreground">
+          These totals cover the latest 100 checkouts and 25 orders across the
+          store. Matching payment and order records count once; totals reflect
+          this recent window.
+        </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <article className="rounded-2xl border bg-card p-5 shadow-sm">
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-            Lifetime Revenue
+            Recent Revenue
           </p>
           <p className="mt-3 text-3xl font-semibold">
             {formatUsdFromCents(customer.revenueCents)}
@@ -77,7 +80,7 @@ const UserDetailsPage = async ({ params }: PageProps<"/users/[id]">) => {
         </article>
         <article className="rounded-2xl border bg-card p-5 shadow-sm">
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-            Total Items
+            Paid Items
           </p>
           <p className="mt-3 text-3xl font-semibold">{customer.totalItems}</p>
         </article>

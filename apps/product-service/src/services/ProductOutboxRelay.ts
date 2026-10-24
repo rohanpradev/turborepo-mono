@@ -1,8 +1,7 @@
 import { and, db, or } from "@repo/product-db";
-import { productServiceRuntime } from "@/runtime";
-import { producer } from "@/utils/kafka";
-
-import { nowUtc } from "@/utils/timestamps";
+import { productServiceRuntime } from "../runtime";
+import { producer } from "../utils/kafka";
+import { nowUtc } from "../utils/timestamps";
 
 const POLL_MS = 1_000;
 const LEASE_MS = 30_000;

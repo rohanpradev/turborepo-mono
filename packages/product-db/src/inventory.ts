@@ -259,7 +259,7 @@ export const finishReservation = async (
     }
     if (reservation.state !== state) {
       if (reservation.state !== "reserved")
-        throw new Error(
+        throw new InventoryConflict(
           "Reservation already finalized with a different outcome.",
         );
       for (const item of normalizeStockItems(reservation.items)) {

@@ -32,7 +32,7 @@ services:
 
   kafka-broker-1:
     <<: *runtime-security
-    image: dhi.io/kafka:4.3.1-debian13-native@sha256:acb17aecd630d0b855630cdd186b8ccb311ef4f64a8bf257b2e444deae0bab60
+    image: dhi.io/kafka:4.3.1-debian13-native@sha256:e143e49a67f9aaef9a992896162731f7428f6e5af2aa68b9a99ee723a0e1fbed
     environment:
       <<: *kafka-broker-env
       KAFKA_NODE_ID: 1
@@ -45,8 +45,7 @@ services:
     healthcheck:
       # Docker Hardened Kafka does not expose the classic Kafka shell scripts on PATH.
       # A local TCP probe is the most reliable readiness check for the broker process.
-      test:
-        ["CMD", "/usr/bin/bash", "-ec", "exec 3<>/dev/tcp/127.0.0.1/9092"]
+      test: ["CMD", "/usr/bin/bash", "-ec", "exec 3<>/dev/tcp/127.0.0.1/9092"]
       interval: 15s
       timeout: 10s
       retries: 10
@@ -56,7 +55,7 @@ services:
 
   kafka-broker-2:
     <<: *runtime-security
-    image: dhi.io/kafka:4.3.1-debian13-native@sha256:acb17aecd630d0b855630cdd186b8ccb311ef4f64a8bf257b2e444deae0bab60
+    image: dhi.io/kafka:4.3.1-debian13-native@sha256:e143e49a67f9aaef9a992896162731f7428f6e5af2aa68b9a99ee723a0e1fbed
     environment:
       <<: *kafka-broker-env
       KAFKA_NODE_ID: 2
@@ -69,8 +68,7 @@ services:
     healthcheck:
       # Docker Hardened Kafka does not expose the classic Kafka shell scripts on PATH.
       # A local TCP probe is the most reliable readiness check for the broker process.
-      test:
-        ["CMD", "/usr/bin/bash", "-ec", "exec 3<>/dev/tcp/127.0.0.1/9092"]
+      test: ["CMD", "/usr/bin/bash", "-ec", "exec 3<>/dev/tcp/127.0.0.1/9092"]
       interval: 15s
       timeout: 10s
       retries: 10
@@ -80,7 +78,7 @@ services:
 
   kafka-broker-3:
     <<: *runtime-security
-    image: dhi.io/kafka:4.3.1-debian13-native@sha256:acb17aecd630d0b855630cdd186b8ccb311ef4f64a8bf257b2e444deae0bab60
+    image: dhi.io/kafka:4.3.1-debian13-native@sha256:e143e49a67f9aaef9a992896162731f7428f6e5af2aa68b9a99ee723a0e1fbed
     environment:
       <<: *kafka-broker-env
       KAFKA_NODE_ID: 3
@@ -93,8 +91,7 @@ services:
     healthcheck:
       # Docker Hardened Kafka does not expose the classic Kafka shell scripts on PATH.
       # A local TCP probe is the most reliable readiness check for the broker process.
-      test:
-        ["CMD", "/usr/bin/bash", "-ec", "exec 3<>/dev/tcp/127.0.0.1/9092"]
+      test: ["CMD", "/usr/bin/bash", "-ec", "exec 3<>/dev/tcp/127.0.0.1/9092"]
       interval: 15s
       timeout: 10s
       retries: 10

@@ -10,8 +10,6 @@ import {
 } from "@/lib/admin-data";
 import { requireAdminAccess } from "@/lib/auth";
 
-export const dynamic = "force-dynamic";
-
 export const metadata: Metadata = {
   title: "Customers",
   description:
@@ -26,8 +24,9 @@ const UsersPage = async () => {
   ]);
 
   const customers = buildCustomerSummaries(activities, orders ?? []);
-  const paidActivities = activities.filter(
-    (activity) => activity.status === "paid",
+  const paymentCount = customers.reduce(
+    (total, customer) => total + customer.paymentCount,
+    0,
   );
   const totalRevenueCents = customers.reduce(
     (total, customer) => total + customer.revenueCents,
@@ -50,9 +49,9 @@ const UsersPage = async () => {
             <p className="max-w-3xl text-sm text-muted-foreground">
               This page shows the latest 100 stored checkouts and 25 orders.
               Totals describe this recent window, not lifetime revenue. Customer
-              revenue and payment counts come from successful payments, with
-              order-service data layered in when the signed-in admin token is
-              authorized to read it.
+              revenue, payment counts, and paid items combine successful
+              payments and orders, matching their checkout or payment IDs so
+              each purchase is counted once.
             </p>
           </div>
           <Link href="/payments" className="text-sm underline">
@@ -75,9 +74,9 @@ const UsersPage = async () => {
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
             Paid Sessions
           </p>
-          <p className="mt-3 text-3xl font-semibold">{paidActivities.length}</p>
+          <p className="mt-3 text-3xl font-semibold">{paymentCount}</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            Checkout sessions with verified payments.
+            Unique successful purchases in the current activity window.
           </p>
         </article>
         <article className="rounded-2xl border bg-card p-5 shadow-sm">
@@ -169,7 +168,7 @@ const UsersPage = async () => {
                   </div>
                   <div>
                     <dt className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                      Items
+                      Paid Items
                     </dt>
                     <dd className="mt-1 text-sm font-medium">
                       {customer.totalItems}

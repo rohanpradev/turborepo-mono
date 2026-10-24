@@ -18,5 +18,13 @@ metadata:
 spec:
   gatewayClassName: {{ .Values.gateway.gatewayClassName | quote }}
   listeners:
-    {{- toYaml .Values.gateway.listeners | nindent 4 }}
+    {{- range .Values.gateway.listeners }}
+    {{- $listener := deepCopy . }}
+    {{- if not (hasKey $listener "allowedRoutes") }}
+    {{- $selector := dict "matchLabels" (dict "kubernetes.io/metadata.name" $.Release.Namespace) }}
+    {{- $namespaces := dict "from" "Selector" "selector" $selector }}
+    {{- $_ := set $listener "allowedRoutes" (dict "namespaces" $namespaces) }}
+    {{- end }}
+    {{- toYaml (list $listener) | nindent 4 }}
+    {{- end }}
 {{- end }}

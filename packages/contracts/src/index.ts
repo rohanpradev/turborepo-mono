@@ -13,6 +13,7 @@ import {
   productPayloadSchema,
   productRecordSchema,
   productUpdateSchema,
+  productVariantSchema,
 } from "@repo/types";
 import { z } from "zod";
 
@@ -121,8 +122,8 @@ export const productContract = {
       .input(
         z.object({
           id: z.number().int().positive(),
-          size: z.string().min(1).max(100),
-          color: z.string().min(1).max(100),
+          size: productVariantSchema,
+          color: productVariantSchema,
           onHand: z.number().int().min(0).max(1000000),
         }),
       )

@@ -9,8 +9,8 @@ import {
   z,
 } from "@repo/hono-utils";
 import { bodyLimit } from "hono/body-limit";
-import { StripeWebhookService } from "@/services/StripeWebhookService";
 import { enqueuePaidCheckoutSession } from "../services/StripePaymentEventService";
+import { StripeWebhookService } from "../services/StripeWebhookService";
 
 export const STRIPE_WEBHOOK_MAX_BODY_SIZE_BYTES = 1024 * 1024;
 

@@ -2,7 +2,6 @@
 
 The reusable application chart lives in `charts/ecommerce`. Environment-owned
 configuration lives here so that packaged chart defaults stay portable.
-
 - `environments/local/ecommerce.values.yaml` is the default local Kubernetes
   application profile.
 - `environments/local/ecommerce-full.values.yaml` is the full local profile.

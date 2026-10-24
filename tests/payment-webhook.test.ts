@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import type { StripeCheckoutCompletedMessage } from "@repo/kafka";
+import { listIntegrationEvents } from "../apps/payment-service/src/observability/integrationEvents";
 import {
   STRIPE_WEBHOOK_MAX_BODY_SIZE_BYTES,
   webhookRoutes,
 } from "../apps/payment-service/src/routes/webhookRoutes";
 import { StripeWebhookService } from "../apps/payment-service/src/services/StripeWebhookService";
 import { setStripeClientForTesting } from "../apps/payment-service/src/utils/stripe";
+import type { StripeCheckoutCompletedMessage } from "../packages/kafka/src";
 
 const originalStripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const originalWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -55,6 +56,35 @@ afterEach(() => {
 });
 
 describe("payment-service Stripe webhook", () => {
+  it("never exposes signed malformed payloads in responses or diagnostics", async () => {
+    const webhookSecret = "whsec_webhooktest123";
+    const rawPayload = "privatecustomersecret";
+    const signature = await createStripeSignature(rawPayload, webhookSecret);
+
+    process.env.STRIPE_SECRET_KEY = "sk_test_webhooktest123";
+    process.env.STRIPE_WEBHOOK_SECRET = webhookSecret;
+    delete process.env.STRIPE_WEBHOOK_SECRET_FILE;
+
+    const response = await webhookRoutes.request(
+      "http://localhost/api/webhooks/stripe",
+      {
+        method: "POST",
+        headers: { "stripe-signature": signature },
+        body: rawPayload,
+      },
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toBe(
+      "Stripe webhook payload or signature is invalid.",
+    );
+    expect(listIntegrationEvents(1)[0]).toMatchObject({
+      type: "stripe.webhook.invalid",
+      details: { reason: "invalid_payload" },
+    });
+    expect(JSON.stringify(listIntegrationEvents(1))).not.toContain(rawPayload);
+  });
+
   it("rejects oversized payloads before signature verification", async () => {
     const response = await webhookRoutes.request(
       "http://localhost/api/webhooks/stripe",

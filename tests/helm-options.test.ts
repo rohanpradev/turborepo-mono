@@ -80,6 +80,28 @@ test.skipIf(!Bun.which("helm"))(
     expect(new TextDecoder().decode(invalid.stderr)).toContain(
       "must exceed global.preStopDelaySeconds",
     );
+    // A positive grace period can still truncate the app's 25-second drain.
+    const truncated = Bun.spawnSync([
+      "helm",
+      "template",
+      "drain-test",
+      "charts/ecommerce",
+      "--set",
+      "global.terminationGracePeriodSeconds=29",
+    ]);
+    expect(truncated.exitCode).not.toBe(0);
+    expect(new TextDecoder().decode(truncated.stderr)).toContain(
+      "must leave at least 25 seconds",
+    );
+    const minimum = Bun.spawnSync([
+      "helm",
+      "template",
+      "drain-test",
+      "charts/ecommerce",
+      "--set",
+      "global.terminationGracePeriodSeconds=30",
+    ]);
+    expect(minimum.exitCode).toBe(0);
   },
 );
 

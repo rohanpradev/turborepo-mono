@@ -5,7 +5,6 @@ MongoDB order read-model service fed by Kafka payment events.
 ## API
 
 Business operations are exposed through oRPC at `/rpc/order/*` and are defined contract-first in `packages/contracts`.
-
 - `order.listForUser`
 - `order.listAll`
 

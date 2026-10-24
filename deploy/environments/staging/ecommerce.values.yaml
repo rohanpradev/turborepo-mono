@@ -19,39 +19,44 @@ ingress:
     secretName: commerce-staging-tls
   hosts:
     - host: shop.staging.invalid
-      paths: [{path: /, pathType: Prefix, service: client, port: http}]
+      paths: [{ path: /, pathType: Prefix, service: client, port: http }]
     - host: admin.staging.invalid
-      paths: [{path: /, pathType: Prefix, service: admin, port: http}]
+      paths: [{ path: /, pathType: Prefix, service: admin, port: http }]
     - host: api.staging.invalid
       paths:
-        - {path: /rpc/product, pathType: Prefix, service: product, port: http}
-        - {path: /rpc/order, pathType: Prefix, service: order, port: http}
-        - {path: /rpc/payment, pathType: Prefix, service: payment, port: http}
-        - {path: /api/webhooks, pathType: Prefix, service: payment, port: http}
+        - { path: /rpc/product, pathType: Prefix, service: product, port: http }
+        - { path: /rpc/order, pathType: Prefix, service: order, port: http }
+        - { path: /rpc/payment, pathType: Prefix, service: payment, port: http }
+        - {
+            path: /api/webhooks,
+            pathType: Prefix,
+            service: payment,
+            port: http,
+          }
 networkPolicy:
   enabled: true
   allowExternalEgress: false
   ingressFrom:
     - podSelector: {}
     - namespaceSelector:
-        matchLabels: {kubernetes.io/metadata.name: traefik}
+        matchLabels: { kubernetes.io/metadata.name: traefik }
     - namespaceSelector:
-        matchLabels: {kubernetes.io/metadata.name: monitoring}
+        matchLabels: { kubernetes.io/metadata.name: monitoring }
   extraEgress:
-    - to: [{podSelector: {}}]
+    - to: [{ podSelector: {} }]
       ports:
-        - {protocol: TCP, port: 3000}
-        - {protocol: TCP, port: 3002}
-        - {protocol: TCP, port: 8001}
-        - {protocol: TCP, port: 8002}
+        - { protocol: TCP, port: 3000 }
+        - { protocol: TCP, port: 3002 }
+        - { protocol: TCP, port: 8001 }
+        - { protocol: TCP, port: 8002 }
     # TEST-NET placeholder: replace with actual managed database/broker CIDRs.
-    - to: [{ipBlock: {cidr: 192.0.2.0/24}}]
+    - to: [{ ipBlock: { cidr: 192.0.2.0/24 } }]
       ports:
-        - {protocol: TCP, port: 5432}
-        - {protocol: TCP, port: 27017}
-        - {protocol: TCP, port: 9093}
+        - { protocol: TCP, port: 5432 }
+        - { protocol: TCP, port: 27017 }
+        - { protocol: TCP, port: 9093 }
     # Stripe and Clerk use changing public addresses. Prefer an audited egress proxy.
-    - ports: [{protocol: TCP, port: 443}]
+    - ports: [{ protocol: TCP, port: 443 }]
 observability:
   serviceMonitor:
     enabled: true

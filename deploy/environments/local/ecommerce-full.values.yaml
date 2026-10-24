@@ -97,7 +97,7 @@ services:
       enabled: false
     env:
       CLIENT_APP_URL: https://shop.localhost:9443
-      PRODUCT_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-product-service:3000
+      PRODUCT_SERVICE_INTERNAL_URL: '{{ include "ecommerce.serviceUrl" (dict "root" . "key" "product") }}'
   client:
     replicaCount: 1
     image:
@@ -107,9 +107,9 @@ services:
     env:
       CLIENT_APP_URL: https://shop.localhost:9443
       NEXT_PUBLIC_CLIENT_APP_URL: https://shop.localhost:9443
-      PRODUCT_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-product-service:3000
-      ORDER_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-order-service:8001
-      PAYMENT_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-payment-service:8002
+      PRODUCT_SERVICE_INTERNAL_URL: '{{ include "ecommerce.serviceUrl" (dict "root" . "key" "product") }}'
+      ORDER_SERVICE_INTERNAL_URL: '{{ include "ecommerce.serviceUrl" (dict "root" . "key" "order") }}'
+      PAYMENT_SERVICE_INTERNAL_URL: '{{ include "ecommerce.serviceUrl" (dict "root" . "key" "payment") }}'
       NEXT_PUBLIC_PRODUCT_SERVICE_URL: https://api.localhost:9443
       NEXT_PUBLIC_ORDER_SERVICE_URL: https://api.localhost:9443
       NEXT_PUBLIC_PAYMENT_SERVICE_URL: https://api.localhost:9443
@@ -124,9 +124,9 @@ services:
       CLIENT_APP_URL: https://shop.localhost:9443
       NEXT_PUBLIC_CLIENT_APP_URL: https://shop.localhost:9443
       NEXT_PUBLIC_ADMIN_APP_URL: https://admin.localhost:9443
-      PRODUCT_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-product-service:3000
-      ORDER_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-order-service:8001
-      PAYMENT_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-payment-service:8002
+      PRODUCT_SERVICE_INTERNAL_URL: '{{ include "ecommerce.serviceUrl" (dict "root" . "key" "product") }}'
+      ORDER_SERVICE_INTERNAL_URL: '{{ include "ecommerce.serviceUrl" (dict "root" . "key" "order") }}'
+      PAYMENT_SERVICE_INTERNAL_URL: '{{ include "ecommerce.serviceUrl" (dict "root" . "key" "payment") }}'
       NEXT_PUBLIC_PRODUCT_SERVICE_URL: https://api.localhost:9443
       NEXT_PUBLIC_ORDER_SERVICE_URL: https://api.localhost:9443
       NEXT_PUBLIC_PAYMENT_SERVICE_URL: https://api.localhost:9443

@@ -1,7 +1,7 @@
-# syntax=docker/dockerfile:1.27.0@sha256:bde3983e9c939224420ddaf6b784cc30e09b035a4dea01f581230c50809f372e
-ARG BUN_DEV_IMAGE=oven/bun:1.4.2@sha256:9114c058aeae42162ee16dd5084b95fe9473970bb6bcb5b232ab1630f0546895
-ARG BUN_RUNTIME_IMAGE=oven/bun:1.4.2@sha256:9114c058aeae42162ee16dd5084b95fe9473970bb6bcb5b232ab1630f0546895
-ARG TURBO_VERSION=2.11.7
+# syntax=docker/dockerfile:1.28.0@sha256:bb22d9815c728170f72750f4e5b0d672e06176142e1d602c7e66c050100b7e5b
+ARG BUN_DEV_IMAGE=oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d
+ARG BUN_RUNTIME_IMAGE=oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d
+ARG TURBO_VERSION=2.11.10
 
 FROM ${BUN_DEV_IMAGE} AS pruner
 ARG TURBO_VERSION
@@ -50,10 +50,12 @@ RUN --mount=type=cache,target=/root/.bun/install/cache,sharing=locked \
     bun install --frozen-lockfile --linker=hoisted
 COPY --link --from=pruner /repo/out/full/ ./
 RUN --mount=type=cache,id=nextjs-client,target=/app/apps/client/.next/cache,sharing=locked \
+    turbo run check-types --filter=client... && \
     turbo run build --filter=client...
 
 FROM ${BUN_RUNTIME_IMAGE} AS runner
 ENV NODE_ENV=production \
+    BUN_RUNTIME_TRANSPILER_CACHE_PATH=/tmp/bun-transpiler \
     PORT=3002 \
     HOSTNAME=0.0.0.0 \
     NEXT_TELEMETRY_DISABLED=1
@@ -68,7 +70,7 @@ USER bun
 EXPOSE 3002
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD ["bun", "-e", "fetch('http://127.0.0.1:3002/api/health').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));"]
+    CMD ["bun", "-e", "fetch('http://127.0.0.1:3002/api/health', { signal: AbortSignal.timeout(3000), proxy: false }).then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));"]
 STOPSIGNAL SIGTERM
 
 CMD ["bun", "apps/client/server.js"]

@@ -13,6 +13,7 @@ import { inventoryRoutes } from "../apps/product-service/src/routes/inventoryRou
 import {
   closeInventory,
   finishReservation,
+  InventoryConflict,
   listStock,
   migrateInventory,
   reserveStock,
@@ -137,7 +138,9 @@ test("duplicate reservations do not double-hold stock and release is idempotent"
     onHand: 4,
     reserved: 0,
   });
-  await expect(finishReservation(id, "committed")).rejects.toThrow();
+  await expect(finishReservation(id, "committed")).rejects.toBeInstanceOf(
+    InventoryConflict,
+  );
 });
 
 test("failed multi-item reservations roll back all holds", async () => {
@@ -323,7 +326,7 @@ test("checkout retries reuse a durable snapshot, reserve once, and retain varian
           >,
         ) => {
           creates++;
-          expect(params.line_items?.[0]?.price_data?.unit_amount).toBe(1234);
+          expect(params?.line_items?.[0]?.price_data?.unit_amount).toBe(1234);
           expect(options.idempotencyKey).toBe(`checkout:${id}`);
           return session;
         },

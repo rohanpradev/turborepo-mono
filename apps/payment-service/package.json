@@ -2,8 +2,8 @@
   "name": "payment-service",
   "type": "module",
   "scripts": {
-    "dev": "bun run --watch src/index.ts",
-    "check-types": "tsc --noEmit",
+    "dev": "bun run --watch --check src/index.ts",
+    "check-types": "bun check",
     "db:deploy": "bun run src/scripts/migrate.ts",
     "reconcile": "bun run src/scripts/reconcile.ts",
     "redrive": "bun run src/scripts/redrive.ts"

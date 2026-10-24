@@ -7,7 +7,6 @@ This runbook covers supported Stripe, Clerk, Kafka, and Kubernetes operating mod
 ### Local Kubernetes
 
 `deploy/environments/local/ecommerce.values.yaml` enables a Stripe CLI sidecar in the payment pod. The sidecar:
-
 1. Authenticates with the configured Stripe secret key.
 2. Opens a Stripe event stream.
 3. Writes the ephemeral `whsec_...` signing secret into a memory-backed shared volume.
@@ -19,7 +18,6 @@ The file-mounted secret takes precedence over `STRIPE_WEBHOOK_SECRET`. Keep one 
 ### Shared and Production Clusters
 
 Do not enable the Stripe CLI sidecar. Instead:
-
 1. Expose the payment webhook through a public, trusted HTTPS hostname.
 2. Register the exact URL in Stripe Workbench.
 3. Subscribe to `checkout.session.completed` and `checkout.session.async_payment_succeeded`.
@@ -31,17 +29,17 @@ Never reuse a Stripe CLI signing secret for a Workbench endpoint, or a secret fr
 
 ## Required Configuration
 
-| Variable | Purpose |
-| --- | --- |
-| `STRIPE_SECRET_KEY` | Server-side Stripe API credential; `sk_...` or restricted `rk_...` |
-| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Browser Stripe.js credential; must match the secret key's test/live mode |
-| `STRIPE_WEBHOOK_SECRET` | Signing secret for the configured endpoint; local sidecar replaces it at runtime |
-| `CLERK_SECRET_KEY` | Server-side Clerk credential |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Browser Clerk credential |
-| `CLERK_AUTHORIZED_PARTIES` | Exact allowed storefront/admin origins for Clerk `azp` validation |
-| `CLERK_JWT_KEY` | Optional PEM public key for networkless Clerk JWT verification |
-| `PAYMENT_DATABASE_URL` | Payment-owned PostgreSQL storage, migrated before startup |
-| `INTERNAL_SERVICE_TOKEN` | Random token of at least 32 characters shared by product and payment for stock operations |
+| Variable                             | Purpose                                                                                   |
+| ------------------------------------ | ----------------------------------------------------------------------------------------- |
+| `STRIPE_SECRET_KEY`                  | Server-side Stripe API credential; `sk_...` or restricted `rk_...`                        |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Browser Stripe.js credential; must match the secret key's test/live mode                  |
+| `STRIPE_WEBHOOK_SECRET`              | Signing secret for the configured endpoint; local sidecar replaces it at runtime          |
+| `CLERK_SECRET_KEY`                   | Server-side Clerk credential                                                              |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`  | Browser Clerk credential                                                                  |
+| `CLERK_AUTHORIZED_PARTIES`           | Exact allowed storefront/admin origins for Clerk `azp` validation                         |
+| `CLERK_JWT_KEY`                      | Optional PEM public key for networkless Clerk JWT verification                            |
+| `PAYMENT_DATABASE_URL`               | Payment-owned PostgreSQL storage, migrated before startup                                 |
+| `INTERNAL_SERVICE_TOKEN`             | Random token of at least 32 characters shared by product and payment for stock operations |
 
 `NEXT_PUBLIC_*` values are compiled into Next.js bundles, so changing them requires rebuilding the frontend image. Kubernetes Secret values injected as environment variables require a pod restart; the local Stripe signing-secret file is the deliberate exception.
 

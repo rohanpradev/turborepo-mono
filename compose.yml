@@ -76,7 +76,7 @@ services:
 
   traefik:
     <<: *runtime-security
-    image: traefik:v3.7.13@sha256:24841fe2de7304c149343d877d2923b4c8800a38ba015dea9174c23b20e344a0
+    image: traefik:v3.7.16@sha256:c8a121e4bb1347e8fd52657fab12f2cb70b68f8a018895e2068f92c9e519b9c2
     read_only: true
     tmpfs:
       - /tmp:size=32m,mode=1777
@@ -137,7 +137,7 @@ services:
 
   postgres:
     <<: *runtime-security
-    image: dhi.io/postgres:18.6-debian13@sha256:8ebb9c5029314e1700be34df809897f32a29a5064e579038f861c6e0ed5f028b
+    image: dhi.io/postgres:18.6-debian13@sha256:1df173565ce7da8031d1c1ebfead27ff5e9c15055831f2ca0ff7f3b1a66f0aa7
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
@@ -165,7 +165,7 @@ services:
 
   mongodb:
     <<: *runtime-security
-    image: dhi.io/mongodb:8.3.11-debian13@sha256:f65e3024ffddc94842026277a1070c29f2a3ac11b84d483c90c9f63ee6b97c01
+    image: dhi.io/mongodb:8.3.13-debian13@sha256:0162625dc28370f5769327e7e8dae540f2ba4143fb215eb6eda3753d073064c6
     platform: linux/amd64
     command:
       - "--bind_ip_all"
@@ -182,7 +182,7 @@ services:
 
   mongodb-ready:
     <<: *runtime-security
-    image: oven/bun:1.4.2@sha256:9114c058aeae42162ee16dd5084b95fe9473970bb6bcb5b232ab1630f0546895
+    image: oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d
     command:
       [
         "bun",
@@ -269,7 +269,7 @@ services:
 
   kafka-broker-1:
     <<: *runtime-security
-    image: dhi.io/kafka:4.3.1-debian13-native@sha256:acb17aecd630d0b855630cdd186b8ccb311ef4f64a8bf257b2e444deae0bab60
+    image: dhi.io/kafka:4.3.1-debian13-native@sha256:e143e49a67f9aaef9a992896162731f7428f6e5af2aa68b9a99ee723a0e1fbed
     environment:
       <<: *kafka-broker-env
       KAFKA_NODE_ID: 1
@@ -283,8 +283,7 @@ services:
     healthcheck:
       # Docker Hardened Kafka does not expose the classic Kafka shell scripts on PATH.
       # A local TCP probe is the most reliable readiness check for the broker process.
-      test:
-        ["CMD", "/usr/bin/bash", "-ec", "exec 3<>/dev/tcp/127.0.0.1/9092"]
+      test: ["CMD", "/usr/bin/bash", "-ec", "exec 3<>/dev/tcp/127.0.0.1/9092"]
       interval: 15s
       timeout: 10s
       retries: 10
@@ -294,7 +293,7 @@ services:
 
   kafka-broker-2:
     <<: *runtime-security
-    image: dhi.io/kafka:4.3.1-debian13-native@sha256:acb17aecd630d0b855630cdd186b8ccb311ef4f64a8bf257b2e444deae0bab60
+    image: dhi.io/kafka:4.3.1-debian13-native@sha256:e143e49a67f9aaef9a992896162731f7428f6e5af2aa68b9a99ee723a0e1fbed
     environment:
       <<: *kafka-broker-env
       KAFKA_NODE_ID: 2
@@ -308,8 +307,7 @@ services:
     healthcheck:
       # Docker Hardened Kafka does not expose the classic Kafka shell scripts on PATH.
       # A local TCP probe is the most reliable readiness check for the broker process.
-      test:
-        ["CMD", "/usr/bin/bash", "-ec", "exec 3<>/dev/tcp/127.0.0.1/9092"]
+      test: ["CMD", "/usr/bin/bash", "-ec", "exec 3<>/dev/tcp/127.0.0.1/9092"]
       interval: 15s
       timeout: 10s
       retries: 10
@@ -319,7 +317,7 @@ services:
 
   kafka-broker-3:
     <<: *runtime-security
-    image: dhi.io/kafka:4.3.1-debian13-native@sha256:acb17aecd630d0b855630cdd186b8ccb311ef4f64a8bf257b2e444deae0bab60
+    image: dhi.io/kafka:4.3.1-debian13-native@sha256:e143e49a67f9aaef9a992896162731f7428f6e5af2aa68b9a99ee723a0e1fbed
     environment:
       <<: *kafka-broker-env
       KAFKA_NODE_ID: 3
@@ -333,8 +331,7 @@ services:
     healthcheck:
       # Docker Hardened Kafka does not expose the classic Kafka shell scripts on PATH.
       # A local TCP probe is the most reliable readiness check for the broker process.
-      test:
-        ["CMD", "/usr/bin/bash", "-ec", "exec 3<>/dev/tcp/127.0.0.1/9092"]
+      test: ["CMD", "/usr/bin/bash", "-ec", "exec 3<>/dev/tcp/127.0.0.1/9092"]
       interval: 15s
       timeout: 10s
       retries: 10
@@ -419,7 +416,7 @@ services:
           "CMD",
           "bun",
           "-e",
-          "const response = await fetch('http://127.0.0.1:3000/health/ready'); if (!response.ok) process.exit(1);",
+          "const response = await fetch('http://127.0.0.1:3000/health/ready', { signal: AbortSignal.timeout(3000), proxy: false }); if (!response.ok) process.exit(1);",
         ]
       interval: 30s
       timeout: 10s
@@ -475,7 +472,7 @@ services:
           "CMD",
           "bun",
           "-e",
-          "const response = await fetch('http://127.0.0.1:8001/health/ready'); if (!response.ok) process.exit(1);",
+          "const response = await fetch('http://127.0.0.1:8001/health/ready', { signal: AbortSignal.timeout(3000), proxy: false }); if (!response.ok) process.exit(1);",
         ]
       interval: 30s
       timeout: 10s
@@ -537,7 +534,7 @@ services:
           "CMD",
           "bun",
           "-e",
-          "const response = await fetch('http://127.0.0.1:8002/health/ready'); if (!response.ok) process.exit(1);",
+          "const response = await fetch('http://127.0.0.1:8002/health/ready', { signal: AbortSignal.timeout(3000), proxy: false }); if (!response.ok) process.exit(1);",
         ]
       interval: 30s
       timeout: 10s
@@ -563,7 +560,7 @@ services:
 
   stripe-cli:
     <<: *app-service
-    image: stripe/stripe-cli:v1.52.0@sha256:da11dbbdb78100602014096a6cbf764b211243111b3b8a57309d18c3939c9777
+    image: stripe/stripe-cli:v1.55.1@sha256:abb51eab2607fc16375ce79da40edfc3ae92f2a7ac100e44889ba1b291b41c83
     environment:
       STRIPE_API_KEY: ${STRIPE_API_KEY:-}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
@@ -643,7 +640,7 @@ services:
           "CMD",
           "bun",
           "-e",
-          "const response = await fetch('http://127.0.0.1:3002/api/health'); if (!response.ok) process.exit(1);",
+          "const response = await fetch('http://127.0.0.1:3002/api/health', { signal: AbortSignal.timeout(3000), proxy: false }); if (!response.ok) process.exit(1);",
         ]
       interval: 30s
       timeout: 10s
@@ -710,7 +707,7 @@ services:
           "CMD",
           "bun",
           "-e",
-          "const response = await fetch('http://127.0.0.1:3003/api/health'); if (!response.ok) process.exit(1);",
+          "const response = await fetch('http://127.0.0.1:3003/api/health', { signal: AbortSignal.timeout(3000), proxy: false }); if (!response.ok) process.exit(1);",
         ]
       interval: 30s
       timeout: 10s

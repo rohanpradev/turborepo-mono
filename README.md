@@ -17,7 +17,7 @@ This is not a single demo app in a big folder. It is a real distributed commerce
 - **Kubernetes observability** with Prometheus Operator ServiceMonitors, app `/metrics`, Traefik metrics, alert rules, and a Grafana dashboard.
 - **Polyglot persistence** with Prisma/PostgreSQL for product catalog writes and a Kafka-fed MongoDB read model for orders.
 - **Hardened Docker stack** using Docker Hardened Images, Traefik TLS routing, Kafka UI, health waits, read-only app containers, capability drops, and reproducible image locking support.
-- **CI-grade standards**: Biome, Syncpack, Knip, Bun 1.4 isolated parallel tests, lockfile deduplication, Bun audit, production license inventory, type checking, Next builds, Compose validation, Docker image builds, SBOM, and provenance.
+- **CI-grade standards**: Biome, Syncpack, Knip, Bun 1.4.4 checked parallel tests, lockfile deduplication, Bun audit, production license inventory, built-in Bun type checking, Next builds, Compose validation, Docker image builds, SBOM, and provenance.
 
 ## System Map
 
@@ -56,40 +56,46 @@ For engineering standards and verification policy, see [docs/QUALITY.md](docs/QU
 For service and Kafka telemetry behavior, see [docs/TELEMETRY.md](docs/TELEMETRY.md).
 For Prometheus, Grafana, Traefik, and Kubernetes metrics, see [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md).
 For Stripe deployment, webhook, Clerk-auth, and incident procedures, see [docs/STRIPE_OPERATIONS.md](docs/STRIPE_OPERATIONS.md).
-For stock, durable payment recovery and verified implementation evidence, see [docs/OPERATIONS.md](docs/OPERATIONS.md) and [docs/IMPLEMENTATION-2026-10-02.md](docs/IMPLEMENTATION-2026-10-02.md).
+For stock and durable payment recovery, see [docs/OPERATIONS.md](docs/OPERATIONS.md).
+For current dependencies, corrected failure modes, verification results, and migration limits, see [the 22 October engineering review](docs/ENGINEERING_REVIEW_2026-10-22.md).
 
 ## Apps And Packages
 
-| Workspace | Responsibility |
-| --- | --- |
-| `apps/client` | Customer storefront, cart, checkout, orders, product pages, diagnostics, SEO routes |
-| `apps/admin` | Admin dashboard for catalog, users, payments, service health, and integration events |
-| `apps/product-service` | Catalog/category API, Prisma writes, product Kafka event publication |
-| `apps/payment-service` | Stripe checkout sessions, webhooks, catalog sync consumer, payment event publication |
-| `apps/order-service` | Order API backed by Kafka-fed MongoDB read model |
-| `packages/api-client` | Typed service client used by Next.js apps and tests |
-| `packages/types` | Shared Zod schemas, API records, auth claims, pricing/cart/order types |
-| `packages/hono-utils` | Shared service app factory, auth middleware, OpenAPI helpers, health/runtime utilities |
-| `packages/kafka` | Typed Kafka client, producer, consumer, topic admin, instrumentation |
-| `packages/product-db` | Prisma schema, generated client, Postgres connection |
-| `packages/order-db` | MongoDB models and connection helpers |
-| `packages/typescript-config` | Shared TypeScript presets |
+| Workspace                    | Responsibility                                                                         |
+| ---------------------------- | -------------------------------------------------------------------------------------- |
+| `apps/client`                | Customer storefront, cart, checkout, orders, product pages, diagnostics, SEO routes    |
+| `apps/admin`                 | Admin dashboard for catalog, users, payments, service health, and integration events   |
+| `apps/product-service`       | Catalog/category API, Prisma writes, product Kafka event publication                   |
+| `apps/payment-service`       | Stripe checkout sessions, webhooks, catalog sync consumer, payment event publication   |
+| `apps/order-service`         | Order API backed by Kafka-fed MongoDB read model                                       |
+| `packages/api-client`        | Typed service client used by Next.js apps and tests                                    |
+| `packages/contracts`         | Runtime-validated oRPC procedures shared by services and API clients                   |
+| `packages/types`             | Shared Zod schemas, API records, auth claims, pricing/cart/order types                 |
+| `packages/hono-utils`        | Shared service app factory, auth middleware, OpenAPI helpers, health/runtime utilities |
+| `packages/kafka`             | Typed Kafka client, producer, consumer, topic admin, instrumentation                   |
+| `packages/product-db`        | Prisma schema, generated client, Postgres connection                                   |
+| `packages/order-db`          | MongoDB models and connection helpers                                                  |
+| `packages/typescript-config` | Shared TypeScript presets                                                              |
 
 ## Tech Stack
 
-| Layer | Technology |
-| --- | --- |
-| Monorepo | Turborepo, Bun workspaces, Bun catalogs |
-| Frontend | Next.js 16.3, React 19, Tailwind CSS 4, Radix UI, Lucide |
-| APIs | Hono 4.13, Zod, OpenAPI, Scalar API Reference |
-| Auth | Clerk for frontend sessions and service bearer auth |
-| Payments | Stripe Checkout and webhooks |
-| Events | Kafka with typed topics and topic management |
-| Data | PostgreSQL + Prisma, MongoDB + Mongoose |
-| Quality | Biome, Syncpack, Knip, Bun test/coverage, Bun audit, stable TypeScript 7 with TypeScript 6 tooling compatibility |
-| Runtime | Bun 1.4.2, digest-pinned Compose images, Traefik 3.7.13, Docker Hardened Images |
-| Platform | Helm 4.3.0, Kubernetes 1.35-1.36 supported (1.37 experimental), Gateway API 1.6.2 |
-| CI/CD | GitHub Actions, Helm lint plus kubeconform schema matrix, Docker Buildx, GHCR images, SBOM, provenance |
+| Layer    | Technology                                                                                             |
+| -------- | ------------------------------------------------------------------------------------------------------ |
+| Monorepo | Turborepo, Bun workspaces, Bun catalogs                                                                |
+| Frontend | Next.js 16.4.2, React 19.3.1, Tailwind CSS 4, Radix UI, Lucide                                         |
+| APIs     | Hono 4.13, Zod, OpenAPI, Scalar API Reference                                                          |
+| Auth     | Clerk for frontend sessions and service bearer auth                                                    |
+| Payments | Stripe Checkout and webhooks                                                                           |
+| Events   | Kafka with typed topics and topic management                                                           |
+| Data     | PostgreSQL + Prisma, MongoDB + Mongoose                                                                |
+| Quality  | Biome, Syncpack, Knip, Bun check/test/coverage, Bun audit, TypeScript 7 for editors and Next builds    |
+| Runtime  | Bun 1.4.4, digest-pinned Compose images, Traefik 3.7.16, Docker Hardened Images                        |
+| Platform | Helm 4.3.1, Kubernetes 1.35-1.36 supported (1.37 experimental), Gateway API 1.6.3                      |
+| CI/CD    | GitHub Actions, Helm lint plus kubeconform schema matrix, Docker Buildx, GHCR images, SBOM, provenance |
+
+See the [product database guide](packages/product-db/README.md) for one-time Prisma adoption for existing databases. Newer Prisma release candidates require a separate contract and database-signing migration; the compatible pinned pair remains in place.
+
+The [Bun 1.4.4 upgrade review](docs/BUN_1.4.4_UPGRADE.md) records the current runtime, dependency, and image decisions. The [Bun 1.4.3 adoption review](docs/BUN_1.4.3_UPGRADE.md) preserves the earlier checker adoption and deployment evidence. Workspace checks use `bun check`; service watch mode and tests check types before running. TypeScript stays installed for editor support and Next.js builds.
 
 ## Event Flow
 
@@ -105,7 +111,7 @@ For stock, durable payment recovery and verified implementation evidence, see [d
 
 ## Prerequisites
 
-- `Bun >= 1.4.2`
+- `Bun >= 1.4.4`
 - `Node >= 24.0.0`
 - Docker with Compose
 - `mkcert` for locally trusted `*.localhost` TLS certificates
@@ -136,12 +142,12 @@ make docker-up-build
 
 Main URLs:
 
-| Surface | URL |
-| --- | --- |
-| Storefront | `https://shop.localhost:8443` |
-| Admin | `https://admin.localhost:8443` |
-| API gateway | `https://api.localhost:8443` |
-| Kafka UI | `https://kafka.localhost:8443` |
+| Surface           | URL                                           |
+| ----------------- | --------------------------------------------- |
+| Storefront        | `https://shop.localhost:8443`                 |
+| Admin             | `https://admin.localhost:8443`                |
+| API gateway       | `https://api.localhost:8443`                  |
+| Kafka UI          | `https://kafka.localhost:8443`                |
 | Traefik dashboard | `https://dashboard.localhost:8443/dashboard/` |
 
 Docker Compose binds Traefik to `127.0.0.1:8080` and `127.0.0.1:8443` by default so it can coexist with a local Kubernetes ingress controller on ports 80/443. Bare `https://shop.localhost` is reserved for the Kubernetes/Helm path below.
@@ -165,11 +171,11 @@ make k8s
 
 Main URLs:
 
-| Surface | URL |
-| --- | --- |
-| Storefront | `https://shop.localhost` |
-| Admin | `https://admin.localhost` |
-| API gateway | `https://api.localhost` |
+| Surface     | URL                       |
+| ----------- | ------------------------- |
+| Storefront  | `https://shop.localhost`  |
+| Admin       | `https://admin.localhost` |
+| API gateway | `https://api.localhost`   |
 
 `make k8s` keeps the Traefik, Grafana, and Prometheus port-forwards active in the foreground and prints the local URLs. Press `Ctrl-C` to stop the forwards.
 
@@ -209,13 +215,13 @@ bun --env-file=.runtime/local-dev.env run dev
 
 Local URLs:
 
-| Surface | URL |
-| --- | --- |
-| Storefront | `http://localhost:3002` |
-| Admin | `http://localhost:3003` |
-| Product API | `http://localhost:3000/products` |
-| Order API | `http://localhost:8001/api/orders` |
-| Payment API | `http://localhost:8002/api/session` |
+| Surface                | URL                                 |
+| ---------------------- | ----------------------------------- |
+| Storefront             | `http://localhost:3002`             |
+| Admin                  | `http://localhost:3003`             |
+| Product API            | `http://localhost:3000/products`    |
+| Order API              | `http://localhost:8001/api/orders`  |
+| Payment API            | `http://localhost:8002/api/session` |
 | Storefront diagnostics | `http://localhost:3002/diagnostics` |
 
 ## Quality Gates
@@ -248,7 +254,6 @@ bun run verify:full
 ```
 
 What the gates cover:
-
 - dependency freshness and catalog consistency
 - duplicate lockfile resolutions and production license inventory
 - formatting/lint policy with Biome
@@ -306,8 +311,7 @@ The Docker workflow can run Stripe CLI webhook forwarding. The payment service r
 
 ## Docker And Security Posture
 
-The Docker path uses the digest-pinned official Bun 1.4 image for application builds and runtimes, Docker Hardened Images for Postgres, Kafka, and MongoDB, and the digest-pinned official Traefik image. The Compose stack includes:
-
+The Docker path uses the digest-pinned official Bun 1.4.4 image for application builds and runtimes, Docker Hardened Images for Postgres, Kafka, and MongoDB, and the digest-pinned official Traefik image. The Compose stack includes:
 - TLS routing through Traefik for local `*.localhost` domains
 - `exposedByDefault=false` so only explicitly labelled services are routed
 - read-only app containers and dropped Linux capabilities
@@ -317,20 +321,20 @@ The Docker path uses the digest-pinned official Bun 1.4 image for application bu
 
 ### Container Topology
 
-| Compose service | Image / Build | Purpose |
-| --- | --- | --- |
-| `traefik` | `traefik:v3.7.13` | TLS router, API gateway, dashboard |
+| Compose service       | Image / Build                                  | Purpose                                             |
+| --------------------- | ---------------------------------------------- | --------------------------------------------------- |
+| `traefik`             | `traefik:v3.7.16`                              | TLS router, API gateway, dashboard                  |
 | `docker-socket-proxy` | `ghcr.io/tecnativa/docker-socket-proxy:v0.5.0` | Restricted Docker API surface for Traefik discovery |
-| `postgres` | `dhi.io/postgres:18.6-debian13` | Product catalog database |
-| `mongodb` | `dhi.io/mongodb:8.3.11-debian13` | Order read-model database |
-| `kafka-broker-1..3` | `dhi.io/kafka:4.3.1-debian13-native` | Three-broker Kafka cluster |
-| `kafka-ui` | `ghcr.io/kafbat/kafka-ui:v1.5.0` | Kafka topic, consumer, and message visibility |
-| `product-service` | `docker/Dockerfile.product-service` | Catalog API, Prisma writes, product events |
-| `payment-service` | `docker/Dockerfile.payment-service` | Stripe checkout, webhooks, payment events |
-| `order-service` | `docker/Dockerfile.order-service` | Order API and MongoDB read model |
-| `client` | `docker/Dockerfile.client` | Customer storefront |
-| `admin` | `docker/Dockerfile.admin` | Admin operations dashboard |
-| `stripe-cli` | `stripe/stripe-cli:v1.52.0` | Local webhook forwarding |
+| `postgres`            | `dhi.io/postgres:18.6-debian13`                | Product catalog database                            |
+| `mongodb`             | `dhi.io/mongodb:8.3.13-debian13`               | Order read-model database                           |
+| `kafka-broker-1..3`   | `dhi.io/kafka:4.3.1-debian13-native`           | Three-broker Kafka cluster                          |
+| `kafka-ui`            | `ghcr.io/kafbat/kafka-ui:v1.5.0`               | Kafka topic, consumer, and message visibility       |
+| `product-service`     | `docker/Dockerfile.product-service`            | Catalog API, Prisma writes, product events          |
+| `payment-service`     | `docker/Dockerfile.payment-service`            | Stripe checkout, webhooks, payment events           |
+| `order-service`       | `docker/Dockerfile.order-service`              | Order API and MongoDB read model                    |
+| `client`              | `docker/Dockerfile.client`                     | Customer storefront                                 |
+| `admin`               | `docker/Dockerfile.admin`                      | Admin operations dashboard                          |
+| `stripe-cli`          | `stripe/stripe-cli:v1.55.1`                    | Local webhook forwarding                            |
 
 The five application Dockerfiles use Turbo pruning, Bun frozen installs, and hardened Bun runtime images. Frontend images build standalone Next.js output, while service images copy only runtime code, generated clients, shared packages, and production dependencies.
 
@@ -398,7 +402,6 @@ make k8s-clear
 Each Hono service exposes typed OpenAPI metadata and Scalar docs through the service app factory. In local development, use the direct service URLs; in Docker, use `https://api.localhost:8443` routing for public RPC paths. In Kubernetes, Helm routing owns bare `https://api.localhost`.
 
 Core API groups:
-
 - product catalog: `/rpc/product/*`
 - checkout: `/rpc/payment/checkout/createSession`
 - checkout status: `/rpc/payment/checkout/getSessionStatus`

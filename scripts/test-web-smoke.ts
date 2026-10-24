@@ -19,11 +19,20 @@ const apps = [
     pages: [
       { path: "/", status: 200 },
       { path: "/ui-review", status: 200 },
+      { path: "/products", status: 200 },
+      { path: "/payments", status: 200 },
+      { path: "/users", status: 200 },
+      { path: "/users/smoke-test", status: 200 },
     ],
   },
 ] as const;
 
 for (const app of apps) {
+  // Each app owns its probe connections; loopback traffic must bypass proxies.
+  using session = new Bun.FetchSession({
+    proxy: false,
+    keepAlive: { idleTimeout: 5, maxIdleSockets: 8 },
+  });
   const source = path.join(root, "apps", app.name);
   const standalone = path.join(source, ".next/standalone/apps", app.name);
   const entry = path.join(standalone, "server.js");
@@ -48,6 +57,51 @@ for (const app of apps) {
   const port = reservation.port;
   await reservation.stop(true);
   const origin = `http://127.0.0.1:${port}`;
+  let catalogEnabled = false;
+  let available: number | null = 5;
+  const stockGate = Promise.withResolvers<void>();
+  const fixture = Bun.serve({
+    hostname: "127.0.0.1",
+    port: 0,
+    async fetch(request) {
+      const pathname = new URL(request.url).pathname;
+      if (!catalogEnabled)
+        return new Response("Catalog unavailable", { status: 503 });
+      if (pathname.endsWith("/product/get")) {
+        return Response.json({
+          json: {
+            success: true,
+            data: {
+              id: 1,
+              name: "Upgrade streaming fixture",
+              shortDescription: "Streaming test product",
+              description:
+                "Product details should arrive before the stock check.",
+              price: 1999,
+              sizes: ["m"],
+              colors: ["black"],
+              images: { black: "/products/1g.png" },
+              categorySlug: "test",
+              createdAt: "2026-10-10T00:00:00.000Z",
+              updatedAt: "2026-10-10T00:00:00.000Z",
+            },
+          },
+        });
+      }
+      if (pathname.endsWith("/inventory/availability")) {
+        await stockGate.promise;
+        if (available === null)
+          return new Response("Stock unavailable", { status: 503 });
+        return Response.json({
+          json: {
+            success: true,
+            data: [{ size: "m", color: "black", available }],
+          },
+        });
+      }
+      return new Response("Unknown fixture route", { status: 404 });
+    },
+  });
   const child = Bun.spawn([process.execPath, entry], {
     cwd: standalone,
     env: {
@@ -58,7 +112,7 @@ for (const app of apps) {
       NEXT_TELEMETRY_DISABLED: "1",
       CLERK_SECRET_KEY: "",
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "",
-      PRODUCT_SERVICE_INTERNAL_URL: "http://127.0.0.1:9",
+      PRODUCT_SERVICE_INTERNAL_URL: `http://127.0.0.1:${fixture.port}`,
       PAYMENT_SERVICE_INTERNAL_URL: "http://127.0.0.1:9",
       ORDER_SERVICE_INTERNAL_URL: "http://127.0.0.1:9",
     },
@@ -73,7 +127,7 @@ for (const app of apps) {
     let ready = false;
     while (Date.now() < deadline && child.exitCode === null) {
       try {
-        const response = await fetch(`${origin}/api/health`, {
+        const response = await session.fetch(`${origin}/api/health`, {
           signal: AbortSignal.timeout(1000),
         });
         if (
@@ -92,13 +146,17 @@ for (const app of apps) {
       throw new Error(`${app.name} standalone server did not become healthy.`);
     const assets = new Set<string>();
     for (const page of app.pages) {
-      const response = await fetch(`${origin}${page.path}`, {
+      const response = await session.fetch(`${origin}${page.path}`, {
         signal: AbortSignal.timeout(15_000),
         redirect: "manual",
       });
       if (
         response.status !== page.status &&
-        !(app.name === "admin" && page.path === "/" && response.status === 404)
+        !(
+          app.name === "admin" &&
+          page.path !== "/ui-review" &&
+          response.status === 404
+        )
       )
         throw new Error(
           `${app.name}${page.path}: expected ${page.status}, received ${response.status}.`,
@@ -117,7 +175,7 @@ for (const app of apps) {
       // denial rather than treating HTTP 200 as authorization success.
       if (
         app.name === "admin" &&
-        page.path === "/" &&
+        page.path !== "/ui-review" &&
         !html.includes("Admin route not found")
       ) {
         throw new Error(
@@ -133,7 +191,7 @@ for (const app of apps) {
       }
     }
     if (app.name === "client") {
-      const response = await fetch(`${origin}/sitemap.xml`, {
+      const response = await session.fetch(`${origin}/sitemap.xml`, {
         signal: AbortSignal.timeout(20_000),
       });
       const xml = await response.text();
@@ -148,13 +206,72 @@ for (const app of apps) {
         );
       }
     }
+    if (app.name === "client") {
+      catalogEnabled = true;
+      const response = await session.fetch(`${origin}/products/1`, {
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!response.ok || !response.body)
+        throw new Error("Product fixture did not render.");
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let html = "";
+      try {
+        // The fixture holds stock indefinitely. Seeing the actual heading before
+        // releasing it proves that inventory cannot block the product summary.
+        while (!html.includes(">Upgrade streaming fixture</h1>")) {
+          const chunk = await reader.read();
+          if (chunk.done)
+            throw new Error("Product summary did not stream before stock.");
+          html += decoder.decode(chunk.value, { stream: true });
+        }
+        if (!html.includes("Loading product options"))
+          throw new Error("Product options need a visible loading fallback.");
+      } finally {
+        stockGate.resolve();
+      }
+      for (;;) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        html += decoder.decode(chunk.value, { stream: true });
+      }
+      if (
+        !html.includes("Stock is reserved when you start payment.") ||
+        !html.includes("https://schema.org/InStock")
+      )
+        throw new Error(
+          "Live stock and structured data did not complete the stream.",
+        );
+      for (const stock of [0, null]) {
+        available = stock;
+        const response = await session.fetch(`${origin}/products/1`, {
+          signal: AbortSignal.timeout(15_000),
+        });
+        const html = await response.text();
+        const expected =
+          stock === 0
+            ? "This size and color are out of stock."
+            : "Availability is temporarily unavailable.";
+        if (
+          !response.ok ||
+          !html.includes(expected) ||
+          html.includes("https://schema.org/InStock")
+        )
+          throw new Error(`Stock state ${stock} reused stale availability.`);
+      }
+      console.log(
+        "client: product summary streams before stock; current, sold-out, and unavailable stock states passed.",
+      );
+    }
     if (!assets.size)
       throw new Error(`${app.name} did not emit static assets.`);
     for (const asset of assets) {
       const url = new URL(asset, origin);
       if (url.origin !== origin)
         throw new Error("Smoke tests require locally served assets.");
-      const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
+      const response = await session.fetch(url, {
+        signal: AbortSignal.timeout(5000),
+      });
       if (!response.ok)
         throw new Error(
           `${app.name} asset ${url.pathname}: HTTP ${response.status}.`,
@@ -174,6 +291,8 @@ for (const app of apps) {
     failed = true;
     throw error;
   } finally {
+    stockGate.resolve();
+    await fixture.stop(true);
     child.kill("SIGTERM");
     const timeout = setTimeout(() => child.kill("SIGKILL"), 5000);
     await child.exited;

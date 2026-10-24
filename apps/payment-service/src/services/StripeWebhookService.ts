@@ -1,7 +1,7 @@
 import type Stripe from "stripe";
-import { recordIntegrationEvent } from "@/observability/integrationEvents";
-import { enqueuePaidCheckoutSession } from "@/services/StripePaymentEventService";
-import { getStripeClient, getStripeWebhookSecret } from "@/utils/stripe";
+import { recordIntegrationEvent } from "../observability/integrationEvents";
+import { getStripeClient, getStripeWebhookSecret } from "../utils/stripe";
+import { enqueuePaidCheckoutSession } from "./StripePaymentEventService";
 
 type WebhookResult =
   | { status: "ok" }
@@ -47,23 +47,23 @@ export const StripeWebhookService = {
         webhookSecret,
       );
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Stripe webhook signature verification failed.";
-
+      // Provider/parser errors can include the raw payload. Retain only a
+      // bounded category in diagnostics and return a fixed public message.
       recordIntegrationEvent({
         source: "webhook",
         type: "stripe.webhook.invalid",
         message: "Stripe webhook signature verification failed.",
         details: {
-          reason: message,
+          reason:
+            error instanceof SyntaxError
+              ? "invalid_payload"
+              : "invalid_signature",
         },
       });
 
       return {
         status: "invalid",
-        message,
+        message: "Stripe webhook payload or signature is invalid.",
       };
     }
 

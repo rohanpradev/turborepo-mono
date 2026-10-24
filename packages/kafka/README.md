@@ -12,7 +12,6 @@ Typed Kafka helpers for this monorepo, built on top of [KafkaJS](https://kafka.j
 ## Current topic defaults
 
 The repo expects a 3-broker local cluster and creates topics with these defaults unless overridden by environment variables:
-
 - `KAFKA_TOPIC_NUM_PARTITIONS=3`
 - `KAFKA_TOPIC_REPLICATION_FACTOR=3`
 - `KAFKA_TOPIC_MIN_INSYNC_REPLICAS=2`
@@ -22,7 +21,6 @@ These settings match Apache Kafka’s common durability pattern of replication f
 ## Environment
 
 Client connection:
-
 - `KAFKA_BROKERS`
 - `DOCKER_KAFKA_BROKERS`
 - `KAFKA_CONNECTION_TIMEOUT_MS`
@@ -30,7 +28,6 @@ Client connection:
 - `KAFKA_LOG_LEVEL`
 
 Topic creation:
-
 - `KAFKA_TOPIC_NUM_PARTITIONS`
 - `KAFKA_TOPIC_REPLICATION_FACTOR`
 - `KAFKA_TOPIC_MIN_INSYNC_REPLICAS`
@@ -44,13 +41,11 @@ docker compose up -d
 ```
 
 Broker endpoints:
-
 - `localhost:9094`
 - `localhost:9095`
 - `localhost:9096`
 
 Kafka UI:
-
 - `http://localhost:8080`
 
 The Compose file uses the digest-pinned `dhi.io/kafka:4.3.1-debian13-native`, loopback-only host ports, persistent broker

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "check-types": "tsc --noEmit",
+    "check-types": "bun check",
     "db:generate": "prisma contract emit",
     "db:validate": "prisma migration check",
     "db:migrate": "prisma contract emit && prisma db update --advance-ref db",

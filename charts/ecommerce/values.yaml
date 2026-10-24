@@ -7,7 +7,7 @@ global:
   imagePullPolicy: IfNotPresent
   imagePullSecrets: []
   enableServiceLinks: false
-  # Allow endpoint removal to propagate before the app's 25-second shutdown.
+  # Allow endpoint removal to propagate, then at least 25 seconds for app shutdown.
   terminationGracePeriodSeconds: 40
   preStopDelaySeconds: 5
   podAnnotations: {}
@@ -71,8 +71,8 @@ stripeCli:
   enabled: false
   image:
     repository: stripe/stripe-cli
-    tag: v1.52.0
-    digest: sha256:da11dbbdb78100602014096a6cbf764b211243111b3b8a57309d18c3939c9777
+    tag: v1.55.1
+    digest: sha256:abb51eab2607fc16375ce79da40edfc3ae92f2a7ac100e44889ba1b291b41c83
     pullPolicy: IfNotPresent
   forwardTo: http://127.0.0.1:8002/api/webhooks/stripe
   webhookSecretFile: /var/run/stripe/webhook-secret
@@ -362,7 +362,7 @@ services:
     env:
       PORT: "8002"
       CLIENT_APP_URL: https://shop.example.com
-      PRODUCT_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-product-service:3000
+      PRODUCT_SERVICE_INTERNAL_URL: '{{ include "ecommerce.serviceUrl" (dict "root" . "key" "product") }}'
     secretEnv:
       PAYMENT_DATABASE_URL: PAYMENT_DATABASE_URL
       INTERNAL_SERVICE_TOKEN: INTERNAL_SERVICE_TOKEN
@@ -438,9 +438,9 @@ services:
       NEXT_TELEMETRY_DISABLED: "1"
       CLIENT_APP_URL: https://shop.example.com
       NEXT_PUBLIC_CLIENT_APP_URL: https://shop.example.com
-      PRODUCT_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-product-service:3000
-      ORDER_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-order-service:8001
-      PAYMENT_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-payment-service:8002
+      PRODUCT_SERVICE_INTERNAL_URL: '{{ include "ecommerce.serviceUrl" (dict "root" . "key" "product") }}'
+      ORDER_SERVICE_INTERNAL_URL: '{{ include "ecommerce.serviceUrl" (dict "root" . "key" "order") }}'
+      PAYMENT_SERVICE_INTERNAL_URL: '{{ include "ecommerce.serviceUrl" (dict "root" . "key" "payment") }}'
       NEXT_PUBLIC_PRODUCT_SERVICE_URL: https://api.example.com
       NEXT_PUBLIC_ORDER_SERVICE_URL: https://api.example.com
       NEXT_PUBLIC_PAYMENT_SERVICE_URL: https://api.example.com
@@ -521,12 +521,12 @@ services:
       NEXT_TELEMETRY_DISABLED: "1"
       ADMIN_APP_URL: https://admin.example.com
       CLIENT_APP_URL: https://shop.example.com
-      STOREFRONT_ASSET_ORIGIN: http://{{ include "ecommerce.fullname" . }}-client.{{ .Release.Namespace }}.svc.cluster.local:3002
+      STOREFRONT_ASSET_ORIGIN: 'http://{{ include "ecommerce.componentName" (dict "root" . "service" .Values.services.client) }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.services.client.service.port }}'
       NEXT_PUBLIC_ADMIN_APP_URL: https://admin.example.com
       NEXT_PUBLIC_CLIENT_APP_URL: https://shop.example.com
-      PRODUCT_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-product-service:3000
-      ORDER_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-order-service:8001
-      PAYMENT_SERVICE_INTERNAL_URL: http://{{ include "ecommerce.fullname" . }}-payment-service:8002
+      PRODUCT_SERVICE_INTERNAL_URL: '{{ include "ecommerce.serviceUrl" (dict "root" . "key" "product") }}'
+      ORDER_SERVICE_INTERNAL_URL: '{{ include "ecommerce.serviceUrl" (dict "root" . "key" "order") }}'
+      PAYMENT_SERVICE_INTERNAL_URL: '{{ include "ecommerce.serviceUrl" (dict "root" . "key" "payment") }}'
       NEXT_PUBLIC_PRODUCT_SERVICE_URL: https://api.example.com
       NEXT_PUBLIC_ORDER_SERVICE_URL: https://api.example.com
       NEXT_PUBLIC_PAYMENT_SERVICE_URL: https://api.example.com
@@ -646,8 +646,8 @@ jobs:
     activeDeadlineSeconds: 900
     ttlSecondsAfterFinished: 3600
     resources:
-      requests: {cpu: 50m, memory: 128Mi}
-      limits: {memory: 256Mi}
+      requests: { cpu: 50m, memory: 128Mi }
+      limits: { memory: 256Mi }
     secretEnv:
       PAYMENT_DATABASE_URL: PAYMENT_DATABASE_URL
   seed-product-db:
@@ -685,8 +685,8 @@ helmTests:
   activeDeadlineSeconds: 120
   image:
     repository: curlimages/curl
-    tag: "8.22.0"
-    digest: sha256:58adaa4e8dca9c988bae2aba4ab3434a0bb2da16bbe3f92dec39ec7785166777
+    tag: "8.23.0"
+    digest: sha256:11e64e28c5f58c8d93ee95fcf22ac055f48b0bc440e0ce7d8013bbb5ad6aa8ac
     pullPolicy: IfNotPresent
   resources:
     requests:
