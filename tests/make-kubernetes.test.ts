@@ -47,10 +47,93 @@ test("manifest validation stops when Helm rendering fails", () => {
   });
 });
 
+for (const scenario of [
+  { target: "k8s-validate", render: 0, validation: 0, count: 1 },
+  { target: "helm-validate-supported", render: 0, validation: 0, count: 4 },
+  { target: "helm-validate-supported", render: 42, validation: 0, count: 0 },
+  { target: "helm-validate-supported", render: 0, validation: 42, count: 1 },
+]) {
+  test(`native ${scenario.target} propagates render=${scenario.render} and validation=${scenario.validation} without Docker`, () => {
+    withTools((directory) => {
+      const helm = tool(
+        directory,
+        "helm",
+        `case "$1" in lint) exit 0;; template) echo 'kind: ConfigMap'; exit ${scenario.render};; *) exit 43;; esac`,
+      );
+      const kubeconform = tool(
+        directory,
+        "kubeconform",
+        `test "$(cat)" = 'kind: ConfigMap' || exit 44
+echo "NATIVE_VALIDATION:$*"
+exit ${scenario.validation}`,
+      );
+      tool(directory, "docker", "echo DOCKER_VALIDATION_RAN; exit 45");
+      const result = Bun.spawnSync(
+        [
+          "make",
+          "--no-print-directory",
+          scenario.target,
+          `HELM=${helm}`,
+          `KUBECONFORM=${kubeconform}`,
+          `RUNTIME_DIR=${directory}`,
+          "K8S_SUPPORTED_VERSIONS=1.36.5",
+          "NO_COLOR=1",
+        ],
+        { env: { ...process.env, PATH: `${directory}:${process.env.PATH}` } },
+      );
+      const output = new TextDecoder().decode(result.stdout);
+      expect(result.exitCode === 0).toBe(
+        !scenario.render && !scenario.validation,
+      );
+      expect(output.match(/NATIVE_VALIDATION:/g) ?? []).toHaveLength(
+        scenario.count,
+      );
+      expect(output).not.toContain("DOCKER_VALIDATION_RAN");
+      if (scenario.count) {
+        expect(output).toContain(`-cache ${directory}/kubeconform-cache`);
+        expect(output).toContain("-strict -summary");
+        expect(output).toContain("-kubernetes-version 1.36.5 -");
+      }
+    });
+  });
+}
+
+test("manifest validation preserves the pinned Docker path without a native override", () => {
+  withTools((directory) => {
+    const helm = tool(
+      directory,
+      "helm",
+      'case "$1" in lint) exit 0;; template) echo "kind: ConfigMap";; *) exit 42;; esac',
+    );
+    tool(
+      directory,
+      "docker",
+      'test "$(cat)" = "kind: ConfigMap" || exit 43; echo "DOCKER_VALIDATION:$*"',
+    );
+    const result = Bun.spawnSync(
+      [
+        "make",
+        "--no-print-directory",
+        "k8s-validate",
+        `HELM=${helm}`,
+        "KUBECONFORM=",
+        "KUBECONFORM_IMAGE=validator@sha256:fixture",
+        `RUNTIME_DIR=${directory}`,
+        "NO_COLOR=1",
+      ],
+      { env: { ...process.env, PATH: `${directory}:${process.env.PATH}` } },
+    );
+    expect(result.exitCode).toBe(0);
+    expect(new TextDecoder().decode(result.stdout)).toContain(
+      "validator@sha256:fixture -cache /schemas-cache -strict -summary",
+    );
+  });
+});
+
 test("minikube image loading stops at the first failed import", () => {
   withTools((directory) => {
     const kubectl = tool(directory, "kubectl", "echo minikube");
-    tool(directory, "minikube", 'echo "IMPORT:$3"; test "$3" != "broken:dev"');
+    tool(directory, "minikube", 'echo "IMPORT:$5"; test "$5" != "broken:dev"');
     const result = Bun.spawnSync(
       [
         "make",
@@ -71,6 +154,53 @@ test("minikube image loading stops at the first failed import", () => {
     );
   });
 });
+
+for (const scenario of [
+  { context: "minikube-team", profile: "", expected: "minikube-team" },
+  { context: "team-cluster", profile: "team", expected: "team" },
+]) {
+  test(`image loading selects minikube profile ${scenario.expected} independently of its active profile`, () => {
+    withTools((directory) => {
+      const kubectl = tool(directory, "kubectl", `echo '${scenario.context}'`);
+      tool(directory, "minikube", 'echo "MINIKUBE:$*"');
+      const result = Bun.spawnSync(
+        [
+          "make",
+          "--no-print-directory",
+          "k8s-load-images",
+          `KUBECTL=${kubectl}`,
+          `K8S_MINIKUBE_PROFILE=${scenario.profile}`,
+          "K8S_LOCAL_IMAGES=example:dev",
+          "NO_COLOR=1",
+        ],
+        { env: { ...process.env, PATH: `${directory}:${process.env.PATH}` } },
+      );
+      expect(result.exitCode).toBe(0);
+      expect(new TextDecoder().decode(result.stdout)).toContain(
+        `MINIKUBE:image load --profile ${scenario.expected} example:dev`,
+      );
+    });
+  });
+}
+
+for (const exitCode of [0, 42]) {
+  test(`image loading fails closed when the Kubernetes context is unavailable (exit ${exitCode})`, () => {
+    withTools((directory) => {
+      const kubectl = tool(directory, "kubectl", `exit ${exitCode}`);
+      const result = Bun.spawnSync(
+        [
+          "make",
+          "--no-print-directory",
+          "k8s-load-images",
+          `KUBECTL=${kubectl}`,
+          "NO_COLOR=1",
+        ],
+        { env: { ...process.env, PATH: `${directory}:${process.env.PATH}` } },
+      );
+      expect(result.exitCode).not.toBe(0);
+    });
+  });
+}
 
 for (const scenario of [
   { name: "invalid replacement", generate: 42, lookup: 0, owner: "", apply: 0 },

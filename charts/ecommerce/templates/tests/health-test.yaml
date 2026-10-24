@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: {{ include "ecommerce.fullname" . }}-health-test
+  name: {{ include "ecommerce.resourceName" (dict "root" . "suffix" "health-test") }}
   labels:
     {{- include "ecommerce.labels" . | nindent 4 }}
   annotations:
@@ -15,6 +15,11 @@ spec:
   restartPolicy: Never
   automountServiceAccountToken: false
   enableServiceLinks: false
+  {{- include "ecommerce.podPlacement" . | nindent 2 }}
+  {{- with .Values.global.imagePullSecrets }}
+  imagePullSecrets:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   securityContext:
     {{- toYaml .Values.global.podSecurityContext | nindent 4 }}
   containers:

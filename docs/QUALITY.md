@@ -16,18 +16,18 @@ This project is intended to read and behave like a production-grade ecommerce pl
 
 Use the smallest check that matches the risk of the change.
 
-| Change type | Minimum verification |
-| --- | --- |
-| Documentation only | `bun run lint` |
-| Package/catalog changes | `bun run deps:check`, `bun run deps:dedupe:check`, `bun run lint`, `bun run test` |
-| Shared types or API client | `bun run test`, `bun run check-types` |
-| Frontend routes/components | `bun run lint`, `bun run check-types`, `bun run build` |
-| Hono services | `bun run test`, `bun run check-types`, `bun run build` |
-| Kafka contracts | `bun run test`, `bun run check-types`, `make docker-validate` |
-| Package boundary changes | `bun run boundaries`, `bun run check-types` |
-| Telemetry changes | `bun run test`, `bun run check-types`, inspect service logs for `traceId` |
-| Docker/Compose changes | `bun run doctor`, `make docker-validate`, `make docker-test` when DHI credentials are available |
-| Helm/Kubernetes changes | `make helm-validate-supported`, `make helm-validate-experimental`, `make helm-assert-profiles`; `make k8s-verify` after deploying to a local cluster |
+| Change type                | Minimum verification                                                                                                                                 |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Documentation only         | `bun run lint`                                                                                                                                       |
+| Package/catalog changes    | `bun run deps:check`, `bun run deps:dedupe:check`, `bun run lint`, `bun run test`                                                                    |
+| Shared types or API client | `bun run test`, `bun run check-types`                                                                                                                |
+| Frontend routes/components | `bun run lint`, `bun run check-types`, `bun run build`                                                                                               |
+| Hono services              | `bun run test`, `bun run check-types`, `bun run build`                                                                                               |
+| Kafka contracts            | `bun run test`, `bun run check-types`, `make docker-validate`                                                                                        |
+| Package boundary changes   | `bun run boundaries`, `bun run check-types`                                                                                                          |
+| Telemetry changes          | `bun run test`, `bun run check-types`, inspect service logs for `traceId`                                                                            |
+| Docker/Compose changes     | `bun run doctor`, `make docker-validate`, `make docker-test` when DHI credentials are available                                                      |
+| Helm/Kubernetes changes    | `make helm-validate-supported`, `make helm-validate-experimental`, `make helm-assert-profiles`; `make k8s-verify` after deploying to a local cluster |
 
 ## Main Commands
 
@@ -124,7 +124,7 @@ make docker-test
 ## Workspace and Next.js maintenance
 
 - Every workspace is private; each workspace that runs type checks declares its own TypeScript compiler dependency through the root catalog. Shared packages expose explicit public entry points.
-- `bun run check-types` uses Bun 1.4.3's built-in checker for application/package code and the operational scripts in `scripts/tsconfig.json`. Web checks still run `next typegen` first. CI runs the same tasks; TypeScript remains installed for editors and the independent Next.js build checker.
+- `bun run check-types` uses Bun 1.4.4's built-in checker for application/package code and the operational scripts in `scripts/tsconfig.json`. Web checks still run `next typegen` first. CI runs the same tasks; TypeScript remains installed for editors and the independent Next.js build checker.
 - Database validation depends on contract generation in Turborepo. Only `db:generate` owns the generated contract outputs; its inputs exclude those outputs to avoid self-invalidating cache keys. When running directly inside `packages/product-db`, run `db:generate` before `db:validate`.
 - `NODE_ENV` participates in task hashes. Web type checks restore their generated route types. `bun check` emits no incremental compiler cache; Next.js builds may still produce their own. Tasks that verify or modify a live database are never cached.
 - Import runtime service URLs from `@repo/api-client/server` in Next.js server modules. This entry point and the admin data-access modules use `server-only` to reject accidental browser imports. Browser-safe API methods remain at `@repo/api-client`.
@@ -135,12 +135,14 @@ These conventions follow the version-matched Next.js guides bundled with the ins
 
 ### Package documentation and strict dependency checks
 
-The [September 28 package review](PACKAGE_REVIEW-2026-09-28.md) records installed versions, official documentation, findings and verification limits for every direct external package. The [October 2 upgrade](UPGRADE-2026-10-02.md) records the subsequent package updates, Prisma compatibility override, infrastructure fixes, and live container verification.
+The [22 October engineering review](ENGINEERING_REVIEW_2026-10-22.md) records dependency updates, primary documentation, corrected failure modes, verification results, and the deferred Prisma contract migration.
+
+Biome 2.6 checks Markdown and ordinary YAML as well as application sources. Markdown frontmatter parsing is enabled so skill metadata remains valid. Helm's `charts/ecommerce/templates` contains Go templates rather than valid YAML and is excluded from Biome parsing; Helm lint, rendering, schema validation, and profile assertions remain its validation path. Generated JSON under `deploy/schemas/*/` is also excluded from general formatting; `bun run --check scripts/generate-kubernetes-schemas.ts --check` verifies all five pinned outputs against their generator and source checksums.
 
 `bun run knip` checks both the complete development graph and the strict production graph. Keep production entry points in `knip.ts`; annotate exports that exist only for regression tests with `@internal`. Keep exceptions narrow and explained. Operational scripts and `knip.ts` are type-checked by the root tooling task.
 
-Local Bun installs disable the transitive fallback with `hoist = false`. Bun's 1.4.3 declarations now declare their `undici-types` dependency, so the root workaround has been removed after frozen installation and strict library checks. The local isolated store remains portable; the shared global store requires an explicit `globalStore = true` opt-in. Docker continues to use explicitly hoisted installs for portable image layers.
+Local Bun installs disable the transitive fallback with `hoist = false`. The Bun declarations include their `undici-types` dependency, so no root workaround is needed. The local isolated store remains portable; the shared global store requires an explicit `globalStore = true` opt-in. Docker continues to use explicitly hoisted installs for portable image layers. Biome remains the shared formatter and linter; adopting `bun fmt` would require a separate formatting-policy migration.
 
-Tests have explicit strict configurations in `tests/tsconfig.json` and `integration-tests/tsconfig.json`. Modules imported directly across app boundaries by tests use relative internal imports so checking them does not depend on another app's private `@/` alias. Fetch mocks preserve Bun's `fetch.preconnect` shape without unchecked function casts. Knip's narrow Bun-command exception and explicit operational entry points account for its current parser's lack of `bun check` and `bun run --check` support.
+Tests have explicit strict configurations in `tests/tsconfig.json` and `integration-tests/tsconfig.json`. Modules imported directly across app boundaries by tests use relative internal imports so checking them does not depend on another app's private `@/` alias. Fetch mocks preserve Bun's `fetch.preconnect` shape without unchecked function casts. Knip 6.42 recognizes `bun check`; operational entry points remain explicit so Make-driven scripts are checked too.
 
-See the [Bun 1.4.3 adoption review](BUN_1.4.3_UPGRADE.md) for the complete release feature assessment and validation results.
+See the [Bun 1.4.4 upgrade review](BUN_1.4.4_UPGRADE.md) for the current release decisions and verification, and the [Bun 1.4.3 adoption review](BUN_1.4.3_UPGRADE.md) for the earlier checker adoption and deployment evidence. Coverage must be measured again after runtime upgrades; Bun 1.4.4 corrects branch and asynchronous-code accounting, so earlier percentages are not directly comparable.

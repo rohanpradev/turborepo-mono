@@ -39,3 +39,21 @@ test("malformed events fail before business handlers and explicit replay validat
     decodeReplay({ ...record, value: Buffer.from("{}").toString("base64") }),
   ).toThrow();
 });
+
+test("catalog event validation preserves the declared image URL", () => {
+  const event = {
+    id: "42",
+    name: "Everyday tee",
+    price: 1999,
+    stock: 3,
+    imageUrl: "https://images.example.com/tee.png",
+    createdAt: "2026-10-22T10:00:00.000Z",
+  };
+  expect(validateTopicMessage(Topics.PRODUCT_CREATED, event)).toEqual(event);
+  expect(
+    validateTopicMessage(Topics.PRODUCT_UPDATED, {
+      ...event,
+      updatedAt: "2026-10-22T11:00:00.000Z",
+    }).imageUrl,
+  ).toBe(event.imageUrl);
+});

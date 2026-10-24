@@ -326,6 +326,9 @@
               },
               "tls": {
                 "type": "object"
+              },
+              "allowedRoutes": {
+                "type": "object"
               }
             }
           }

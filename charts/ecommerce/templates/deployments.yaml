@@ -64,23 +64,9 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with $.Values.global.priorityClassName }}
-      priorityClassName: {{ . | quote }}
-      {{- end }}
+      {{- include "ecommerce.podPlacement" $ | nindent 6 }}
       securityContext:
         {{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
-      {{- with $.Values.global.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with $.Values.global.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with $.Values.global.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
       {{- if $topologySpreadConstraints }}
       topologySpreadConstraints:
         {{- toYaml $topologySpreadConstraints | nindent 8 }}
@@ -231,7 +217,7 @@ spec:
             sizeLimit: 1Mi
         - name: stripe-cli-script
           configMap:
-            name: {{ include "ecommerce.fullname" $ }}-stripe-cli
+            name: {{ include "ecommerce.resourceName" (dict "root" $ "suffix" "stripe-cli") }}
             defaultMode: 0555
         {{- end }}
         {{- with $service.extraVolumes }}

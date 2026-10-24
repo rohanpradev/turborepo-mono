@@ -28,7 +28,6 @@ Keep the platform understandable, secure, observable, and easy to operate. Deliv
 ## Evidence Order
 
 Resolve uncertainty in this order:
-
 1. Read the user's request, supplied artifact, issue, PRD, or acceptance criteria.
 2. Inspect the current code, tests, manifests, generated configuration, and runtime evidence.
 3. Read the repository's architecture, quality, operational, and ADR documentation.
@@ -41,20 +40,20 @@ When sources conflict, surface the conflict. Treat executable behavior as eviden
 
 Read only the material relevant to the change, but do not skip an applicable source.
 
-| Concern | Inspect first |
-| --- | --- |
-| Repository commands and versions | `package.json`, `bun.lock`, `Makefile`, `turbo.json` |
-| Architecture and ownership | `docs/ARCHITECTURE.md`, `docs/adr/`, package-local `turbo.json` files |
-| Quality and verification | `docs/QUALITY.md`, `.github/workflows/ci.yml`, `biome.json`, `knip.json` |
-| HTTP/RPC contracts | `packages/contracts`, `packages/types`, `packages/api-client`, service route implementations |
-| Kafka events and consumers | `packages/kafka`, producer and consumer call sites, `tests/kafka.test.ts` |
-| Product data | `packages/product-db`, Prisma schema and migrations, product-service call sites |
-| Order data | `packages/order-db`, Mongoose models, order-service consumers and queries |
-| Auth and permissions | `packages/hono-utils`, Clerk middleware, Next.js route handlers, `.env.example` |
-| Payments | payment-service, Stripe tests, `docs/STRIPE_OPERATIONS.md`, relevant redesign plans |
-| Telemetry and readiness | `docs/TELEMETRY.md`, `docs/OBSERVABILITY.md`, shared Hono and Kafka helpers |
-| Containers and routing | `compose.yml`, `docker/`, Dockerfile-specific ignore files, Traefik config |
-| Kubernetes | `charts/ecommerce`, relevant Make targets, operations docs |
+| Concern                          | Inspect first                                                                                |
+| -------------------------------- | -------------------------------------------------------------------------------------------- |
+| Repository commands and versions | `package.json`, `bun.lock`, `Makefile`, `turbo.json`                                         |
+| Architecture and ownership       | `docs/ARCHITECTURE.md`, `docs/adr/`, package-local `turbo.json` files                        |
+| Quality and verification         | `docs/QUALITY.md`, `.github/workflows/ci.yml`, `biome.json`, `knip.json`                     |
+| HTTP/RPC contracts               | `packages/contracts`, `packages/types`, `packages/api-client`, service route implementations |
+| Kafka events and consumers       | `packages/kafka`, producer and consumer call sites, `tests/kafka.test.ts`                    |
+| Product data                     | `packages/product-db`, Prisma schema and migrations, product-service call sites              |
+| Order data                       | `packages/order-db`, Mongoose models, order-service consumers and queries                    |
+| Auth and permissions             | `packages/hono-utils`, Clerk middleware, Next.js route handlers, `.env.example`              |
+| Payments                         | payment-service, Stripe tests, `docs/STRIPE_OPERATIONS.md`, relevant redesign plans          |
+| Telemetry and readiness          | `docs/TELEMETRY.md`, `docs/OBSERVABILITY.md`, shared Hono and Kafka helpers                  |
+| Containers and routing           | `compose.yml`, `docker/`, Dockerfile-specific ignore files, Traefik config                   |
+| Kubernetes                       | `charts/ecommerce`, relevant Make targets, operations docs                                   |
 
 For a code change, follow imports and callers far enough to identify the public seam, owner, consumers, persistence or event effects, runtime effects, and validation surface.
 
@@ -69,7 +68,6 @@ Ask a blocking question only when the repository cannot answer it and a reasonab
 ### 2. Map the blast radius
 
 Classify every affected surface:
-
 - Workspace and owner
 - Public type, oRPC, HTTP, or event contract
 - Database schema, migration, or read model
@@ -79,7 +77,6 @@ Classify every affected surface:
 - Documentation and rollback implications
 
 Classify risk:
-
 - **Low:** isolated behavior with a fast local check and no public contract or runtime effect.
 - **Medium:** shared packages, frontend routes, service behavior, dependencies, environment parsing, telemetry, Docker, or CI.
 - **High:** public contracts, Kafka event shapes, migrations, auth, payments, secrets, production images, deployment, or rollback-sensitive behavior.
@@ -90,21 +87,20 @@ Increase the strength of design review and verification with the risk; do not in
 
 Use the narrowest loop that matches the request.
 
-| Task | Required loop |
-| --- | --- |
-| Feature or refactor | Define one observable vertical slice, choose its public seam, implement the minimum, then verify the slice before widening scope. |
-| Bug or regression | Build a red-capable feedback command, reproduce, minimize, rank falsifiable hypotheses, instrument one prediction at a time, fix, and preserve the repro as a regression test when the correct seam exists. |
-| Performance issue | Measure a baseline, profile or inspect the relevant trace/query/build summary, change one variable, and compare against the same measurement. |
-| Architecture or infrastructure | Identify irreversible decisions, ownership, failure modes, compatibility, migration, rollback, and operational proof before editing. |
-| Exploration | Build an explicitly throwaway prototype that answers one question; keep it isolated, easy to run, and easy to remove. |
-| Review | Compare the same fixed diff against both repository standards and the originating intent/spec; keep the two judgments distinct. |
+| Task                           | Required loop                                                                                                                                                                                               |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Feature or refactor            | Define one observable vertical slice, choose its public seam, implement the minimum, then verify the slice before widening scope.                                                                           |
+| Bug or regression              | Build a red-capable feedback command, reproduce, minimize, rank falsifiable hypotheses, instrument one prediction at a time, fix, and preserve the repro as a regression test when the correct seam exists. |
+| Performance issue              | Measure a baseline, profile or inspect the relevant trace/query/build summary, change one variable, and compare against the same measurement.                                                               |
+| Architecture or infrastructure | Identify irreversible decisions, ownership, failure modes, compatibility, migration, rollback, and operational proof before editing.                                                                        |
+| Exploration                    | Build an explicitly throwaway prototype that answers one question; keep it isolated, easy to run, and easy to remove.                                                                                       |
+| Review                         | Compare the same fixed diff against both repository standards and the originating intent/spec; keep the two judgments distinct.                                                                             |
 
 Do not form a confident bug theory before a feedback loop exercises the reported path. A valid bug loop must detect the user's specific symptom, run unattended when possible, and be fast enough to repeat.
 
 ### 4. Design the seam
 
 Place behavior behind the smallest stable interface that gives callers useful leverage. Prefer deep modules: substantial behavior behind a compact contract.
-
 - Test observable behavior through public seams rather than private implementation details.
 - Keep expected test values independent from the implementation under test.
 - Avoid internal mocks that make refactors fail while behavior remains correct.
@@ -125,7 +121,6 @@ Place behavior behind the smallest stable interface that gives callers useful le
 ### 6. Verify progressively
 
 Run the cheapest red-capable or failure-capable check first. Expand toward CI-equivalent validation after the local signal passes.
-
 1. Run the closest test, typecheck, render, config validation, or reproduction command.
 2. Run checks for the affected workspace and its consumers.
 3. Run applicable cross-repository gates.
@@ -154,7 +149,6 @@ Do not claim a check passed unless it ran successfully in the current worktree. 
 ### 7. Review before handoff
 
 Inspect the final diff along two axes:
-
 - **Intent:** Does the patch implement the requested observable behavior and acceptance criteria without unrequested scope?
 - **Standards:** Does it preserve documented architecture, ownership, security, operations, style, and quality gates?
 
@@ -226,7 +220,6 @@ Pin decisions to repository versions and conventions. Do not import a fashionabl
 ## Done Criteria
 
 Declare completion only when all applicable statements are true:
-
 - The requested behavior works through its real public path.
 - A bug's original repro is green and its regression is protected at the correct seam when feasible.
 - Contracts, producers, consumers, generated artifacts, and public exports agree.
@@ -240,7 +233,6 @@ Declare completion only when all applicable statements are true:
 ## Handoff
 
 Report:
-
 - **Changed:** concrete behavior and files changed.
 - **Verified:** exact commands run and their results.
 - **Not run:** exact commands omitted and why.

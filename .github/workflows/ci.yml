@@ -19,18 +19,18 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  BUN_VERSION: 1.4.3
-  BUN_DEV_IMAGE: oven/bun:1.4.3@sha256:ec06c3b6cea04192ae6770c434f668ca41d343ad19fa6472216c7b48be39c598
-  BUN_RUNTIME_IMAGE: oven/bun:1.4.3@sha256:ec06c3b6cea04192ae6770c434f668ca41d343ad19fa6472216c7b48be39c598
-  BUILDX_VERSION: v0.38.0
-  BUILDKIT_IMAGE: moby/buildkit:v0.34.0@sha256:b059f8d7226d0b326bc871af489a5dddf65e36af4d20d14251b072974d9ee87c
+  BUN_VERSION: 1.4.4
+  BUN_DEV_IMAGE: oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d
+  BUN_RUNTIME_IMAGE: oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d
+  BUILDX_VERSION: v0.38.1
+  BUILDKIT_IMAGE: moby/buildkit:v0.34.1@sha256:99368f3e46177c6405b9740e4461d91cee004128daeecca78d4ceac50ec1da5c
   HELM_VERSION: 4.3.1
   KUBECONFORM_IMAGE: ghcr.io/yannh/kubeconform:v0.8.0@sha256:faffaf43f95aa6425306e1ab8d6fcad72acb9049158f38e574c085ea1ec0f64e
   K8S_SUPPORTED_VERSIONS: 1.35.9 1.36.5
   K8S_EXPERIMENTAL_VERSIONS: 1.37.1
   NODE_VERSION: 24.21.0
   REGISTRY: ghcr.io
-  TURBO_VERSION: 2.11.7
+  TURBO_VERSION: 2.11.10
   NEXT_TELEMETRY_DISABLED: 1
   TURBO_TELEMETRY_DISABLED: 1
 
@@ -194,7 +194,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:18.6@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
+        image: postgres:18.6@sha256:edb0c08dc33befd0262ab3b5cf1c4f3f8cfd8b09e88c05b45adee29d6761ddb6
         env:
           POSTGRES_PASSWORD: integration-only-password
           POSTGRES_DB: ecommerce_test
@@ -204,7 +204,7 @@ jobs:
           --health-cmd "pg_isready -U postgres -d ecommerce_test"
           --health-interval 5s --health-timeout 5s --health-retries 12
       mongodb:
-        image: mongo:8.3.11@sha256:d731d77bfd7afd66bd487bdf627b5bf7ce4c3602ec461d635977021db529ebbc
+        image: mongo:8.3.13@sha256:0e900a3364da37b76d642b73b0bba56bd4c6c509ab470cf700436fd866bee3ff
         ports:
           - 27017:27017
         options: >-

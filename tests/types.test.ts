@@ -86,6 +86,41 @@ describe("@repo/types schemas", () => {
     );
   });
 
+  it.each([500, 501])(
+    "keeps catalog and checkout variant limits aligned at length %s",
+    (length) => {
+      const variant = "v".repeat(length);
+      const expected = length === 500;
+      for (const field of ["sizes", "colors"] as const) {
+        const product = {
+          ...validProductPayload,
+          [field]: [variant],
+          images: { black: "/product.png", [variant]: "/product.png" },
+        };
+        expect(productPayloadSchema.safeParse(product).success).toBe(expected);
+        expect(
+          productUpdateSchema.safeParse({ [field]: [variant] }).success,
+        ).toBe(expected);
+      }
+      for (const field of ["selectedSize", "selectedColor"] as const) {
+        expect(
+          checkoutSessionPayloadSchema.safeParse({
+            checkoutAttemptId: "019f50b2-4dd4-7000-8000-000000000001",
+            cart: [
+              {
+                id: 1,
+                quantity: 1,
+                selectedSize: "m",
+                selectedColor: "black",
+                [field]: variant,
+              },
+            ],
+          }).success,
+        ).toBe(expected);
+      }
+    },
+  );
+
   it("coerces and bounds product list pagination", () => {
     const validQuery = productListQuerySchema.safeParse({
       page: "2",

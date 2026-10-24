@@ -5,7 +5,6 @@ configuration templates, not deployed environments. Domains, hosting, production
 credentials and traffic/recovery requirements have not been supplied.
 
 Before rendering either hosted template:
-
 1. Replace every `.invalid` host, registry and TEST-NET CIDR. Configure DNS and
    a valid TLS secret; install ingress, a NetworkPolicy-capable CNI and monitoring
    CRDs. Verify allowed traffic, including migration jobs, from real pods.

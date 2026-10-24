@@ -71,7 +71,7 @@ function AuthenticatedReturnContent() {
             if (
               userId &&
               consumeCheckout(
-                sessionStorage,
+                () => sessionStorage,
                 currentSessionId,
                 userId,
                 useCartStore.getState().cart,

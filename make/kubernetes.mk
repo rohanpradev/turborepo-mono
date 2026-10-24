@@ -1,5 +1,13 @@
 # Helm, Kubernetes, platform controller, and observability targets.
 
+# The default stays on the checksum-pinned container; native validation is an
+# explicit override, with the same strictness, schemas and failure handling.
+ifneq ($(strip $(KUBECONFORM)),)
+KUBECONFORM_RUN = "$(KUBECONFORM)" -cache "$(RUNTIME_DIR)/kubeconform-cache"
+else
+KUBECONFORM_RUN = docker run --rm -i -v "$(RUNTIME_DIR)/kubeconform-cache:/schemas-cache" $(KUBECONFORM_IMAGE) -cache /schemas-cache
+endif
+
 ##@ Kubernetes / Helm
 
 .PHONY: k8s-install-kubectl
@@ -56,7 +64,7 @@ helm-validate-supported: helm-lint-supported ## Schema-validate every real profi
 				local-full) profile_args="--values $(HELM_FULL_VALUES)" ;; \
 			esac; \
 			$(HELM) template $(HELM_RELEASE) $(HELM_CHART) --namespace $(HELM_NAMESPACE) --kube-version "$$kubernetes_version" $$profile_args > "$$rendered_manifest" || exit 1; \
-			docker run --rm -i -v "$(RUNTIME_DIR)/kubeconform-cache:/schemas-cache" $(KUBECONFORM_IMAGE) -cache /schemas-cache -strict -summary -skip Gateway,GatewayClass,HTTPRoute,ServiceMonitor,PrometheusRule -kubernetes-version "$$kubernetes_version" - < "$$rendered_manifest" || exit 1; \
+			$(KUBECONFORM_RUN) -strict -summary -skip Gateway,GatewayClass,HTTPRoute,ServiceMonitor,PrometheusRule -kubernetes-version "$$kubernetes_version" - < "$$rendered_manifest" || exit 1; \
 		done; \
 	done
 	@echo "$(GREEN)All $(K8S_VERSION_TIER) Helm profiles passed kubeconform validation$(NC)"
@@ -289,29 +297,33 @@ k8s-tag-images: ## Tag freshly built Compose images with the immutable Kubernete
 	@echo "$(GREEN)Kubernetes images tagged with $(K8S_IMAGE_TAG)$(NC)"
 
 k8s-load-images: ## Load locally built images into kind or minikube when the current context needs it
-	@context="$$( $(KUBECTL) config current-context 2>/dev/null || true )"; \
-	case "$$context" in \
-		kind-*) \
-			command -v kind >/dev/null || { echo "$(RED)kind context '$$context' detected, but kind is not installed.$(NC)"; exit 1; }; \
-			cluster="$${context#kind-}"; \
-			echo "$(BLUE)Loading images into kind cluster '$$cluster'...$(NC)"; \
-			kind load docker-image --name "$$cluster" $(K8S_LOCAL_IMAGES); \
-			;; \
-		minikube*) \
-			command -v minikube >/dev/null || { echo "$(RED)minikube context detected, but minikube is not installed.$(NC)"; exit 1; }; \
-			echo "$(BLUE)Loading images into minikube...$(NC)"; \
-			for image in $(K8S_LOCAL_IMAGES); do minikube image load "$$image" || exit 1; done; \
-			;; \
-		*) \
-			echo "$(YELLOW)Using cluster context '$$context'; Docker Desktop and OrbStack can usually see local Docker images directly.$(NC)"; \
-			;; \
-	esac
+	@context="$$( $(KUBECTL) config current-context )" || exit 1; \
+		test -n "$$context" || { echo "$(RED)No Kubernetes context is selected.$(NC)"; exit 1; }; \
+		profile="$(K8S_MINIKUBE_PROFILE)"; \
+		case "$$context" in minikube*) profile="$${profile:-$$context}";; esac; \
+		if [ -n "$$profile" ]; then \
+			command -v minikube >/dev/null || { echo "$(RED)minikube profile '$$profile' selected, but minikube is not installed.$(NC)"; exit 1; }; \
+			echo "$(BLUE)Loading images into minikube profile '$$profile'...$(NC)"; \
+			for image in $(K8S_LOCAL_IMAGES); do minikube image load --profile "$$profile" "$$image" || exit 1; done; \
+		else \
+			case "$$context" in \
+				kind-*) \
+					command -v kind >/dev/null || { echo "$(RED)kind context '$$context' detected, but kind is not installed.$(NC)"; exit 1; }; \
+					cluster="$${context#kind-}"; \
+					echo "$(BLUE)Loading images into kind cluster '$$cluster'...$(NC)"; \
+					kind load docker-image --name "$$cluster" $(K8S_LOCAL_IMAGES); \
+					;; \
+				*) \
+					echo "$(YELLOW)Using cluster context '$$context'; Docker Desktop and OrbStack can usually see local Docker images directly.$(NC)"; \
+					;; \
+			esac; \
+		fi
 
 k8s-validate: helm-lint runtime-dir ## Render and schema-validate Kubernetes manifests without deploying
 	@echo "$(BLUE)Rendering Helm manifests to $(HELM_RENDERED_FILE)...$(NC)"
 	@umask 077; $(MAKE) --no-print-directory helm-template > "$(HELM_RENDERED_FILE)" && chmod 0600 "$(HELM_RENDERED_FILE)"
 	@mkdir -p "$(RUNTIME_DIR)/kubeconform-cache"
-	docker run --rm -i -v "$(RUNTIME_DIR)/kubeconform-cache:/schemas-cache" $(KUBECONFORM_IMAGE) -cache /schemas-cache -strict -summary -skip Gateway,GatewayClass,HTTPRoute,ServiceMonitor,PrometheusRule -kubernetes-version $(K8S_TARGET_VERSION) < "$(HELM_RENDERED_FILE)"
+	$(KUBECONFORM_RUN) -strict -summary -skip Gateway,GatewayClass,HTTPRoute,ServiceMonitor,PrometheusRule -kubernetes-version $(K8S_TARGET_VERSION) - < "$(HELM_RENDERED_FILE)"
 	@echo "$(GREEN)Kubernetes manifests validated$(NC)"
 
 k8s-validate-full: ## Render and schema-validate full-stack Kubernetes manifests without deploying

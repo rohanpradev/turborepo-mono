@@ -18,17 +18,17 @@ This adds declared indexes with `createIndexes()` and verifies the unique `order
 
 Compose runs `order-db-indexes` before `order-service`. Helm runs `jobs.index-order-db` as a pre-install/pre-upgrade hook using the order image and external runtime secret. If the order service is disabled, disable that job too. Development waits for `Order.init()` before verifying indexes. Consumers start only after verification succeeds.
 
-A partial unique index covers string `orderId` values, allowing legacy records without an ID to coexist. User-order and recent-order indexes support descending creation-time queries. Order writes use validated `$setOnInsert` upserts; replaying a payment leaves the existing order intact.
+A partial unique index covers string `orderId` values, allowing legacy records without an ID to coexist. User-order and recent-order indexes support descending creation-time queries. Order writes use validated `$setOnInsert` upserts; replaying a payment leaves the existing order and its original timestamps intact.
 
 ## Connection configuration
 
-| Variable | Default |
-| --- | --- |
-| `MONGO_URL` | Required |
-| `MONGO_MAX_POOL_SIZE` | 20 |
-| `MONGO_MAX_IDLE_TIME_MS` | 30000 |
-| `MONGO_SERVER_SELECTION_TIMEOUT_MS` | 5000 |
-| `MONGO_WAIT_QUEUE_TIMEOUT_MS` | 5000 |
+| Variable                            | Default  |
+| ----------------------------------- | -------- |
+| `MONGO_URL`                         | Required |
+| `MONGO_MAX_POOL_SIZE`               | 20       |
+| `MONGO_MAX_IDLE_TIME_MS`            | 30000    |
+| `MONGO_SERVER_SELECTION_TIMEOUT_MS` | 5000     |
+| `MONGO_WAIT_QUEUE_TIMEOUT_MS`       | 5000     |
 
 Numeric values must be positive safe integers. Command buffering is disabled so disconnected requests fail promptly. Size the pool across all replicas against the database's connection budget. Shutdown drains the Kafka consumer before disconnecting Mongoose.
 

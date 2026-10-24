@@ -34,7 +34,27 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}
 
 {{- define "ecommerce.componentName" -}}
-{{- printf "%s-%s" (include "ecommerce.fullname" .root) .service.name | trunc 63 | trimSuffix "-" -}}
+{{- include "ecommerce.resourceName" (dict "root" .root "suffix" .service.name) -}}
+{{- end -}}
+
+{{/* Retain a readable suffix and unique hash when names exceed DNS label limits. */}}
+{{- define "ecommerce.resourceName" -}}
+{{- $base := include "ecommerce.fullname" .root -}}
+{{- $name := printf "%s-%s" $base .suffix -}}
+{{- if le (len $name) 63 -}}
+{{- $name -}}
+{{- else -}}
+{{- $suffix := .suffix | trunc 40 | trimSuffix "-" -}}
+{{- $hash := $name | sha256sum | trunc 8 -}}
+{{- $prefixLength := sub 63 (add (len $suffix) (len $hash) 2) -}}
+{{- $prefix := $base | trunc (int $prefixLength) | trimSuffix "-" -}}
+{{- printf "%s-%s-%s" $prefix $suffix $hash -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "ecommerce.serviceUrl" -}}
+{{- $service := index .root.Values.services .key -}}
+{{- printf "http://%s:%v" (include "ecommerce.componentName" (dict "root" .root "service" $service)) $service.service.port -}}
 {{- end -}}
 
 {{- define "ecommerce.componentLabels" -}}
@@ -57,11 +77,30 @@ app.kubernetes.io/component: {{ .service.name | quote }}
 {{- end -}}
 
 {{- define "ecommerce.configMapName" -}}
-{{- printf "%s-config" (include "ecommerce.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- include "ecommerce.resourceName" (dict "root" . "suffix" "config") -}}
 {{- end -}}
 
 {{- define "ecommerce.secretName" -}}
-{{- default (printf "%s-runtime" (include "ecommerce.fullname" .)) .Values.secrets.name | trunc 63 | trimSuffix "-" -}}
+{{- default (include "ecommerce.resourceName" (dict "root" . "suffix" "runtime")) .Values.secrets.name | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/* Keep hooks and test Pods schedulable wherever application Pods can run. */}}
+{{- define "ecommerce.podPlacement" -}}
+{{- with .Values.global.priorityClassName }}
+priorityClassName: {{ . | quote }}
+{{- end }}
+{{- with .Values.global.nodeSelector }}
+nodeSelector:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- with .Values.global.affinity }}
+affinity:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- with .Values.global.tolerations }}
+tolerations:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
 {{- end -}}
 
 {{- define "ecommerce.image" -}}

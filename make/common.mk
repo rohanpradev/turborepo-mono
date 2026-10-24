@@ -34,6 +34,8 @@ DOCKER_WAIT_TIMEOUT ?= 180
 TRAEFIK_HTTP_PORT ?= 8080
 TRAEFIK_HTTPS_PORT ?= 8443
 K8S_LOCAL_HTTPS_PORT ?= 9443
+# Set this when a minikube profile uses a custom or renamed kubeconfig context.
+K8S_MINIKUBE_PROFILE ?=
 K8S_SMOKE_MAX_ATTEMPTS ?= 30
 HELM ?= helm
 KUBECTL_VERSION ?= $(K8S_TARGET_VERSION)
@@ -46,13 +48,15 @@ K8S_EXPERIMENTAL_VERSIONS ?= 1.37.1
 K8S_VERSION_TIER ?= supported
 K8S_POD_SECURITY_LEVEL ?= restricted
 K8S_POD_SECURITY_VERSION ?= v1.35
+# Set this to a native executable to validate manifests without Docker.
+KUBECONFORM ?=
 KUBECONFORM_IMAGE ?= ghcr.io/yannh/kubeconform:v0.8.0@sha256:faffaf43f95aa6425306e1ab8d6fcad72acb9049158f38e574c085ea1ec0f64e
 GATEWAY_API_VERSION ?= 1.6.3
 GATEWAY_API_MANIFEST_SHA256 ?= 356c2b8e286a964dc20995435659ad1095386329974793af10bbfe3eff977fe5
-TRAEFIK_CHART_VERSION ?= 41.7.1
-TRAEFIK_IMAGE_VERSION ?= v3.7.14
-TRAEFIK_IMAGE_DIGEST ?= sha256:575fa15b135078fe5e50aa847987d96dbddd7b093c172429618404df73f3fa7c
-OBS_CHART_VERSION ?= 92.8.0
+TRAEFIK_CHART_VERSION ?= 42.1.3
+TRAEFIK_IMAGE_VERSION ?= v3.7.16
+TRAEFIK_IMAGE_DIGEST ?= sha256:c8a121e4bb1347e8fd52657fab12f2cb70b68f8a018895e2068f92c9e519b9c2
+OBS_CHART_VERSION ?= 92.11.0
 HELM_CHART ?= charts/ecommerce
 HELM_RELEASE ?= ecommerce
 HELM_NAMESPACE ?= ecommerce
@@ -96,8 +100,8 @@ export K8S_IMAGE_TAG
 K8S_IMAGE_SET_ARGS ?= --set-string services.product.image.tag=$(K8S_IMAGE_TAG) --set-string services.order.image.tag=$(K8S_IMAGE_TAG) --set-string services.payment.image.tag=$(K8S_IMAGE_TAG) --set-string services.client.image.tag=$(K8S_IMAGE_TAG) --set-string services.admin.image.tag=$(K8S_IMAGE_TAG)
 K8S_LOCAL_IMAGES ?= turborepo-monorepo-product-service:$(K8S_IMAGE_TAG) turborepo-monorepo-order-service:$(K8S_IMAGE_TAG) turborepo-monorepo-payment-service:$(K8S_IMAGE_TAG) turborepo-monorepo-client:$(K8S_IMAGE_TAG) turborepo-monorepo-admin:$(K8S_IMAGE_TAG)
 HELM_UPGRADE_ARGS ?= --rollback-on-failure --wait --timeout $(K8S_ROLLOUT_TIMEOUT)
-DHI_CHECK_IMAGES ?= dhi.io/postgres:18.6-debian13@sha256:8ebb9c5029314e1700be34df809897f32a29a5064e579038f861c6e0ed5f028b dhi.io/kafka:4.3.1-debian13-native@sha256:acb17aecd630d0b855630cdd186b8ccb311ef4f64a8bf257b2e444deae0bab60
-DHI_AMD64_CHECK_IMAGES ?= dhi.io/mongodb:8.3.11-debian13@sha256:f65e3024ffddc94842026277a1070c29f2a3ac11b84d483c90c9f63ee6b97c01
+DHI_CHECK_IMAGES ?= dhi.io/postgres:18.6-debian13@sha256:1df173565ce7da8031d1c1ebfead27ff5e9c15055831f2ca0ff7f3b1a66f0aa7 dhi.io/kafka:4.3.1-debian13-native@sha256:e143e49a67f9aaef9a992896162731f7428f6e5af2aa68b9a99ee723a0e1fbed
+DHI_AMD64_CHECK_IMAGES ?= dhi.io/mongodb:8.3.13-debian13@sha256:0162625dc28370f5769327e7e8dae540f2ba4143fb215eb6eda3753d073064c6
 DOCKER_SMOKE_TIMEOUT ?= 10
 DOCKER_IMAGE_LOCK_FILE ?= docker/compose.images.lock.yml
 LOCAL_TLS_CERT_DIR ?= docker/certs

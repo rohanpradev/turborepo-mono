@@ -40,14 +40,17 @@ const isSupportedImagePath = (value: string) => {
   return httpImageUrlSchema.safeParse(value).success;
 };
 
+// Variants are carried into payment metadata, which accepts at most 500 characters.
+export const productVariantSchema = z.string().min(1).max(500);
+
 const productBaseSchema = z.strictObject({
   name: z.string().min(1).max(200),
   shortDescription: z.string().min(1).max(60),
   description: z.string().min(1).max(10000),
   price: z.number().int().nonnegative().max(MAX_USD_AMOUNT_CENTS),
   categorySlug: z.string().min(1),
-  sizes: z.array(z.string().min(1)).min(1),
-  colors: z.array(z.string().min(1)).min(1),
+  sizes: z.array(productVariantSchema).min(1),
+  colors: z.array(productVariantSchema).min(1),
   images: z.record(
     z.string(),
     z
@@ -117,15 +120,15 @@ export const categoryRecordSchema = z.object({
 
 export const cartItemSchema = productRecordSchema.extend({
   quantity: z.number().int().positive().max(MAX_CART_ITEM_QUANTITY),
-  selectedSize: z.string().min(1),
-  selectedColor: z.string().min(1),
+  selectedSize: productVariantSchema,
+  selectedColor: productVariantSchema,
 });
 
 export const checkoutCartItemSchema = z.strictObject({
   id: productIdParamSchema.shape.id,
   quantity: z.number().int().positive().max(MAX_CART_ITEM_QUANTITY),
-  selectedSize: z.string().min(1),
-  selectedColor: z.string().min(1),
+  selectedSize: productVariantSchema,
+  selectedColor: productVariantSchema,
 });
 
 export const checkoutSessionPayloadSchema = z.strictObject({

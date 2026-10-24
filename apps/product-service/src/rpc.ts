@@ -6,8 +6,8 @@ import {
 } from "@repo/hono-utils";
 import { InventoryConflict, listStock, setStock } from "@repo/product-db";
 import type { Context } from "hono";
-import { CategoryService } from "@/services/CategoryService";
-import { ProductService } from "@/services/ProductService";
+import { CategoryService } from "./services/CategoryService";
+import { ProductService } from "./services/ProductService";
 
 type RPCContext = {
   hono: Context;
@@ -59,11 +59,22 @@ export const productRouter = os.router({
     set: os.inventory.set.handler(async ({ context, input }) => {
       const actor = requireAdmin(context);
       const product = await ProductService.getProduct(input.id);
-      if (
-        !product?.sizes.includes(input.size) ||
-        !product.colors.includes(input.color)
-      )
-        throw createORPCException(400, "Choose an existing product variant.");
+      const currentVariant =
+        product?.sizes.includes(input.size) &&
+        product.colors.includes(input.color);
+      if (!currentVariant) {
+        // Catalog edits can retire a variant that still has an inventory row.
+        // Keep that row clearable so the product can eventually be deleted;
+        // only the storage layer may decide whether held units allow it.
+        const clearingRetiredVariant =
+          product &&
+          input.onHand === 0 &&
+          (await listStock(input.id)).some(
+            (row) => row.size === input.size && row.color === input.color,
+          );
+        if (!clearingRetiredVariant)
+          throw createORPCException(400, "Choose an existing product variant.");
+      }
       try {
         await setStock(input.id, input.size, input.color, input.onHand, actor);
       } catch (error) {

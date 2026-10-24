@@ -10,6 +10,7 @@ const product = z.object({
   price: amount,
   categorySlug: z.string().optional(),
   stock: z.number().int().nonnegative(),
+  imageUrl: z.string().optional(),
   createdAt: z.iso.datetime(),
 });
 const schemas = {

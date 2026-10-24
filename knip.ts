@@ -4,8 +4,7 @@ export default defineConfig((options) => {
   const production = options.production || options.strict;
   return {
     ignore: ["packages/product-db/migrations/**"],
-    // Knip does not yet recognize `check` as a built-in Bun subcommand.
-    ignoreBinaries: ["make", "check"],
+    ignoreBinaries: ["make"],
     ignoreExportsUsedInFile: { interface: true, type: true },
     ignoreIssues: {
       "apps/admin/src/components/ui/**": ["exports"],

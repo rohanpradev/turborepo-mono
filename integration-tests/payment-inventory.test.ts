@@ -13,6 +13,7 @@ import { inventoryRoutes } from "../apps/product-service/src/routes/inventoryRou
 import {
   closeInventory,
   finishReservation,
+  InventoryConflict,
   listStock,
   migrateInventory,
   reserveStock,
@@ -137,7 +138,9 @@ test("duplicate reservations do not double-hold stock and release is idempotent"
     onHand: 4,
     reserved: 0,
   });
-  await expect(finishReservation(id, "committed")).rejects.toThrow();
+  await expect(finishReservation(id, "committed")).rejects.toBeInstanceOf(
+    InventoryConflict,
+  );
 });
 
 test("failed multi-item reservations roll back all holds", async () => {

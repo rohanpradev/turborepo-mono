@@ -36,7 +36,6 @@ All three Bun services explicitly own their HTTP server. Shutdown marks dependen
 Type checking uses a transit task to carry dependency hashes while allowing independent workspaces to check in parallel. Prisma generation remains an explicit prerequisite for affected consumers. Bun catalogs, isolated workspace installs, strict Turbo environment handling, signed remote-cache configuration, package boundaries, and frozen installs remain in place. Database deployment and integration tasks are uncached.
 
 The new **Database integration** CI job runs against disposable PostgreSQL and MongoDB services pinned by digest. Docker publication depends on both this job and the existing Quality job. The suite migrates PostgreSQL and deploys MongoDB indexes before testing:
-
 1. Startup rejection when the unique order index is absent, followed by repeatable index creation.
 2. Twelve concurrent deliveries persisting exactly one order.
 3. Transaction rollback in the installed Prisma 8 runtime.

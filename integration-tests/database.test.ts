@@ -109,6 +109,32 @@ describe("database guarantees", () => {
     }
   });
 
+  test("payment replays preserve the persisted order and timestamps", async () => {
+    const orderId = `cs_test_${crypto.randomUUID()}`;
+    const order = {
+      orderId,
+      userId: "user_integration",
+      email: "test@example.com",
+      amount: 1000,
+      status: "success" as const,
+      products: [{ name: "Original purchase", price: 1000, quantity: 1 }],
+    };
+    try {
+      await createOrder(order);
+      const original = await Order.findOne({ orderId }).lean();
+      expect(original?.createdAt).toBeInstanceOf(Date);
+      expect(original?.updatedAt).toEqual(original?.createdAt);
+      await Bun.sleep(5);
+      await createOrder({
+        ...order,
+        products: [{ name: "Changed replay", price: 1000, quantity: 1 }],
+      });
+      expect(await Order.findOne({ orderId }).lean()).toEqual(original);
+    } finally {
+      await Order.deleteMany({ orderId });
+    }
+  });
+
   test("Prisma rolls back all writes when a transaction fails", async () => {
     const slug = `rollback-${crypto.randomUUID()}`;
     await expect(

@@ -41,7 +41,6 @@ and [the repository upgrade report](../../docs/UPGRADE_2026-10-10.md).
 ## Runtime
 
 The package uses only Prisma 8:
-
 - `src/contract.prisma` is the source-of-truth data contract.
 - `src/contract.json` and `src/contract.d.ts` are deterministic emitted artifacts.
 - `src/client.ts` creates the module-level Prisma 8 PostgreSQL client and the explicitly sized `pg` pool.
@@ -50,8 +49,7 @@ The package uses only Prisma 8:
 ```typescript
 import { db } from "@repo/product-db";
 
-const products = await db.orm.public.Product
-  .where({ categorySlug: "shoes" })
+const products = await db.orm.public.Product.where({ categorySlug: "shoes" })
   .orderBy((product) => product.createdAt.desc())
   .limit(20)
   .all();

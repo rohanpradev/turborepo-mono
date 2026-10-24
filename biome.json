@@ -17,7 +17,9 @@
       "!**/dist",
       "!**/out",
       "!**/generated",
+      "!deploy/schemas/*/*.json",
       "!**/migrations",
+      "!charts/ecommerce/templates",
       "!**/contract.d.ts",
       "!**/contract.json",
       "!**/node_modules",
@@ -48,6 +50,11 @@
   "css": {
     "parser": {
       "tailwindDirectives": true
+    }
+  },
+  "markdown": {
+    "parser": {
+      "frontmatter": true
     }
   }
 }
