@@ -4,6 +4,7 @@ import {
   PaymentElement,
   useCheckoutElements,
 } from "@stripe/react-stripe-js/checkout";
+import type { StripeError } from "@stripe/stripe-js";
 import { type SubmitEvent, useEffect, useEffectEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { ShippingFormInputs as BaseShippingFormInputs } from "@/types";
@@ -22,6 +23,11 @@ const CheckoutForm = ({
   const [isLoading, setIsLoading] = useState(false);
   const [detailsReady, setDetailsReady] = useState(false);
   const [isSyncingDetails, setIsSyncingDetails] = useState(false);
+  const [paymentElementReady, setPaymentElementReady] = useState(false);
+  const [paymentElementError, setPaymentElementError] = useState<string | null>(
+    null,
+  );
+  const [paymentElementAttempt, setPaymentElementAttempt] = useState(0);
   const checkout =
     checkoutState.type === "success" ? checkoutState.checkout : null;
   const currentCheckout = useEffectEvent(() => checkout);
@@ -113,6 +119,7 @@ const CheckoutForm = ({
 
     if (
       !detailsReady ||
+      !paymentElementReady ||
       !checkout?.canConfirm ||
       isLoading ||
       isSyncingDetails
@@ -205,7 +212,40 @@ const CheckoutForm = ({
             Payment details
           </h2>
         </div>
-        <PaymentElement />
+        <PaymentElement
+          key={paymentElementAttempt}
+          onReady={() => {
+            setPaymentElementReady(true);
+            setPaymentElementError(null);
+          }}
+          onLoadError={({ error }: { error: StripeError }) => {
+            setPaymentElementReady(false);
+            setPaymentElementError(
+              error.message ||
+                "Payment details could not load. Check your connection and try again.",
+            );
+          }}
+        />
+        {paymentElementError ? (
+          <div
+            role="alert"
+            className="rounded-xl border border-destructive/25 bg-destructive/8 p-4 text-sm text-destructive"
+          >
+            <p>{paymentElementError}</p>
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-3"
+              onClick={() => {
+                setPaymentElementReady(false);
+                setPaymentElementError(null);
+                setPaymentElementAttempt((value) => value + 1);
+              }}
+            >
+              Reload payment details
+            </Button>
+          </div>
+        ) : null}
         {isSyncingDetails ? (
           <p
             role="status"
@@ -221,6 +261,7 @@ const CheckoutForm = ({
         type="submit"
         disabled={
           !detailsReady ||
+          !paymentElementReady ||
           isLoading ||
           isSyncingDetails ||
           !checkout?.canConfirm

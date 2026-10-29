@@ -82,7 +82,7 @@ For current dependencies, corrected failure modes, verification results, and mig
 | Layer    | Technology                                                                                             |
 | -------- | ------------------------------------------------------------------------------------------------------ |
 | Monorepo | Turborepo, Bun workspaces, Bun catalogs                                                                |
-| Frontend | Next.js 16.4.2, React 19.3.1, Tailwind CSS 4, Radix UI, Lucide                                         |
+| Frontend | Next.js 16.4.3, React 19.3.1, Tailwind CSS 4, Radix UI, Lucide                                         |
 | APIs     | Hono 4.13, Zod, OpenAPI, Scalar API Reference                                                          |
 | Auth     | Clerk for frontend sessions and service bearer auth                                                    |
 | Payments | Stripe Checkout and webhooks                                                                           |
@@ -93,7 +93,7 @@ For current dependencies, corrected failure modes, verification results, and mig
 | Platform | Helm 4.3.1, Kubernetes 1.35-1.36 supported (1.37 experimental), Gateway API 1.6.3                      |
 | CI/CD    | GitHub Actions, Helm lint plus kubeconform schema matrix, Docker Buildx, GHCR images, SBOM, provenance |
 
-See the [product database guide](packages/product-db/README.md) for one-time Prisma adoption for existing databases. Newer Prisma release candidates require a separate contract and database-signing migration; the compatible pinned pair remains in place.
+The [29 October upgrade review](docs/UPGRADE_2026-10-29.md) records the latest dependency updates, API migrations, documentation decisions, and verification. See the [product database guide](packages/product-db/README.md) for the required one-time adoption of existing databases after the Prisma rc.21 contract conversion. Fresh and existing database paths were rehearsed with disposable PostgreSQL databases.
 
 The [Bun 1.4.4 upgrade review](docs/BUN_1.4.4_UPGRADE.md) records the current runtime, dependency, and image decisions. The [Bun 1.4.3 adoption review](docs/BUN_1.4.3_UPGRADE.md) preserves the earlier checker adoption and deployment evidence. Workspace checks use `bun check`; service watch mode and tests check types before running. TypeScript stays installed for editor support and Next.js builds.
 
@@ -112,7 +112,7 @@ The [Bun 1.4.4 upgrade review](docs/BUN_1.4.4_UPGRADE.md) records the current ru
 ## Prerequisites
 
 - `Bun >= 1.4.4`
-- `Node >= 24.0.0`
+- `Node >= 24.22.1` (the project selects the patched Node 24 LTS release)
 - Docker with Compose
 - `mkcert` for locally trusted `*.localhost` TLS certificates
 - `docker login dhi.io` if you want the full Docker Hardened Images path

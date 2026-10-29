@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { createBrowserStorage } from "../lib/browser-storage";
 import { type ShippingFormInputs, shippingFormSchema } from "../types";
 
 type CheckoutState = {
@@ -32,7 +33,9 @@ const useCheckoutStore = create<CheckoutState>()(
     }),
     {
       name: "checkout-session-v1",
-      storage: createJSONStorage(getCheckoutSessionStorage),
+      storage: createJSONStorage(() =>
+        createBrowserStorage(getCheckoutSessionStorage),
+      ),
       partialize: (state) => ({ shippingForm: state.shippingForm }),
       merge: (persistedState, currentState) => {
         const persistedShippingForm = (

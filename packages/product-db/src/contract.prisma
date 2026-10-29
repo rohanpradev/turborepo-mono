@@ -18,11 +18,11 @@ namespace public {
     shortDescription String
     description      String
     price            Int
-    sizes            String[]     @noCheck(elementNotNull)
-    colors           String[]     @noCheck(elementNotNull)
+    sizes            String?[]
+    colors           String?[]
     images           Jsonb
-    createdAt        Timestamp(3) @default(now())
-    updatedAt        Timestamp(3)
+    createdAt        TimestampTemporal(3) @default(now())
+    updatedAt        TimestampTemporal(3)
     categorySlug     String
     category         Category     @relation(fields: [categorySlug], references: [slug], onDelete: Restrict, onUpdate: Cascade, map: "Product_categorySlug_fkey", index: false)
 
@@ -40,12 +40,12 @@ namespace public {
     payload     Jsonb
     status      pg.enum(OutboxStatus) @default("PENDING")
     attempts    Int                   @default(0)
-    availableAt Timestamp(3)          @default(now())
-    leaseUntil  Timestamp(3)?
-    publishedAt Timestamp(3)?
+    availableAt TimestampTemporal(3)          @default(now())
+    leaseUntil  TimestampTemporal(3)?
+    publishedAt TimestampTemporal(3)?
     lastError   String?
-    createdAt   Timestamp(3)          @default(now())
-    updatedAt   Timestamp(3)
+    createdAt   TimestampTemporal(3)          @default(now())
+    updatedAt   TimestampTemporal(3)
 
     @@index([status, availableAt, createdAt], map: "ProductOutboxEvent_status_availableAt_createdAt_idx")
     @@map("ProductOutboxEvent")

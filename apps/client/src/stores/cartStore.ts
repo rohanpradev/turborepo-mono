@@ -5,6 +5,7 @@ import {
 } from "@repo/types";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { createBrowserStorage } from "../lib/browser-storage";
 import type { CartStoreActionsType, CartStoreStateType } from "../types";
 
 const isSameCartItem = (
@@ -72,7 +73,9 @@ const useCartStore = create<CartStoreStateType & CartStoreActionsType>()(
     }),
     {
       name: "cart",
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() =>
+        createBrowserStorage(() => localStorage),
+      ),
       partialize: (state) => ({ cart: state.cart }),
       merge: (persistedState, currentState) => {
         const persistedCart = (

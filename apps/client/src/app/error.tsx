@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 
 export default function ErrorBoundary({
   error,
-  reset,
+  retry,
 }: {
-  error: Error & { digest?: string };
-  reset: () => void;
+  error: unknown;
+  retry: () => void;
 }) {
   useEffect(() => {
     console.error("Storefront route rendering failed", error);
@@ -30,7 +30,7 @@ export default function ErrorBoundary({
         </p>
       </div>
       <div className="flex flex-wrap justify-center gap-3">
-        <RefreshButton label="Try again" onRefresh={reset} />
+        <RefreshButton label="Try again" onRefresh={retry} />
         <Button href="/products" variant="outline">
           Browse products
         </Button>

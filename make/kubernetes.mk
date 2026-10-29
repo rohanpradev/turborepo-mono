@@ -4,9 +4,12 @@
 # explicit override, with the same strictness, schemas and failure handling.
 ifneq ($(strip $(KUBECONFORM)),)
 KUBECONFORM_RUN = "$(KUBECONFORM)" -cache "$(RUNTIME_DIR)/kubeconform-cache"
+KUBECONFORM_PROJECT_SCHEMAS = $(CURDIR)/deploy/schemas
 else
-KUBECONFORM_RUN = docker run --rm -i -v "$(RUNTIME_DIR)/kubeconform-cache:/schemas-cache" $(KUBECONFORM_IMAGE) -cache /schemas-cache
+KUBECONFORM_RUN = docker run --rm -i -v "$(RUNTIME_DIR)/kubeconform-cache:/schemas-cache" -v "$(CURDIR)/deploy/schemas:/project-schemas:ro" $(KUBECONFORM_IMAGE) -cache /schemas-cache
+KUBECONFORM_PROJECT_SCHEMAS = /project-schemas
 endif
+KUBECONFORM_SCHEMA_ARGS = -schema-location '$(KUBECONFORM_PROJECT_SCHEMAS)/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' -schema-location default
 
 ##@ Kubernetes / Helm
 
@@ -64,7 +67,7 @@ helm-validate-supported: helm-lint-supported ## Schema-validate every real profi
 				local-full) profile_args="--values $(HELM_FULL_VALUES)" ;; \
 			esac; \
 			$(HELM) template $(HELM_RELEASE) $(HELM_CHART) --namespace $(HELM_NAMESPACE) --kube-version "$$kubernetes_version" $$profile_args > "$$rendered_manifest" || exit 1; \
-			$(KUBECONFORM_RUN) -strict -summary -skip Gateway,GatewayClass,HTTPRoute,ServiceMonitor,PrometheusRule -kubernetes-version "$$kubernetes_version" - < "$$rendered_manifest" || exit 1; \
+			$(KUBECONFORM_RUN) -strict -summary $(KUBECONFORM_SCHEMA_ARGS) -kubernetes-version "$$kubernetes_version" - < "$$rendered_manifest" || exit 1; \
 		done; \
 	done
 	@echo "$(GREEN)All $(K8S_VERSION_TIER) Helm profiles passed kubeconform validation$(NC)"
@@ -323,7 +326,7 @@ k8s-validate: helm-lint runtime-dir ## Render and schema-validate Kubernetes man
 	@echo "$(BLUE)Rendering Helm manifests to $(HELM_RENDERED_FILE)...$(NC)"
 	@umask 077; $(MAKE) --no-print-directory helm-template > "$(HELM_RENDERED_FILE)" && chmod 0600 "$(HELM_RENDERED_FILE)"
 	@mkdir -p "$(RUNTIME_DIR)/kubeconform-cache"
-	$(KUBECONFORM_RUN) -strict -summary -skip Gateway,GatewayClass,HTTPRoute,ServiceMonitor,PrometheusRule -kubernetes-version $(K8S_TARGET_VERSION) - < "$(HELM_RENDERED_FILE)"
+	$(KUBECONFORM_RUN) -strict -summary $(KUBECONFORM_SCHEMA_ARGS) -kubernetes-version $(K8S_TARGET_VERSION) - < "$(HELM_RENDERED_FILE)"
 	@echo "$(GREEN)Kubernetes manifests validated$(NC)"
 
 k8s-validate-full: ## Render and schema-validate full-stack Kubernetes manifests without deploying

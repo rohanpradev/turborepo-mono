@@ -26,34 +26,8 @@ type ProductFilters = {
   limit?: number;
 };
 
+import { toProductRecord } from "../utils/product-record";
 import { nowUtc, toUtcISOString } from "../utils/timestamps";
-
-const toProductRecord = (product: Product): ProductRecord => {
-  const images =
-    product.images &&
-    typeof product.images === "object" &&
-    !Array.isArray(product.images)
-      ? Object.fromEntries(
-          Object.entries(product.images).filter(
-            (entry): entry is [string, string] => typeof entry[1] === "string",
-          ),
-        )
-      : {};
-
-  return {
-    id: product.id,
-    name: product.name,
-    shortDescription: product.shortDescription,
-    description: product.description,
-    price: product.price,
-    sizes: [...product.sizes],
-    colors: [...product.colors],
-    images,
-    categorySlug: product.categorySlug,
-    createdAt: toUtcISOString(product.createdAt),
-    updatedAt: toUtcISOString(product.updatedAt),
-  };
-};
 
 const toProductCreatedMessage = (product: Product): ProductCreatedMessage => ({
   id: product.id.toString(),

@@ -126,6 +126,7 @@ make docker-test
 - Every workspace is private; each workspace that runs type checks declares its own TypeScript compiler dependency through the root catalog. Shared packages expose explicit public entry points.
 - `bun run check-types` uses Bun 1.4.4's built-in checker for application/package code and the operational scripts in `scripts/tsconfig.json`. Web checks still run `next typegen` first. CI runs the same tasks; TypeScript remains installed for editors and the independent Next.js build checker.
 - Database validation depends on contract generation in Turborepo. Only `db:generate` owns the generated contract outputs; its inputs exclude those outputs to avoid self-invalidating cache keys. When running directly inside `packages/product-db`, run `db:generate` before `db:validate`.
+- The root tooling check imports application/database code. Its cache inputs include those sources, manifests, and configurations, and its generation dependency uses deferred `dependencyOutputs` hashing for the emitted Prisma contract.
 - `NODE_ENV` participates in task hashes. Web type checks restore their generated route types. `bun check` emits no incremental compiler cache; Next.js builds may still produce their own. Tasks that verify or modify a live database are never cached.
 - Import runtime service URLs from `@repo/api-client/server` in Next.js server modules. This entry point and the admin data-access modules use `server-only` to reject accidental browser imports. Browser-safe API methods remain at `@repo/api-client`.
 - Authenticated RPC requests always use `cache: "no-store"`, including when a caller supplies a cache policy. Public catalog requests retain their explicit policy.
@@ -136,6 +137,8 @@ These conventions follow the version-matched Next.js guides bundled with the ins
 ### Package documentation and strict dependency checks
 
 The [22 October engineering review](ENGINEERING_REVIEW_2026-10-22.md) records dependency updates, primary documentation, corrected failure modes, verification results, and the deferred Prisma contract migration.
+
+The [29 October upgrade review](UPGRADE_2026-10-29.md) supersedes that deferral: Prisma rc.21 is migrated and rehearsed against both fresh and existing disposable databases. Existing installations must follow the explicit adoption procedure in the product database guide. It also records current package versions, frontend recovery/storage changes, and production image verification.
 
 Biome 2.6 checks Markdown and ordinary YAML as well as application sources. Markdown frontmatter parsing is enabled so skill metadata remains valid. Helm's `charts/ecommerce/templates` contains Go templates rather than valid YAML and is excluded from Biome parsing; Helm lint, rendering, schema validation, and profile assertions remain its validation path. Generated JSON under `deploy/schemas/*/` is also excluded from general formatting; `bun run --check scripts/generate-kubernetes-schemas.ts --check` verifies all five pinned outputs against their generator and source checksums.
 

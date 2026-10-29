@@ -92,6 +92,11 @@ exit ${scenario.validation}`,
       if (scenario.count) {
         expect(output).toContain(`-cache ${directory}/kubeconform-cache`);
         expect(output).toContain("-strict -summary");
+        expect(output).toContain(
+          `${process.cwd()}/deploy/schemas/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json`,
+        );
+        expect(output).toContain("-schema-location default");
+        expect(output).not.toContain("-skip");
         expect(output).toContain("-kubernetes-version 1.36.5 -");
       }
     });
@@ -127,6 +132,13 @@ test("manifest validation preserves the pinned Docker path without a native over
     expect(new TextDecoder().decode(result.stdout)).toContain(
       "validator@sha256:fixture -cache /schemas-cache -strict -summary",
     );
+    expect(new TextDecoder().decode(result.stdout)).toContain(
+      `${process.cwd()}/deploy/schemas:/project-schemas:ro`,
+    );
+    expect(new TextDecoder().decode(result.stdout)).toContain(
+      "/project-schemas/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json",
+    );
+    expect(new TextDecoder().decode(result.stdout)).not.toContain("-skip");
   });
 });
 

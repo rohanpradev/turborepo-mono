@@ -28,7 +28,7 @@ env:
   KUBECONFORM_IMAGE: ghcr.io/yannh/kubeconform:v0.8.0@sha256:faffaf43f95aa6425306e1ab8d6fcad72acb9049158f38e574c085ea1ec0f64e
   K8S_SUPPORTED_VERSIONS: 1.35.9 1.36.5
   K8S_EXPERIMENTAL_VERSIONS: 1.37.1
-  NODE_VERSION: 24.21.0
+  NODE_VERSION: 24.22.1
   REGISTRY: ghcr.io
   TURBO_VERSION: 2.11.10
   NEXT_TELEMETRY_DISABLED: 1
@@ -114,6 +114,7 @@ jobs:
         run: |
           docker compose --env-file .env.example config > /tmp/compose.rendered.yml
           docker compose -f packages/kafka/compose.yml config > /tmp/kafka.compose.rendered.yml
+          docker compose -f compose.integration.yml config > /tmp/integration.compose.rendered.yml
 
       - name: Validate Helm profiles across the Kubernetes matrix
         run: |
@@ -194,7 +195,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:18.6@sha256:edb0c08dc33befd0262ab3b5cf1c4f3f8cfd8b09e88c05b45adee29d6761ddb6
+        image: postgres:18.6@sha256:979bccfde35445db618c65107d27d08c6c21339d8dc3ad4c830c6633947be0e4
         env:
           POSTGRES_PASSWORD: integration-only-password
           POSTGRES_DB: ecommerce_test
@@ -204,7 +205,7 @@ jobs:
           --health-cmd "pg_isready -U postgres -d ecommerce_test"
           --health-interval 5s --health-timeout 5s --health-retries 12
       mongodb:
-        image: mongo:8.3.13@sha256:0e900a3364da37b76d642b73b0bba56bd4c6c509ab470cf700436fd866bee3ff
+        image: mongo:8.3.13@sha256:e16e606f792ea89d2b4907b54e5e31eb86a7a23e27231dce3a982cc8f2d73cd2
         ports:
           - 27017:27017
         options: >-
@@ -369,13 +370,49 @@ jobs:
             --build-arg "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}" \
             .
 
-      - name: Build and push Docker image
+      - name: Build image for runtime verification
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: ${{ matrix.service.dockerfile }}
           pull: true
-          push: ${{ env.PUBLISH_IMAGES == 'true' }}
+          load: true
+          push: false
+          build-args: |
+            BUN_DEV_IMAGE=${{ env.BUN_DEV_IMAGE }}
+            BUN_RUNTIME_IMAGE=${{ env.BUN_RUNTIME_IMAGE }}
+            TURBO_VERSION=${{ env.TURBO_VERSION }}
+            NEXT_DEPLOYMENT_ID=${{ github.sha }}
+            NEXT_PUBLIC_IMAGE_REMOTE_HOSTS=${{ env.NEXT_PUBLIC_IMAGE_REMOTE_HOSTS }}
+            NEXT_IMAGE_ALLOW_LOCAL_IP=false
+            NEXT_IMAGE_STOREFRONT_ORIGIN=${{ env.NEXT_IMAGE_STOREFRONT_ORIGIN }}
+            NEXT_PUBLIC_ADMIN_APP_URL=${{ env.NEXT_PUBLIC_ADMIN_APP_URL }}
+            NEXT_PUBLIC_CLIENT_APP_URL=${{ env.NEXT_PUBLIC_CLIENT_APP_URL }}
+            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+            NEXT_PUBLIC_ORDER_SERVICE_URL=${{ env.NEXT_PUBLIC_ORDER_SERVICE_URL }}
+            NEXT_PUBLIC_PAYMENT_SERVICE_URL=${{ env.NEXT_PUBLIC_PAYMENT_SERVICE_URL }}
+            NEXT_PUBLIC_PRODUCT_SERVICE_URL=${{ env.NEXT_PUBLIC_PRODUCT_SERVICE_URL }}
+            NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${{ env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
+          tags: ecommerce-ci/${{ matrix.service.name }}:${{ github.sha }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.service.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service.name }},ignore-error=true
+          platforms: linux/amd64
+          # The local Docker exporter cannot retain attestations; publish them below.
+          provenance: false
+          sbom: false
+
+      - name: Test restricted production image before publishing
+        run: bash docker/test-image.sh "${{ matrix.service.name }}" "ecommerce-ci/${{ matrix.service.name }}:${{ github.sha }}"
+
+      - name: Publish verified multi-platform image
+        if: env.PUBLISH_IMAGES == 'true'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: ${{ matrix.service.dockerfile }}
+          pull: true
+          push: true
           build-args: |
             BUN_DEV_IMAGE=${{ env.BUN_DEV_IMAGE }}
             BUN_RUNTIME_IMAGE=${{ env.BUN_RUNTIME_IMAGE }}
@@ -395,6 +432,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.service.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service.name }},ignore-error=true
-          platforms: ${{ env.PUBLISH_IMAGES == 'true' && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
+          platforms: linux/amd64,linux/arm64
           provenance: mode=max
           sbom: true

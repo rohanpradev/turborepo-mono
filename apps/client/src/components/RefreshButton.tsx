@@ -22,8 +22,11 @@ export default function RefreshButton({
       aria-busy={isPending}
       onClick={() =>
         startTransition(() => {
-          router.refresh();
-          onRefresh?.();
+          if (onRefresh) {
+            onRefresh();
+          } else {
+            router.refresh();
+          }
         })
       }
     >

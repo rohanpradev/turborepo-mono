@@ -1,7 +1,10 @@
 import postgres from "@prisma/orm-postgres/runtime";
+import { contractFromJson } from "@prisma/orm-postgres/static";
 import { Pool } from "pg";
 import type { Contract } from "./contract.d";
 import contractJson from "./contract.json" with { type: "json" };
+
+const contract = contractFromJson<Contract>(contractJson);
 
 const defaultDatabaseUrl =
   "postgresql://postgres:postgres@localhost:5432/product_db?schema=public";
@@ -41,7 +44,7 @@ const createProductDatabase = () => {
   pool.on("error", (error) => {
     console.error("Product database idle connection failed:", error.message);
   });
-  const db = postgres<Contract>({ contractJson, pg: pool });
+  const db = postgres({ contract, pg: pool });
 
   return { db, pool };
 };
