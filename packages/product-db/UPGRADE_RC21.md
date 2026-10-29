@@ -118,7 +118,7 @@ Both deployment paths passed on isolated PostgreSQL 18.6 databases on
 
 These rehearsals used disposable databases. No application database was signed
 or migrated. The full repository checks also passed all 14 workspace type checks
-and 215 unit tests against the installed target packages.
+and 216 unit tests against the installed target packages.
 
 Repeated deployment on both databases reported no operations. All 19 integration
 tests passed against disposable PostgreSQL, MongoDB, and Kafka, including the

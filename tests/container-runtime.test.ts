@@ -150,3 +150,18 @@ test("disposable integration dependencies use the same exact database images as 
   ).toBe("INTERNAL");
   expect(compose.services.kafka?.ports).toEqual(["127.0.0.1:59092:9094"]);
 });
+
+test("MongoDB integration selects the compatible runner without changing other CI jobs", async () => {
+  const workflow = Bun.YAML.parse(
+    await Bun.file(path.join(root, ".github/workflows/ci.yml")).text(),
+  ) as {
+    jobs: Record<string, { "runs-on": string }>;
+  };
+  // Ubuntu 24.04 and 26.04 currently share the kernel MongoDB 8.3.13 rejects.
+  // Remove this temporary pin only after the upstream fix passes hosted CI.
+  expect(workflow.jobs["database-integration"]?.["runs-on"]).toBe(
+    "ubuntu-22.04",
+  );
+  expect(workflow.jobs.validate?.["runs-on"]).toBe("ubuntu-latest");
+  expect(workflow.jobs["docker-images"]?.["runs-on"]).toBe("ubuntu-latest");
+});
