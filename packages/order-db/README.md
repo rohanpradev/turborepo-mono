@@ -34,6 +34,6 @@ Numeric values must be positive safe integers. Command buffering is disabled so 
 
 ## Verification
 
-`bun run test` checks model validation. `bun run test:integration` deploys indexes to explicitly configured disposable databases and verifies concurrent duplicate delivery and index enforcement. See [quality verification](../../docs/QUALITY_VERIFICATION.md) for setup.
+`bun run test` checks model validation. `bun run test:integration` deploys indexes to explicitly configured disposable databases and verifies concurrent duplicate delivery and index enforcement. See [disposable integration tests](../../docs/OPERATIONS.md#reproducible-disposable-tests) for setup.
 
 References: [Mongoose connections](https://mongoosejs.com/docs/connections.html), [schema indexes](https://mongoosejs.com/docs/guide.html#indexes), [validation](https://mongoosejs.com/docs/validation.html).

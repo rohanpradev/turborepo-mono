@@ -1,5 +1,4 @@
 import {
-  createCorsMiddleware,
   createORPCMiddleware,
   createRoute,
   createServiceApp,
@@ -42,7 +41,6 @@ const app = createServiceApp<{ Variables: ServiceVariables }>({
   theme: "kepler",
 });
 
-app.use("*", createCorsMiddleware());
 app.route("/", healthRoutes);
 app.use("*", clerkAuthMiddleware);
 app.use(

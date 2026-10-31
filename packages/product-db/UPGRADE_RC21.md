@@ -1,8 +1,15 @@
-# Prisma 8 rc.21 upgrade and deployment
+# Prisma 8 contract conversion and current deployment
 
 Upgraded on 2026-10-29 to `@prisma/orm-postgres` `8.0.0-rc.21` and `prisma`
 `8.0.0-rc.28`. The façade and unified CLI have separate release sequences;
-the lockfile keeps the façade's internal ORM packages on rc.21.
+that initial lockfile kept the façade's internal ORM packages on rc.21.
+
+The 31 October follow-up advances the runtime to `@prisma/orm-postgres`
+`8.0.0-rc.22` and CLI `8.0.0-rc.29`. An exact `@prisma/orm-toolchain` rc.22
+override follows the target recipe's single-ORM-version requirement. Without
+it, the CLI loads its older rc.21 toolchain and fails contract generation.
+The original conversion and required adoption procedure below still apply to
+databases with the old storage marker.
 
 ## What changed
 
@@ -46,6 +53,16 @@ The driver's rc.21 `DateStyle=ISO` requirement and caller-owned pool lifecycle
 remain compatible with the application's PostgreSQL connection and shutdown
 path. CLI commands still use exit codes; rc.20's change from implicit JSON to
 plain piped output requires no script parser migration here.
+
+### Subsequent rc.22 runtime update
+
+The target package's rc.21→rc.22 recipe was checked in full. This project uses
+explicit Temporal timestamps, contains no value-object or extension imports to
+migrate, and has no applicable generator precision change. Re-emission updates
+`FieldTypesFromDomain`'s storage-namespace argument and aggregate codec types.
+The JSON contract, storage/profile hashes, migration files, and historical
+snapshot remain unchanged. A database already using the converted marker does
+not require another signing operation.
 
 ## Existing databases: explicit one-time signing
 
@@ -127,6 +144,14 @@ fixture also returned valid public arrays and its unchanged UTC timestamp throug
 the upgraded product service. All five application images built and passed
 restricted runtime verification on both ARM64 and AMD64.
 
+On 31 October, rc.22 and CLI rc.29 passed all 19 integration tests again.
+An existing rc.21 database with fixed nullable-array product and outbox fixtures
+deployed without operations or signing; business data and its ledger remained
+byte-for-byte unchanged. Fresh deployment through the production-only ARM64
+image CLI applied all 12 operations, passed full and strict verification, and
+repeated deployment performed no operations. The final product image also
+reached readiness against disposable PostgreSQL and Kafka dependencies.
+
 Rollback requires the old application, matching contract marker, and matching
 ledger. Restore the corresponding database backup; changing package versions
 alone does not undo this contract-format conversion.
@@ -143,3 +168,6 @@ alone does not undo this contract-format conversion.
 - rc.21's published `instructions.md`, especially
   `psl-temporal-type-renames`, `branded-time-types-removed`,
   `date-style-iso-required`, and `close-ends-the-client-not-your-pool`.
+- [rc.22 release](https://github.com/prisma/orm/releases/tag/v8.0.0-rc.22) and
+  the target package's complete bundled rc.21→rc.22 recipe, especially
+  `one-orm-version` and contract re-emission.

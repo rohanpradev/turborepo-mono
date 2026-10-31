@@ -8,6 +8,7 @@ The platform emits dependency-light telemetry that works in local Docker logs, K
 - Responses include `Traceparent`, `X-Trace-Id`, and `X-Request-Id`.
 - Error payloads include `traceId` and `requestId` when available.
 - HTTP request logs are structured JSON by default and use OpenTelemetry semantic attribute names such as `http.request.method`, `http.response.status_code`, `url.path`, and `user_agent.original`.
+- Handled Hono exceptions are read from `Context.error` so request logs retain `error.type` after the error response is produced. Exception messages are not added to request logs.
 - Kafka producers add a `traceparent` message header when one is not already present.
 - Kafka producers and consumers emit structured JSON events for send and receive duration, topic, partition, offset, message count, and trace ID.
 - The payment service forwards request and trace headers when it calls the product service during checkout catalog validation.
@@ -33,7 +34,7 @@ HTTP service request:
   "attributes": {
     "http.request.method": "POST",
     "http.response.status_code": 200,
-    "url.path": "/rpc/payment/checkout.createSession"
+    "url.path": "/rpc/payment/checkout/createSession"
   },
   "measurements": {
     "http.server.request.duration_ms": 42.14
@@ -73,7 +74,7 @@ The response should include the same trace ID in `Traceparent` and `X-Trace-Id`,
 
 ## Future Collector Profile
 
-The current implementation produces correlated, OpenTelemetry-shaped logs without requiring a collector. The next production-grade step is a Compose and Helm observability profile with an OpenTelemetry Collector, trace backend, and dashboards for request rate, errors, latency, Kafka consumer lag, and dependency readiness.
+The current implementation produces correlated, OpenTelemetry-shaped logs without requiring a collector. [Prometheus, Grafana, service metrics, and alerts](OBSERVABILITY.md) are already available in Kubernetes. Exporting distributed traces would require a separately configured OpenTelemetry Collector and trace backend; trace headers alone do not provide stored traces.
 
 ## References
 

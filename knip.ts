@@ -13,8 +13,8 @@ export default defineConfig((options) => {
     tags: ["-lintignore"],
     workspaces: {
       ".": {
-        // Make and `bun run --check` invoke these operational entry points.
-        // Knip does not yet discover files after Bun's new --check flag.
+        // Make and Bun's --check commands need explicit operational entries.
+        // Knip 6.44.1 still does not recognize Bun's new --check flag.
         entry: [
           "tests/**/*.test.ts",
           "integration-tests/**/*.test.ts",
@@ -33,7 +33,6 @@ export default defineConfig((options) => {
       "apps/order-service": production ? { entry: ["src/index.ts!"] } : {},
       "apps/payment-service": { entry: ["src/index.ts!", "src/scripts/*.ts!"] },
       "packages/kafka": production ? { entry: ["src/replay.ts!"] } : {},
-      "packages/typescript-config": { ignoreUnresolved: ["next"] },
       "packages/order-db": production
         ? { entry: ["src/deploy-indexes.ts!"] }
         : {},

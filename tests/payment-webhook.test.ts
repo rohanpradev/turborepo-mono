@@ -105,7 +105,7 @@ describe("payment-service Stripe webhook", () => {
     });
   });
 
-  it.each(["2026-03-25.dahlia", "2026-09-30.endive"])(
+  it.each(["2026-03-25.dahlia", "2026-09-30.endive", "2026-10-28.endive"])(
     "verifies and enqueues %s Checkout Sessions without Stripe enrichment",
     async (apiVersion) => {
       const webhookSecret = "whsec_webhooktest123";

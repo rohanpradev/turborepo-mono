@@ -79,7 +79,7 @@ The deployment toolchain is pinned to Helm 4.3.1, kubeconform 0.8.0, Traefik cha
 
 The default 40-second termination grace period includes a 5-second pre-stop delay and the application's 25-second drain deadline. Helm rejects values that leave less than 25 seconds after the delay. The Bun images run type checks during builds, retain only production dependency trees in service runners, and place the transpiler cache in the mounted `/tmp`. Web image optimization keeps its separate writable `.next/cache` volume.
 
-The [Bun 1.4.4 review](../../docs/BUN_1.4.4_UPGRADE.md) records the current runtime, dependency, image, and validation decisions. The [Bun 1.4.3 review](../../docs/BUN_1.4.3_UPGRADE.md) preserves historical Docker and Kubernetes deployment evidence and its live-validation limits.
+The [current upgrade review](../../docs/UPGRADE_2026-10-29.md) records runtime, dependency, image, and validation decisions, including the required adoption procedure for existing Prisma databases.
 
 For Prometheus, Grafana, app metrics, Traefik metrics, and alert rules, run:
 

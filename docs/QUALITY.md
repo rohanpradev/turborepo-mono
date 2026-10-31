@@ -117,7 +117,7 @@ make docker-test
 - Public service routes may be unauthenticated only when they expose non-user-specific read data.
 - Never log secrets, webhook payload secrets, or bearer tokens.
 - Local fallback admin IDs are allowed only through `ADMIN_USER_IDS`.
-- Stripe webhook secrets should be read from `STRIPE_WEBHOOK_SECRET` or a mounted Stripe CLI secret file. Signature verification must use the raw body, and the handler must hand work to Kafka before returning promptly.
+- Stripe webhook secrets should be read from `STRIPE_WEBHOOK_SECRET` or a mounted Stripe CLI secret file. Signature verification must use the raw body, and the handler must persist verified work in the payment-owned PostgreSQL inbox before acknowledging it. Leased workers handle provider enrichment and Kafka publication independently.
 - Browser calls for authenticated storefront operations should stay same-origin and use Next.js route handlers as the Clerk session boundary.
 - CORS origins should be explicit in `.env` and Compose.
 
@@ -136,9 +136,7 @@ These conventions follow the version-matched Next.js guides bundled with the ins
 
 ### Package documentation and strict dependency checks
 
-The [22 October engineering review](ENGINEERING_REVIEW_2026-10-22.md) records dependency updates, primary documentation, corrected failure modes, verification results, and the deferred Prisma contract migration.
-
-The [29 October upgrade review](UPGRADE_2026-10-29.md) supersedes that deferral: Prisma rc.21 is migrated and rehearsed against both fresh and existing disposable databases. Existing installations must follow the explicit adoption procedure in the product database guide. It also records current package versions, frontend recovery/storage changes, and production image verification.
+The [current upgrade review](UPGRADE_2026-10-29.md) records package versions, primary documentation, API migrations, and measured verification. The Prisma contract conversion and current rc.22 runtime are checked against disposable databases. Installations with the old storage marker must follow the [explicit adoption procedure](../packages/product-db/UPGRADE_RC21.md) before starting the new runtime; already converted databases need no further signing. The [operating guide](OPERATIONS.md) covers ongoing deployment, index, shutdown, and recovery procedures.
 
 Biome 2.6 checks Markdown and ordinary YAML as well as application sources. Markdown frontmatter parsing is enabled so skill metadata remains valid. Helm's `charts/ecommerce/templates` contains Go templates rather than valid YAML and is excluded from Biome parsing; Helm lint, rendering, schema validation, and profile assertions remain its validation path. Generated JSON under `deploy/schemas/*/` is also excluded from general formatting; `bun run --check scripts/generate-kubernetes-schemas.ts --check` verifies all five pinned outputs against their generator and source checksums.
 
@@ -146,6 +144,6 @@ Biome 2.6 checks Markdown and ordinary YAML as well as application sources. Mark
 
 Local Bun installs disable the transitive fallback with `hoist = false`. The Bun declarations include their `undici-types` dependency, so no root workaround is needed. The local isolated store remains portable; the shared global store requires an explicit `globalStore = true` opt-in. Docker continues to use explicitly hoisted installs for portable image layers. Biome remains the shared formatter and linter; adopting `bun fmt` would require a separate formatting-policy migration.
 
-Tests have explicit strict configurations in `tests/tsconfig.json` and `integration-tests/tsconfig.json`. Modules imported directly across app boundaries by tests use relative internal imports so checking them does not depend on another app's private `@/` alias. Fetch mocks preserve Bun's `fetch.preconnect` shape without unchecked function casts. Knip 6.42 recognizes `bun check`; operational entry points remain explicit so Make-driven scripts are checked too.
+Tests have explicit strict configurations in `tests/tsconfig.json` and `integration-tests/tsconfig.json`. Modules imported directly across app boundaries by tests use relative internal imports so checking them does not depend on another app's private `@/` alias. Fetch mocks preserve Bun's `fetch.preconnect` shape without unchecked function casts. Knip recognizes `bun check`; operational entry points remain explicit so Make-driven scripts are checked too.
 
-See the [Bun 1.4.4 upgrade review](BUN_1.4.4_UPGRADE.md) for the current release decisions and verification, and the [Bun 1.4.3 adoption review](BUN_1.4.3_UPGRADE.md) for the earlier checker adoption and deployment evidence. Coverage must be measured again after runtime upgrades; Bun 1.4.4 corrects branch and asynchronous-code accounting, so earlier percentages are not directly comparable.
+Measure coverage again after runtime upgrades. Changes to branch and asynchronous-code accounting can make earlier percentages incomparable; use the current coverage artifacts rather than carrying historical totals forward.

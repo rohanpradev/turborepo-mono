@@ -14,9 +14,10 @@ Routing is declared by each values file. Make targets may inject runtime secret
 names and immutable local image tags, but they do not switch between Ingress and
 Gateway API behind the profile's back.
 
-Chart-only validation fixtures live under `charts/ecommerce/ci`. Shared
-staging and production profiles should be added under
-`deploy/environments/<environment>` when those clusters exist.
+Chart-only validation fixtures live under `charts/ecommerce/ci`. The existing
+`environments/staging` and `environments/production` profiles are commissioning
+templates with placeholder hosts, registries, and network ranges. Follow the
+[environment commissioning guide](environments/README.md) before using them.
 
 ## Verify application images before publication
 

@@ -1,6 +1,7 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import {
   createHealthRoutes,
+  createHttpException,
   createPrometheusMetricsPayload,
   createServiceApp,
   createServiceRuntime,
@@ -259,6 +260,168 @@ describe("@repo/hono-utils", () => {
 });
 
 describe("Hono middleware boundaries", () => {
+  it.each([true, false])(
+    "keeps allowed-origin CORS on oversized requests (Content-Length: %s)",
+    async (contentLength) => {
+      process.env.CORS_ALLOWED_ORIGINS = "https://shop.test";
+      const app = createServiceApp({
+        title: "CORS body boundary",
+        version: "1",
+        description: "Test",
+        tags: [],
+      });
+      let invoked = false;
+      app.post("/payload", (c) => {
+        invoked = true;
+        return c.json({ ok: true });
+      });
+      const body = "x".repeat(1024 * 1024 + 1);
+      const response = await app.request("/payload", {
+        method: "POST",
+        headers: {
+          origin: "https://shop.test",
+          ...(contentLength ? { "content-length": String(body.length) } : {}),
+        },
+        body,
+      });
+      expect(response.status).toBe(413);
+      expect(invoked).toBe(false);
+      expect(response.headers.get("access-control-allow-origin")).toBe(
+        "https://shop.test",
+      );
+      expect(response.headers.get("vary")).toContain("Origin");
+      expect(response.headers.get("x-request-id")).toBeTruthy();
+      expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+      expect(await response.json()).toMatchObject({
+        success: false,
+        error: "Request body is too large",
+      });
+    },
+  );
+
+  it("keeps disallowed origins excluded from early error responses", async () => {
+    process.env.CORS_ALLOWED_ORIGINS = "https://shop.test";
+    const app = createServiceApp({
+      title: "CORS denied origin",
+      version: "1",
+      description: "Test",
+      tags: [],
+    });
+    const response = await app.request("/payload", {
+      method: "POST",
+      headers: { origin: "https://unlisted.test" },
+      body: "x".repeat(1024 * 1024 + 1),
+    });
+    expect(response.status).toBe(413);
+    expect(response.headers.get("access-control-allow-origin")).toBeNull();
+  });
+
+  it("allows HEAD preflights before authentication or endpoint handlers", async () => {
+    process.env.CORS_ALLOWED_ORIGINS = "https://shop.test";
+    const app = createServiceApp({
+      title: "CORS preflight",
+      version: "1",
+      description: "Test",
+      tags: [],
+    });
+    let invoked = false;
+    app.use("/protected", async (c) => {
+      invoked = true;
+      return c.json({ error: "Unauthorized" }, 401);
+    });
+    const response = await app.request("/protected", {
+      method: "OPTIONS",
+      headers: {
+        origin: "https://shop.test",
+        "access-control-request-method": "HEAD",
+        "access-control-request-headers": "authorization,x-request-id",
+      },
+    });
+    expect(response.status).toBe(204);
+    expect(invoked).toBe(false);
+    expect(response.headers.get("access-control-allow-origin")).toBe(
+      "https://shop.test",
+    );
+    expect(response.headers.get("access-control-allow-methods")).toContain(
+      "HEAD",
+    );
+    expect(response.headers.get("access-control-allow-headers")).toContain(
+      "Authorization",
+    );
+    expect(await response.text()).toBe("");
+  });
+
+  it("preserves allowed-origin CORS when the request timeout fires", async () => {
+    process.env.CORS_ALLOWED_ORIGINS = "https://shop.test";
+    process.env.REQUEST_TIMEOUT_MS = "5";
+    const app = createServiceApp({
+      title: "CORS timeout",
+      version: "1",
+      description: "Test",
+      tags: [],
+    });
+    const release = Promise.withResolvers<void>();
+    const completed = Promise.withResolvers<void>();
+    const errors = spyOn(console, "error").mockImplementation(() => {});
+    app.get("/slow", async (c) => {
+      await release.promise;
+      completed.resolve();
+      return c.json({ ok: true });
+    });
+    try {
+      const response = await app.request("/slow", {
+        headers: { origin: "https://shop.test" },
+      });
+      expect(response.status).toBe(408);
+      expect(response.headers.get("access-control-allow-origin")).toBe(
+        "https://shop.test",
+      );
+      expect(await response.json()).toMatchObject({
+        success: false,
+        error: "Request timeout",
+      });
+      release.resolve();
+      await completed.promise;
+      await Bun.sleep(0);
+      expect(errors).not.toHaveBeenCalled();
+    } finally {
+      release.resolve();
+      errors.mockRestore();
+    }
+  });
+
+  it("records errors handled by Hono through Context.error", async () => {
+    process.env.TELEMETRY_ENABLED = "true";
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    const app = createServiceApp({
+      title: "Handled error telemetry",
+      version: "1",
+      description: "Test",
+      tags: [],
+    });
+    app.get("/denied", () => {
+      throw createHttpException(403, "Forbidden");
+    });
+    try {
+      const response = await app.request("/denied");
+      expect(response.status).toBe(403);
+      const events = warn.mock.calls.map(([payload]) =>
+        typeof payload === "string" ? JSON.parse(payload) : payload,
+      );
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          event: "http.server.request",
+          attributes: expect.objectContaining({
+            "http.response.status_code": 403,
+            "error.type": "Error",
+          }),
+        }),
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it("limits non-RPC request bodies before their handler runs", async () => {
     const app = createServiceApp({
       title: "Body boundary",

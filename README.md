@@ -2,7 +2,7 @@
 
 A production-style ecommerce platform built to showcase modern full-stack engineering: a Bun-first Turborepo, Next.js storefront and admin apps, typed Hono microservices, Clerk authentication, Stripe checkout, Kafka event flow, PostgreSQL, MongoDB, and hardened Docker orchestration.
 
-This is not a single demo app in a big folder. It is a real distributed commerce system with clear service ownership, shared contracts, event-driven integration, CI quality gates, and local workflows that let you run either the whole platform or only the pieces you are actively developing.
+Product, payment, and order services own separate data and workflows. Shared contracts, event-driven integration, CI checks, and local commands support running either the full platform or the services under development.
 
 ## Highlights
 
@@ -57,7 +57,7 @@ For service and Kafka telemetry behavior, see [docs/TELEMETRY.md](docs/TELEMETRY
 For Prometheus, Grafana, Traefik, and Kubernetes metrics, see [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md).
 For Stripe deployment, webhook, Clerk-auth, and incident procedures, see [docs/STRIPE_OPERATIONS.md](docs/STRIPE_OPERATIONS.md).
 For stock and durable payment recovery, see [docs/OPERATIONS.md](docs/OPERATIONS.md).
-For current dependencies, corrected failure modes, verification results, and migration limits, see [the 22 October engineering review](docs/ENGINEERING_REVIEW_2026-10-22.md).
+For current dependency decisions, API migrations, and verification results, see [the upgrade review](docs/UPGRADE_2026-10-29.md).
 
 ## Apps And Packages
 
@@ -93,9 +93,9 @@ For current dependencies, corrected failure modes, verification results, and mig
 | Platform | Helm 4.3.1, Kubernetes 1.35-1.36 supported (1.37 experimental), Gateway API 1.6.3                      |
 | CI/CD    | GitHub Actions, Helm lint plus kubeconform schema matrix, Docker Buildx, GHCR images, SBOM, provenance |
 
-The [29 October upgrade review](docs/UPGRADE_2026-10-29.md) records the latest dependency updates, API migrations, documentation decisions, and verification. See the [product database guide](packages/product-db/README.md) for the required one-time adoption of existing databases after the Prisma rc.21 contract conversion. Fresh and existing database paths were rehearsed with disposable PostgreSQL databases.
+The [29–31 October upgrade review](docs/UPGRADE_2026-10-29.md) records the latest dependency updates, API migrations, documentation decisions, and verification. See the [product database guide](packages/product-db/README.md) for the required one-time adoption of databases with the old Prisma storage marker. Databases already converted to the rc.21 marker need no further signing for the rc.22 runtime. Fresh and existing database paths were rehearsed with disposable PostgreSQL databases.
 
-The [Bun 1.4.4 upgrade review](docs/BUN_1.4.4_UPGRADE.md) records the current runtime, dependency, and image decisions. The [Bun 1.4.3 adoption review](docs/BUN_1.4.3_UPGRADE.md) preserves the earlier checker adoption and deployment evidence. Workspace checks use `bun check`; service watch mode and tests check types before running. TypeScript stays installed for editor support and Next.js builds.
+Workspace checks use `bun check`; service watch mode and tests check types before running. TypeScript stays installed for editor support and Next.js builds. The [quality standards](docs/QUALITY.md) describe the current checker, dependency, and deployment policies.
 
 ## Event Flow
 
@@ -150,7 +150,7 @@ Main URLs:
 | Kafka UI          | `https://kafka.localhost:8443`                |
 | Traefik dashboard | `https://dashboard.localhost:8443/dashboard/` |
 
-Docker Compose binds Traefik to `127.0.0.1:8080` and `127.0.0.1:8443` by default so it can coexist with a local Kubernetes ingress controller on ports 80/443. Bare `https://shop.localhost` is reserved for the Kubernetes/Helm path below.
+Docker Compose binds Traefik to `127.0.0.1:8080` and `127.0.0.1:8443` by default. The local Kubernetes workflow uses a separate HTTPS port-forward on `9443`.
 
 Useful follow-ups:
 
@@ -171,11 +171,11 @@ make k8s
 
 Main URLs:
 
-| Surface     | URL                       |
-| ----------- | ------------------------- |
-| Storefront  | `https://shop.localhost`  |
-| Admin       | `https://admin.localhost` |
-| API gateway | `https://api.localhost`   |
+| Surface     | URL                            |
+| ----------- | ------------------------------ |
+| Storefront  | `https://shop.localhost:9443`  |
+| Admin       | `https://admin.localhost:9443` |
+| API gateway | `https://api.localhost:9443`   |
 
 `make k8s` keeps the Traefik, Grafana, and Prometheus port-forwards active in the foreground and prints the local URLs. Press `Ctrl-C` to stop the forwards.
 
@@ -219,9 +219,9 @@ Local URLs:
 | ---------------------- | ----------------------------------- |
 | Storefront             | `http://localhost:3002`             |
 | Admin                  | `http://localhost:3003`             |
-| Product API            | `http://localhost:3000/products`    |
-| Order API              | `http://localhost:8001/api/orders`  |
-| Payment API            | `http://localhost:8002/api/session` |
+| Product API docs       | `http://localhost:3000/docs`        |
+| Order API docs         | `http://localhost:8001/docs`        |
+| Payment API docs       | `http://localhost:8002/docs`        |
 | Storefront diagnostics | `http://localhost:3002/diagnostics` |
 
 ## Quality Gates
@@ -254,6 +254,7 @@ bun run verify:full
 ```
 
 What the gates cover:
+
 - dependency freshness and catalog consistency
 - duplicate lockfile resolutions and production license inventory
 - formatting/lint policy with Biome
@@ -263,6 +264,8 @@ What the gates cover:
 - TypeScript checks across every package
 - production builds through Turborepo
 - vulnerability audit at moderate severity or higher
+
+See the [operating guide](docs/OPERATIONS.md) for database index deployment, shutdown guarantees, recovery procedures, and disposable PostgreSQL/MongoDB/Kafka integration checks. Current measured results and remaining provider-test limits are recorded in the [upgrade review](docs/UPGRADE_2026-10-29.md).
 
 ## Clerk Setup
 
@@ -312,6 +315,7 @@ The Docker workflow can run Stripe CLI webhook forwarding. The payment service r
 ## Docker And Security Posture
 
 The Docker path uses the digest-pinned official Bun 1.4.4 image for application builds and runtimes, Docker Hardened Images for Postgres, Kafka, and MongoDB, and the digest-pinned official Traefik image. The Compose stack includes:
+
 - TLS routing through Traefik for local `*.localhost` domains
 - `exposedByDefault=false` so only explicitly labelled services are routed
 - read-only app containers and dropped Linux capabilities
@@ -336,7 +340,7 @@ The Docker path uses the digest-pinned official Bun 1.4.4 image for application 
 | `admin`               | `docker/Dockerfile.admin`                      | Admin operations dashboard                          |
 | `stripe-cli`          | `stripe/stripe-cli:v1.55.1`                    | Local webhook forwarding                            |
 
-The five application Dockerfiles use Turbo pruning, Bun frozen installs, and hardened Bun runtime images. Frontend images build standalone Next.js output, while service images copy only runtime code, generated clients, shared packages, and production dependencies.
+The five application Dockerfiles use Turbo pruning, Bun frozen installs, and separate runtime stages. Frontend images build standalone Next.js output, while service images copy only runtime code, generated clients, shared packages, and production dependencies.
 
 Docker discovery uses an internal network shared only by Traefik and the socket proxy. Application containers cannot reach the proxy, and its write API is explicitly disabled.
 
@@ -360,7 +364,7 @@ make docker-auth
 
 ## Kubernetes With Helm
 
-Use Helm when you want the Kubernetes ingress controller to own bare local domains such as `https://shop.localhost`, `https://admin.localhost`, and `https://api.localhost`.
+Use Helm to run the applications in Kubernetes. The local workflow exposes Traefik through the configured `K8S_LOCAL_HTTPS_PORT` forward, which defaults to `9443`; use `https://shop.localhost:9443`, `https://admin.localhost:9443`, and `https://api.localhost:9443`.
 
 ```bash
 make k8s
@@ -399,9 +403,10 @@ make k8s-clear
 
 ## API Documentation
 
-Each Hono service exposes typed OpenAPI metadata and Scalar docs through the service app factory. In local development, use the direct service URLs; in Docker, use `https://api.localhost:8443` routing for public RPC paths. In Kubernetes, Helm routing owns bare `https://api.localhost`.
+Each Hono service exposes typed OpenAPI metadata and Scalar docs through the service app factory. In local development, use the direct service URLs; in Docker, use `https://api.localhost:8443` routing for public RPC paths. Local Kubernetes uses `https://api.localhost:9443` through its Traefik forward.
 
 Core API groups:
+
 - product catalog: `/rpc/product/*`
 - checkout: `/rpc/payment/checkout/createSession`
 - checkout status: `/rpc/payment/checkout/getSessionStatus`
@@ -418,11 +423,6 @@ Core API groups:
 - Kafka topics and message payloads are typed in `packages/kafka`.
 - Product mutations go through `product-service` so validation, database writes, and Kafka publication stay consistent.
 - Docker workflows prefer pinned version tags plus optional digest locks for reproducibility.
-
-## Quality and reliability verification
-
-See [the verified improvements and operational guide](docs/QUALITY_VERIFICATION.md) for database index deployment, graceful shutdown, catalog accessibility, and the real-database CI test suite.
-
 
 ## CI image publishing
 

@@ -1,5 +1,4 @@
 import {
-  createCorsMiddleware,
   createORPCMiddleware,
   createRoute,
   createServiceApp,
@@ -45,7 +44,6 @@ const app = createServiceApp<{ Variables: ServiceVariables }>({
 });
 
 app.route("/internal/inventory", inventoryRoutes);
-app.use("*", createCorsMiddleware());
 app.route("/", healthRoutes);
 app.use("*", clerkAuthMiddleware);
 app.use(

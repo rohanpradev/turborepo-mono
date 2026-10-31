@@ -4,14 +4,15 @@ Prisma 8 contract, PostgreSQL runtime, and migration graph for the product servi
 
 ## Version compatibility
 
-The root catalog pins `@prisma/orm-postgres` to `8.0.0-rc.21` and the CLI to
-`8.0.0-rc.28`. The façade and CLI have separate version sequences; their
-resolved ORM toolchain is aligned by the lockfile. Contract generation and
-migration checks remain part of every upgrade.
+The root catalog pins `@prisma/orm-postgres` to `8.0.0-rc.22` and the CLI to
+`8.0.0-rc.29`. The façade and CLI have separate version sequences. An exact
+`@prisma/orm-toolchain` override aligns their shared ORM packages with rc.22;
+the CLI otherwise loads an incompatible rc.21 toolchain and contract emission
+fails. Contract generation and migration checks remain part of every upgrade.
 
 The [rc.21 upgrade and deployment guide](./UPGRADE_RC21.md) documents the
 completed API/contract changes, converted hashes, baseline checks, and database
-rehearsal. Product size/color arrays describe their existing nullable storage
+rehearsal, including the subsequent rc.22 runtime update. Product size/color arrays describe their existing nullable storage
 accurately, while the public catalog serializer continues to return strings.
 
 ### Existing databases: one-time contract-format transition
@@ -39,6 +40,10 @@ Do not bypass a schema mismatch. Fresh databases only need `db:deploy` and
 `db:verify`. Existing migration-ledger hashes remain unchanged as upstream
 requires; the signed marker prevents replay of the converted baseline.
 Deployment jobs deliberately do not sign existing databases automatically.
+
+Databases already converted to the `66e9d562…68fb` marker do not need another
+adoption step for rc.22. Its re-emitted types change, while the JSON contract,
+profile hash, storage hash, and migration graph remain unchanged.
 
 Rollback requires the previous application and its matching database
 marker/ledger backup. See the upgrade guide for the exact sequence and checks.

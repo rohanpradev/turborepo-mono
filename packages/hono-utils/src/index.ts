@@ -736,7 +736,7 @@ export const createCorsMiddleware = () =>
       "Tracestate",
       "X-Request-Id",
     ],
-    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowMethods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     exposeHeaders: [
       "Server-Timing",
       "Traceparent",
@@ -793,6 +793,11 @@ export const createServiceApp = <E extends Env = Env>({
   app.use("*", createTelemetryMiddleware(serviceName));
   app.use("*", timing());
   app.use("*", secureHeaders());
+  // CORS must wrap early responses from body limits and request timeouts, too.
+  app.use("*", createCorsMiddleware());
+  // Finish response-header transforms when timeout responds. A delayed handler
+  // must not resume compression after the caller has consumed that response.
+  app.use("*", compress());
   app.use(
     "*",
     timeout(getRequestTimeoutMs(requestTimeoutMs), () =>
@@ -806,7 +811,6 @@ export const createServiceApp = <E extends Env = Env>({
       onError: (c) => createErrorResponse(c, 413, "Request body is too large"),
     }),
   );
-  app.use("*", compress());
   app.notFound((c) => createErrorResponse(c, 404, "Route not found"));
   app.onError((error, c) => {
     if (error instanceof HTTPException) {
