@@ -338,6 +338,9 @@ export const createTelemetryMiddleware = (serviceName: string) =>
     } finally {
       const url = new URL(c.req.url);
       const durationMs = Number((performance.now() - startedAt).toFixed(2));
+      // Hono handles ordinary errors before next() resolves; those errors are
+      // exposed on Context rather than thrown back through this middleware.
+      const requestError = thrownError ?? c.error;
       const statusCode =
         thrownError instanceof HTTPException
           ? thrownError.status
@@ -372,9 +375,9 @@ export const createTelemetryMiddleware = (serviceName: string) =>
           "url.path": c.req.path,
           "user_agent.original": c.req.header("user-agent"),
           "error.type":
-            thrownError instanceof Error
-              ? thrownError.name
-              : thrownError
+            requestError instanceof Error
+              ? requestError.name
+              : requestError
                 ? "UnknownError"
                 : undefined,
         }),

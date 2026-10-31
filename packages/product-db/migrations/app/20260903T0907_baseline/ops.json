@@ -57,7 +57,11 @@
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
         "params": [
           "\"public\".\"Category\""
-        ]
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"Category\""
+        }
       }
     ],
     "execute": [
@@ -70,10 +74,16 @@
     "postcheck": [
       {
         "description": "verify table \"Category\" exists",
-        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
         "params": [
-          "\"public\".\"Category\""
-        ]
+          "\"public\".\"Category\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"Category\""
+        }
       }
     ]
   },
@@ -96,7 +106,11 @@
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
         "params": [
           "\"public\".\"Product\""
-        ]
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"Product\""
+        }
       }
     ],
     "execute": [
@@ -109,10 +123,16 @@
     "postcheck": [
       {
         "description": "verify table \"Product\" exists",
-        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
         "params": [
-          "\"public\".\"Product\""
-        ]
+          "\"public\".\"Product\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"Product\""
+        }
       }
     ]
   },
@@ -135,7 +155,11 @@
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
         "params": [
           "\"public\".\"ProductOutboxEvent\""
-        ]
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"ProductOutboxEvent\""
+        }
       }
     ],
     "execute": [
@@ -148,10 +172,16 @@
     "postcheck": [
       {
         "description": "verify table \"ProductOutboxEvent\" exists",
-        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
         "params": [
-          "\"public\".\"ProductOutboxEvent\""
-        ]
+          "\"public\".\"ProductOutboxEvent\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"ProductOutboxEvent\""
+        }
       }
     ]
   },
@@ -176,7 +206,11 @@
           "Category_slug_key",
           "public",
           "\"public\".\"Category\""
-        ]
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"Category_slug_key\" on \"Category\""
+        }
       }
     ],
     "execute": [
@@ -187,12 +221,14 @@
     ],
     "postcheck": [
       {
-        "description": "verify constraint \"Category_slug_key\" exists",
-        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "description": "verify unique constraint \"Category_slug_key\" exists on (slug)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
         "params": [
           "Category_slug_key",
           "public",
-          "\"public\".\"Category\""
+          "\"public\".\"Category\"",
+          "u",
+          "[\"slug\"]"
         ]
       }
     ]
@@ -216,7 +252,11 @@
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
         "params": [
           "\"public\".\"Product_categorySlug_createdAt_idx\""
-        ]
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"Product_categorySlug_createdAt_idx\""
+        }
       }
     ],
     "execute": [
@@ -228,10 +268,15 @@
     ],
     "postcheck": [
       {
-        "description": "verify index \"Product_categorySlug_createdAt_idx\" exists",
-        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "description": "verify index \"Product_categorySlug_createdAt_idx\" exists on \"Product\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
         "params": [
-          "\"public\".\"Product_categorySlug_createdAt_idx\""
+          "\"public\".\"Product_categorySlug_createdAt_idx\"",
+          "i",
+          "I",
+          "\"public\".\"Product\"",
+          "btree",
+          "[\"categorySlug\",\"createdAt\"]"
         ]
       }
     ]
@@ -255,7 +300,11 @@
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
         "params": [
           "\"public\".\"Product_categorySlug_price_idx\""
-        ]
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"Product_categorySlug_price_idx\""
+        }
       }
     ],
     "execute": [
@@ -267,10 +316,15 @@
     ],
     "postcheck": [
       {
-        "description": "verify index \"Product_categorySlug_price_idx\" exists",
-        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "description": "verify index \"Product_categorySlug_price_idx\" exists on \"Product\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
         "params": [
-          "\"public\".\"Product_categorySlug_price_idx\""
+          "\"public\".\"Product_categorySlug_price_idx\"",
+          "i",
+          "I",
+          "\"public\".\"Product\"",
+          "btree",
+          "[\"categorySlug\",\"price\"]"
         ]
       }
     ]
@@ -294,7 +348,11 @@
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
         "params": [
           "\"public\".\"Product_createdAt_idx\""
-        ]
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"Product_createdAt_idx\""
+        }
       }
     ],
     "execute": [
@@ -306,10 +364,15 @@
     ],
     "postcheck": [
       {
-        "description": "verify index \"Product_createdAt_idx\" exists",
-        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "description": "verify index \"Product_createdAt_idx\" exists on \"Product\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
         "params": [
-          "\"public\".\"Product_createdAt_idx\""
+          "\"public\".\"Product_createdAt_idx\"",
+          "i",
+          "I",
+          "\"public\".\"Product\"",
+          "btree",
+          "[\"createdAt\"]"
         ]
       }
     ]
@@ -333,7 +396,11 @@
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
         "params": [
           "\"public\".\"Product_price_idx\""
-        ]
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"Product_price_idx\""
+        }
       }
     ],
     "execute": [
@@ -345,10 +412,15 @@
     ],
     "postcheck": [
       {
-        "description": "verify index \"Product_price_idx\" exists",
-        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "description": "verify index \"Product_price_idx\" exists on \"Product\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
         "params": [
-          "\"public\".\"Product_price_idx\""
+          "\"public\".\"Product_price_idx\"",
+          "i",
+          "I",
+          "\"public\".\"Product\"",
+          "btree",
+          "[\"price\"]"
         ]
       }
     ]
@@ -372,7 +444,11 @@
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
         "params": [
           "\"public\".\"ProductOutboxEvent_status_availableAt_createdAt_idx\""
-        ]
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"ProductOutboxEvent_status_availableAt_createdAt_idx\""
+        }
       }
     ],
     "execute": [
@@ -384,10 +460,15 @@
     ],
     "postcheck": [
       {
-        "description": "verify index \"ProductOutboxEvent_status_availableAt_createdAt_idx\" exists",
-        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "description": "verify index \"ProductOutboxEvent_status_availableAt_createdAt_idx\" exists on \"ProductOutboxEvent\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
         "params": [
-          "\"public\".\"ProductOutboxEvent_status_availableAt_createdAt_idx\""
+          "\"public\".\"ProductOutboxEvent_status_availableAt_createdAt_idx\"",
+          "i",
+          "I",
+          "\"public\".\"ProductOutboxEvent\"",
+          "btree",
+          "[\"status\",\"availableAt\",\"createdAt\"]"
         ]
       }
     ]
@@ -413,7 +494,11 @@
           "Product_categorySlug_fkey",
           "public",
           "\"public\".\"Product\""
-        ]
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"Product_categorySlug_fkey\" on \"Product\""
+        }
       }
     ],
     "execute": [
@@ -424,12 +509,18 @@
     ],
     "postcheck": [
       {
-        "description": "verify FK \"Product_categorySlug_fkey\" exists",
-        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "description": "verify FK \"Product_categorySlug_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
         "params": [
           "Product_categorySlug_fkey",
           "public",
-          "\"public\".\"Product\""
+          "\"public\".\"Product\"",
+          "f",
+          "[\"categorySlug\"]",
+          "\"public\".\"Category\"",
+          "[\"slug\"]",
+          "r",
+          "c"
         ]
       }
     ]

@@ -4,3 +4,13 @@ ingress:
 
 gateway:
   enabled: true
+
+# Exercise all project-owned custom-resource schemas in the validation matrix.
+observability:
+  serviceMonitor:
+    enabled: true
+  traefik:
+    serviceMonitor:
+      enabled: true
+  prometheusRule:
+    enabled: true

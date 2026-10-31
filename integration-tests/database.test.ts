@@ -35,6 +35,35 @@ afterAll(async () => {
 });
 
 describe("database guarantees", () => {
+  test("nullable PostgreSQL array elements stay out of public product records", async () => {
+    const slug = `legacy-arrays-${crypto.randomUUID()}`;
+    await db.orm.public.Category.create({ name: "Legacy arrays", slug });
+    try {
+      const product = await db.orm.public.Product.create({
+        name: "Legacy arrays",
+        shortDescription: "Null element fixture",
+        description: "The database accepts null elements in existing arrays.",
+        categorySlug: slug,
+        price: 1000,
+        sizes: ["m", null, "l"],
+        colors: [null, "black"],
+        images: { black: "/product.png" },
+        updatedAt: nowUtc(),
+      });
+      const record = await ProductService.getProduct(product.id);
+      expect(record?.sizes).toEqual(["m", "l"]);
+      expect(record?.colors).toEqual(["black"]);
+      const listed = await ProductService.getAllProducts({ category: slug });
+      expect(listed.items[0]?.sizes).toEqual(["m", "l"]);
+      expect(listed.items[0]?.colors).toEqual(["black"]);
+    } finally {
+      await db.orm.public.Product.where({
+        categorySlug: slug,
+      }).deleteAndCount();
+      await db.orm.public.Category.where({ slug }).delete();
+    }
+  });
+
   test("catalog pagination breaks price and timestamp ties deterministically", async () => {
     const slug = `pagination-${crypto.randomUUID()}`;
     const timestamp = nowUtc();

@@ -14,6 +14,8 @@ coverage
 
 # Turbo
 .turbo
+docs/task-graph.mermaid
+docs/turbo-report.md
 
 # Vercel
 .vercel

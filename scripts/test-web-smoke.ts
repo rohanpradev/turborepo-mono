@@ -284,8 +284,23 @@ for (const app of apps) {
       if ((await response.arrayBuffer()).byteLength === 0)
         throw new Error(`${app.name} asset ${url.pathname} is empty.`);
     }
+    for (const format of ["image/avif", "image/webp"]) {
+      const response = await session.fetch(
+        `${origin}/_next/image?url=%2Flogo.png&w=64&q=75`,
+        {
+          headers: { Accept: format },
+          signal: AbortSignal.timeout(15_000),
+        },
+      );
+      if (
+        !response.ok ||
+        response.headers.get("content-type") !== format ||
+        (await response.arrayBuffer()).byteLength === 0
+      )
+        throw new Error(`${app.name}: native ${format} optimization failed.`);
+    }
     console.log(
-      `${app.name}: standalone health, ${app.pages.length} pages, and ${assets.size} static assets passed.`,
+      `${app.name}: standalone health, ${app.pages.length} pages, ${assets.size} static assets, and AVIF/WebP optimization passed.`,
     );
   } catch (error) {
     failed = true;

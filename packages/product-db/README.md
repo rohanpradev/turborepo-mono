@@ -4,21 +4,27 @@ Prisma 8 contract, PostgreSQL runtime, and migration graph for the product servi
 
 ## Version compatibility
 
-The root catalog pins `@prisma/orm-postgres` to `8.0.0-rc.17` and the CLI to
-`8.0.0-rc.22`. Both now resolve toolchain `rc.17`, so the previous toolchain
-override is removed. Contract generation and migration checks must remain part
-of every upgrade.
+The root catalog pins `@prisma/orm-postgres` to `8.0.0-rc.22` and the CLI to
+`8.0.0-rc.29`. The façade and CLI have separate version sequences. An exact
+`@prisma/orm-toolchain` override aligns their shared ORM packages with rc.22;
+the CLI otherwise loads an incompatible rc.21 toolchain and contract emission
+fails. Contract generation and migration checks remain part of every upgrade.
+
+The [rc.21 upgrade and deployment guide](./UPGRADE_RC21.md) documents the
+completed API/contract changes, converted hashes, baseline checks, and database
+rehearsal, including the subsequent rc.22 runtime update. Product size/color arrays describe their existing nullable storage
+accurately, while the public catalog serializer continues to return strings.
 
 ### Existing databases: one-time contract-format transition
 
-The rc.15 format uses `dataType` instead of `nativeType` and explicit list element
-nullability. The official converter updated the emitted contract, historical
-snapshot, migration references and hashes together; it does not change application
-tables. The old baseline storage hash `a8000c3ac164e1ad0f87693c340a4cf4ce40daae9027550506caa9530a9a1d28`
-is now `65a2e3fdd7d073ff6b91467777940a26a791ca4982ed6903bca77195f39927e7`.
+The rc.19 converter removes `noCheck`, marks existing list elements nullable,
+and updates the historical snapshot and migration references together. The
+physical schema and stored rows stay unchanged. The baseline storage hash
+`65a2e3fdd7d073ff6b91467777940a26a791ca4982ed6903bca77195f39927e7`
+becomes `66e9d562ab1892e4a2ec1137b5b9418c4e93f38e847eef96d88482a99eeb68fb`.
 
-Before deploying this revision against an existing database, stop the old app
-writers, take a backup, install this revision's locked dependencies, and set
+Before deploying this revision against an existing database, stop old writers,
+take a recoverable backup, install this revision's locked dependencies, and set
 `DATABASE_URL` to that database. From this package run:
 
 ```sh
@@ -29,14 +35,18 @@ bun run db:deploy
 bun run db:verify
 ```
 
-`db:adopt` verifies the schema strictly before signing the new contract marker.
-Do not bypass a schema mismatch. Fresh databases only need `db:deploy`.
-Do not roll back to the old contract against a newly signed database without
-restoring its matching marker/backup. Deployment jobs deliberately do not sign
-existing databases automatically.
+`db:adopt` verifies the schema strictly before signing the converted marker.
+Do not bypass a schema mismatch. Fresh databases only need `db:deploy` and
+`db:verify`. Existing migration-ledger hashes remain unchanged as upstream
+requires; the signed marker prevents replay of the converted baseline.
+Deployment jobs deliberately do not sign existing databases automatically.
 
-See [the upstream rc.15 migration](https://github.com/prisma/orm/releases/tag/v8.0.0-rc.15)
-and [the repository upgrade report](../../docs/UPGRADE_2026-10-10.md).
+Databases already converted to the `66e9d562…68fb` marker do not need another
+adoption step for rc.22. Its re-emitted types change, while the JSON contract,
+profile hash, storage hash, and migration graph remain unchanged.
+
+Rollback requires the previous application and its matching database
+marker/ledger backup. See the upgrade guide for the exact sequence and checks.
 
 ## Runtime
 

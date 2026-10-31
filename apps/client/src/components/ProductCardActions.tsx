@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ShoppingCart } from "lucide-react";
+import { ShoppingCart } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -10,21 +10,20 @@ import useCartStore from "@/stores/cartStore";
 import type { ProductType } from "@/types";
 
 type ProductCardActionsProps = {
+  onAdded: () => void;
   onSelectedColorChange: (color: string) => void;
   product: ProductType;
   selectedColor: string;
 };
 
 const ProductCardActions = ({
+  onAdded,
   onSelectedColorChange,
   product,
   selectedColor,
 }: ProductCardActionsProps) => {
   const defaultSize = product.sizes[0] ?? "";
   const [selectedSize, setSelectedSize] = useState(defaultSize);
-  const [lastAdded, setLastAdded] = useState<string | null>(null);
-  const selectionKey = `${selectedColor}:${selectedSize}`;
-  const added = lastAdded === selectionKey;
   const addToCart = useCartStore((state) => state.addToCart);
 
   const handleAddToCart = () => {
@@ -41,10 +40,10 @@ const ProductCardActions = ({
       });
       return;
     }
-    setLastAdded(selectionKey);
     toast.success(`${product.name} added to your bag`, {
       description: `${selectedColor} · ${selectedSize.toUpperCase()}`,
     });
+    onAdded();
   };
 
   return (
@@ -108,12 +107,8 @@ const ProductCardActions = ({
         disabled={!selectedSize || !selectedColor}
         className="w-full"
       >
-        {added ? (
-          <Check className="size-4" aria-hidden="true" />
-        ) : (
-          <ShoppingCart className="size-4" aria-hidden="true" />
-        )}
-        <span>{added ? "Add another" : "Add to bag"}</span>
+        <ShoppingCart className="size-4" aria-hidden="true" />
+        <span>Add to bag</span>
       </Button>
     </div>
   );

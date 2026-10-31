@@ -46,7 +46,7 @@ export default function InventoryManager({
     draftQuantity?.size === selectedSize &&
     draftQuantity.color === selectedColor
       ? draftQuantity.value
-      : String(selectedStock?.onHand ?? 0);
+      : String(selectedStock?.onHand ?? 5);
   const retiredRows =
     rows?.filter(
       (row) =>

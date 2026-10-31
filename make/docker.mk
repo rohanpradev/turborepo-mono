@@ -32,6 +32,7 @@ docker-validate: ensure-env ## Validate Docker Compose files without starting co
 	@echo "$(BLUE)Validating Docker Compose configuration...$(NC)"
 	$(DOCKER_COMPOSE) --env-file .env config >/dev/null
 	$(DOCKER_COMPOSE) -f packages/kafka/compose.yml config >/dev/null
+	$(DOCKER_COMPOSE) -f compose.integration.yml config >/dev/null
 	@echo "$(GREEN)Docker Compose configuration is valid$(NC)"
 
 docker-images: ensure-env ## List the fully resolved Compose images

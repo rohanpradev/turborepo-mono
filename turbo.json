@@ -208,11 +208,25 @@
       "passThroughEnv": ["DATABASE_URL"]
     },
     "//#check-tools": {
+      "dependsOn": ["@repo/product-db#db:generate"],
       "inputs": [
         "scripts/**",
+        "apps/*/src/**",
+        "apps/*/package.json",
+        "apps/*/tsconfig.json",
+        "packages/*/src/**",
+        "!packages/product-db/src/contract.json",
+        "!packages/product-db/src/contract.d.ts",
+        "packages/*/package.json",
+        "packages/*/tsconfig.json",
         "packages/typescript-config/**",
         "package.json",
-        "knip.ts"
+        "knip.ts",
+        {
+          "mode": "dependencyOutputs",
+          "globs": ["src/contract.json", "src/contract.d.ts"],
+          "from": ["@repo/product-db#db:generate"]
+        }
       ],
       "outputs": []
     }

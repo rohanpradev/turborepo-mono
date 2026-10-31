@@ -74,7 +74,7 @@ export default function Homepage({ searchParams }: PageProps<"/">) {
             <div className="py-7 sm:py-14 lg:py-16">
               <h1
                 id="hero-heading"
-                className="max-w-[9ch] font-serif text-[clamp(3.8rem,6.7vw,7rem)] font-normal leading-[0.94] tracking-[-0.065em]"
+                className="max-w-[9ch] font-serif text-[clamp(3.25rem,8vw,7rem)] font-normal leading-[0.98] tracking-[-0.055em]"
               >
                 Everyday,
                 <br />a little{" "}
@@ -87,7 +87,7 @@ export default function Homepage({ searchParams }: PageProps<"/">) {
               <Button
                 href="/products"
                 size="lg"
-                className="mt-8 h-12 gap-8 rounded-none px-6"
+                className="mt-8 h-12 gap-8 rounded-none px-6 transition-colors hover:bg-foreground"
               >
                 Find your everyday{" "}
                 <ArrowRight className="size-4" aria-hidden="true" />
@@ -101,7 +101,7 @@ export default function Homepage({ searchParams }: PageProps<"/">) {
               places to start
             </a>
           </div>
-          <figure className="relative min-h-[25rem] sm:min-h-[32rem] lg:min-h-[42rem]">
+          <figure className="relative min-h-[20rem] sm:min-h-[32rem] lg:min-h-[42rem]">
             <Image
               src={campaignImage}
               alt="Two people in relaxed cream knitwear and olive layers beside sunlit stone architecture"

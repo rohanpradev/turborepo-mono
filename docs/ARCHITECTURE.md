@@ -63,7 +63,7 @@ Public read paths can run without Clerk configured, which keeps local service se
 
 - Product catalog writes use PostgreSQL through Prisma because catalog data is relational, validated, and admin-managed.
 - Prisma 8 is the only product-database CLI and runtime. It emits a deterministic PostgreSQL contract during local, CI, and container builds; product queries use the composable `db.orm` API and transactions use `db.transaction`.
-- Prisma 8 owns the checked-in content-addressed migration graph and baseline. Deployment adopts an unsigned existing database only after strict schema verification succeeds; fresh databases apply the baseline normally. Pool size, idle timeout, and connection timeout remain explicit so dependency outages fail readiness promptly.
+- Prisma 8 owns the checked-in content-addressed migration graph and baseline. Deployment verifies the database contract before applying migrations; fresh databases apply the baseline normally. Existing installations using an earlier contract require the explicit [verified adoption procedure](../packages/product-db/UPGRADE_RC21.md). Pool size, idle timeout, and connection timeout remain explicit so dependency outages fail readiness promptly.
 - Orders use MongoDB as a read model fed by payment events, which keeps checkout payment handling decoupled from customer order queries.
 - Stripe owns payment execution; local services only persist/query the platform state they need.
 
@@ -84,7 +84,7 @@ Every Hono service uses the shared app factory from `packages/hono-utils`, givin
 - Scalar docs
 - `/health`, `/health/live`, and `/health/ready` endpoints
 
-Liveness only answers whether the process should be restarted. Readiness separately tracks PostgreSQL, MongoDB, Kafka, Stripe API access, and Stripe webhook-secret availability. Dependency outages therefore remove a pod from service without creating a restart storm.
+Liveness only answers whether the process should be restarted. Readiness reports required storage and signing-secret health. Kafka and Stripe API outages appear as degraded optional dependencies, allowing durable webhook intake and order reads to continue while background work retries. Dependency health therefore remains visible without creating a restart storm.
 
 The Stripe webhook edge validates the raw request body, persists a small event envelope in the payment-owned PostgreSQL inbox, and returns promptly. A leased payment worker enriches the event through Stripe, commits inventory, and atomically stores the payment with its publication job. Publication retries emit `payment.successful` to Kafka independently. The order consumer uses a unique order identifier and insert-only timestamps so duplicate deliveries do not modify the original purchase. This is an at-least-once flow, so duplicate and out-of-order Stripe deliveries are expected.
 
@@ -101,11 +101,11 @@ The runtime uses dependency-light, OpenTelemetry-shaped telemetry:
 This gives local Docker, Kubernetes, and CI smoke runs enough correlation to debug checkout, payment, and order flows before adding a full OpenTelemetry Collector profile.
 
 The Docker path places Traefik in front of the stack and routes public local domains:
-- `https://shop.localhost`
-- `https://admin.localhost`
-- `https://api.localhost`
-- `https://kafka.localhost`
-- `https://dashboard.localhost/dashboard/`
+- `https://shop.localhost:8443`
+- `https://admin.localhost:8443`
+- `https://api.localhost:8443`
+- `https://kafka.localhost:8443`
+- `https://dashboard.localhost:8443/dashboard/`
 
 ## Quality Policy
 
@@ -140,8 +140,8 @@ Product create, update, and delete operations use a transactional outbox. The pr
 
 ## Durable purchases and finite inventory
 
-The October 3 implementation adds payment-owned PostgreSQL storage and a
-product-owned inventory schema. See [ADR 0002](adr/0002-payment-inventory.md)
+Payment processing uses payment-owned PostgreSQL storage and a product-owned
+inventory schema. See [ADR 0002](adr/0002-payment-inventory.md)
 for reserve/pay/commit/release boundaries, uncertainty handling and migrations.
 Verified webhook intake is decoupled from provider enrichment and Kafka delivery
 through leased durable jobs. Order queries are paginated; delivery and variant

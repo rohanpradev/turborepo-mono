@@ -79,9 +79,6 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@repo/api-client", "@repo/contracts", "@repo/types"],
   turbopack: {
     root: workspaceRoot,
-    resolveAlias: {
-      "@": path.join(__dirname, "src"),
-    },
   },
   async headers() {
     return [

@@ -6,10 +6,10 @@ import RefreshButton from "@/components/RefreshButton";
 
 export default function AdminError({
   error,
-  reset,
+  retry,
 }: {
-  error: Error & { digest?: string };
-  reset: () => void;
+  error: unknown;
+  retry: () => void;
 }) {
   useEffect(() => {
     console.error(error);
@@ -27,7 +27,7 @@ export default function AdminError({
           existing data remain unchanged.
         </p>
         <div className="mt-6">
-          <RefreshButton label="Try again" onRefresh={reset} />
+          <RefreshButton label="Try again" onRefresh={retry} />
         </div>
       </div>
     </section>

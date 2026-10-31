@@ -1,6 +1,6 @@
 # Stripe Operations Runbook
 
-This runbook covers supported Stripe, Clerk, Kafka, and Kubernetes operating modes. The current durable inbox, finite stock and recovery design is in [ADR 0002](adr/0002-payment-inventory.md) and [OPERATIONS.md](OPERATIONS.md). The earlier [redesign plan](STRIPE_KUBERNETES_REDESIGN_PLAN.md) is historical.
+This runbook covers supported Stripe, Clerk, Kafka, and Kubernetes operating modes. The durable inbox, finite stock and recovery design is in [ADR 0002](adr/0002-payment-inventory.md) and [OPERATIONS.md](OPERATIONS.md).
 
 ## Supported Modes
 

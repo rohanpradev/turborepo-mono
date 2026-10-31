@@ -2,7 +2,7 @@
 
 See [payment/inventory decisions](adr/0002-payment-inventory.md),
 [environment setup](../deploy/environments/README.md), and
-[engineering review](ENGINEERING_REVIEW_2026-10-22.md).
+[current upgrade and verification review](UPGRADE_2026-10-29.md).
 
 ## Local preparation
 
@@ -14,10 +14,44 @@ services. Compose and Helm now provide those deployment jobs. Do not start a new
 worker against an old schema. Admin “Manage stock” sets actual units per variant.
 Product pages expose currently available units; checkout remains authoritative.
 
+Existing product databases using an earlier Prisma contract require the explicit
+[verified adoption procedure](../packages/product-db/UPGRADE_RC21.md) before the
+new runtime starts. Fresh databases apply the current baseline normally.
+
+Production order consumers verify the unique `orderId` index before subscribing.
+Index deployment is additive: it does not drop indexes or delete duplicate orders.
+If duplicates prevent creation, resolve them before retrying. See the
+[order database guide](../packages/order-db/README.md#index-deployment) for the
+standalone command, Compose dependency, and Helm hook.
+
 The storefront is US/USD and requires state and ZIP code. Card checkout reserves
 stock for a one-hour provider session. Browser retries preserve attempt identity;
 payment confirmation clears only a matching unchanged cart. Adding items while
 payment is underway cannot silently erase the additions.
+
+## Deployment and shutdown checks
+
+Readiness must check usable migrated storage, rather than only client creation.
+Deploy database changes and indexes before application workers, and confirm
+readiness after restart. The configured PostgreSQL/MongoDB pools reject invalid
+limits and release connections during shutdown.
+
+Services stop accepting requests, drain active requests and bootstrap work, then
+close background workers before their dependencies. The shared shutdown deadline
+is 25 seconds; leave at least that long after any pre-stop delay in the container
+or pod termination budget. A failed cleanup step must not skip later cleanup.
+
+Product outbox claims are fenced by their attempt generation. An expired worker
+cannot finalize or retry a newer claim, but a crash after broker acceptance can
+still cause another delivery. Consumers must remain idempotent; see
+[ADR 0001](adr/0001-transactional-product-outbox.md).
+
+Service request bodies have a 1 MiB limit at both the Bun transport and Hono
+middleware boundaries. Application-generated errors retain allowed-origin CORS,
+request IDs, and structured payloads. Bun may reject an oversized request before
+middleware runs; that native rejection does not include application CORS or
+error metadata. Keep the transport limit when diagnosing browser errors rather
+than disabling it to change their presentation.
 
 ## Observability and escalation
 
@@ -94,6 +128,14 @@ migrations are forward-only: prefer an additive repair over destructive rollback
 Never publish a release from a dirty working tree without reviewing its diff.
 
 ## Reproducible disposable tests
+
+The integration runner requires explicit PostgreSQL and MongoDB database names
+ending in `_test`. It generates and validates the product contract, applies
+product/payment migrations, and deploys order indexes before testing. Use these
+databases only for the test run: index enforcement and migration state change
+during the suite. Supplying `INTEGRATION_KAFKA_BROKERS` also runs the broker-backed
+transport cases; database tests use real persistence and controlled transport
+fixtures.
 
 ```sh
 docker compose -f compose.integration.yml up -d --wait

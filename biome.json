@@ -34,7 +34,11 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "preset": "recommended"
+      "preset": "recommended",
+      "nursery": {
+        "noBooleanSortComparator": "error",
+        "noObsoleteAttributes": "error"
+      }
     }
   },
   "assist": {

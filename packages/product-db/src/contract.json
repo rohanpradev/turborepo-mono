@@ -89,7 +89,7 @@
               },
               "colors": {
                 "many": {
-                  "elementNullable": false
+                  "elementNullable": true
                 },
                 "nullable": false,
                 "type": {
@@ -151,7 +151,7 @@
               },
               "sizes": {
                 "many": {
-                  "elementNullable": false
+                  "elementNullable": true
                 },
                 "nullable": false,
                 "type": {
@@ -447,11 +447,8 @@
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "many": {
-                    "elementNullable": false
+                    "elementNullable": true
                   },
-                  "noCheck": [
-                    "elementNotNull"
-                  ],
                   "nullable": false
                 },
                 "createdAt": {
@@ -504,11 +501,8 @@
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "many": {
-                    "elementNullable": false
+                    "elementNullable": true
                   },
-                  "noCheck": [
-                    "elementNotNull"
-                  ],
                   "nullable": false
                 },
                 "updatedAt": {
@@ -720,7 +714,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "65a2e3fdd7d073ff6b91467777940a26a791ca4982ed6903bca77195f39927e7"
+    "storageHash": "66e9d562ab1892e4a2ec1137b5b9418c4e93f38e847eef96d88482a99eeb68fb"
   },
   "capabilities": {
     "postgres": {
