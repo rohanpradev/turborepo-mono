@@ -93,7 +93,7 @@ const ProductCard = ({
           <DialogTrigger asChild>
             <Button
               variant="outline"
-              className="mt-auto h-11 w-full gap-2 rounded-none border-border bg-transparent px-2 text-xs hover:bg-card sm:text-sm"
+              className="mt-auto h-11 w-full gap-2 rounded-none border-foreground/30 bg-transparent px-2 text-xs transition-colors hover:border-foreground hover:bg-foreground hover:text-background sm:text-sm"
               aria-label={`Choose options for ${product.name}`}
             >
               <Plus className="size-4" aria-hidden="true" />

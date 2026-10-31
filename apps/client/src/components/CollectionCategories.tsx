@@ -55,12 +55,12 @@ export default function CollectionCategories() {
           <ArrowRight className="size-4" aria-hidden="true" />
         </Link>
       </div>
-      <div className="grid gap-8 sm:grid-cols-3 sm:gap-5">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-7 sm:grid-cols-3 sm:gap-5">
         {collections.map((collection) => (
           <Link
             key={collection.slug}
             href={`/products?category=${collection.slug}`}
-            className="group block min-w-0"
+            className="group block min-w-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
           >
             <div
               className={`relative aspect-[5/4] overflow-hidden sm:aspect-[4/4.4] ${collection.color}`}
@@ -73,13 +73,13 @@ export default function CollectionCategories() {
                 alt=""
                 fill
                 sizes="(min-width: 1536px) 456px, (min-width: 640px) 33vw, 100vw"
-                className="object-contain px-10 pb-6 pt-12 mix-blend-multiply transition-transform duration-700 group-hover:scale-105"
+                className="object-contain px-4 pb-4 pt-10 mix-blend-multiply transition-transform duration-700 group-hover:scale-105 sm:px-10 sm:pb-6 sm:pt-12"
               />
               <span className="absolute bottom-4 right-4 grid size-10 place-items-center rounded-full bg-background/90 transition-colors group-hover:bg-foreground group-hover:text-background">
                 <ArrowUpRight className="size-4" aria-hidden="true" />
               </span>
             </div>
-            <h3 className="mt-4 font-serif text-2xl tracking-[-0.025em]">
+            <h3 className="mt-4 font-serif text-xl leading-tight tracking-[-0.025em] sm:text-2xl">
               {collection.name}
             </h3>
             <p className="mt-1.5 text-xs leading-6 text-muted-foreground">
