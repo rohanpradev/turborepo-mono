@@ -31,6 +31,7 @@ const ProductCard = ({
   product: ProductType;
 }) => {
   const [selectedColor, setSelectedColor] = useState(product.colors[0] ?? "");
+  const [dialogOpen, setDialogOpen] = useState(false);
   const previewImage = getPrimaryProductImage(product, selectedColor);
   const href = `/products/${product.id}` as Route;
 
@@ -89,7 +90,7 @@ const ProductCard = ({
             {product.colors.length === 1 ? "" : "s"}
           </span>
         </div>
-        <Dialog>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button
               variant="outline"
@@ -134,6 +135,7 @@ const ProductCard = ({
               product={product}
               selectedColor={selectedColor}
               onSelectedColorChange={setSelectedColor}
+              onAdded={() => setDialogOpen(false)}
             />
           </DialogContent>
         </Dialog>
