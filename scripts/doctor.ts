@@ -1,3 +1,5 @@
+import { satisfiesRuntimeVersion } from "./runtime-version";
+
 type CheckStatus = "pass" | "warn" | "fail";
 
 type CheckResult = {
@@ -61,37 +63,14 @@ const parseEnvFile = async (path: string) => {
   return new Map(entries);
 };
 
-const minimumVersion = (range?: string) =>
-  range?.match(/\d+\.\d+\.\d+/)?.[0] ?? null;
-
-const compareVersions = (actual: string, expected: string) => {
-  const actualParts = actual.split(".").map(Number);
-  const expectedParts = expected.split(".").map(Number);
-
-  for (let index = 0; index < 3; index += 1) {
-    const actualPart = actualParts[index] ?? 0;
-    const expectedPart = expectedParts[index] ?? 0;
-
-    if (actualPart > expectedPart) {
-      return 1;
-    }
-
-    if (actualPart < expectedPart) {
-      return -1;
-    }
-  }
-
-  return 0;
-};
-
 const checkRuntimeVersion = (
   name: string,
   actualVersion: string | null,
   requiredRange?: string,
 ): CheckResult => {
-  const requiredVersion = minimumVersion(requiredRange);
+  const satisfies = satisfiesRuntimeVersion(actualVersion, requiredRange);
 
-  if (!actualVersion || !requiredVersion) {
+  if (!actualVersion || satisfies === null) {
     return {
       name,
       status: "warn",
@@ -101,7 +80,7 @@ const checkRuntimeVersion = (
 
   const normalizedActual = actualVersion.replace(/^v/, "");
 
-  return compareVersions(normalizedActual, requiredVersion) >= 0
+  return satisfies
     ? {
         name,
         status: "pass",
