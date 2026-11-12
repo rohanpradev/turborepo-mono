@@ -1,7 +1,9 @@
 {{- range $name, $job := .Values.jobs }}
 {{- if $job.enabled }}
-{{- if and $.Values.secrets.create (contains "pre-install" $job.hook) }}
-{{- fail (printf "job %s runs as a pre-install hook and requires an externally managed secret; set secrets.create=false and provision secrets.name before Helm runs" $name) }}
+{{- $runtimeSecretName := include "ecommerce.secretName" $ }}
+{{- $secretName := default $runtimeSecretName $job.secretName }}
+{{- if and $.Values.secrets.create (contains "pre-install" $job.hook) (eq $secretName $runtimeSecretName) }}
+{{- fail (printf "job %s runs as a pre-install hook and requires an externally managed secret; set jobs.%s.secretName or set secrets.create=false and provision secrets.name before Helm runs" $name $name) }}
 {{- end }}
 {{- $service := required (printf "job %s must reference a valid service" $name) (index $.Values.services $job.service) }}
 {{- if not $service.enabled }}
@@ -76,7 +78,7 @@ spec:
             - name: {{ $envName }}
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "ecommerce.secretName" $ }}
+                  name: {{ $secretName | quote }}
                   key: {{ $secretKey }}
             {{- end }}
           volumeMounts:

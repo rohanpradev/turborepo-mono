@@ -43,9 +43,7 @@ export async function GET(
       token,
     );
 
-    return Response.json(status, {
-      headers: { "Cache-Control": "no-store" },
-    });
+    return Response.json(status);
   } catch (error) {
     const status = error instanceof ApiClientError ? error.status : 502;
     const message =

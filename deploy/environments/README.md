@@ -12,18 +12,25 @@ Before rendering either hosted template:
    publishable keys. Promote the same verified image digests for server services;
    frontend public settings are build-time values. Supply a digest for each of
    product/order/payment/client/admin. Unconfigured profiles deliberately fail.
-3. Provision external secrets. Product gets DATABASE_URL and INTERNAL_SERVICE_TOKEN;
-   payment gets PAYMENT_DATABASE_URL and the same random token (32+ characters).
-   Use separate database roles and databases in hosted environments, TLS-verified
-   database connections, SCRAM/TLS Kafka credentials, Clerk keys and authorized
-   parties, Stripe keys and the real webhook endpoint secret. Never put secrets
-   in values files or public environment variables. The local secret helper now
-   requires the payment URL and internal token too.
-4. Give migration roles DDL rights and runtime roles only their owned schema/table
-   rights; revoke public schema creation. Inventory requires access to Product's
-   foreign key. Pre-install jobs need the secret before Helm runs. Grant Kafka
-   principals only their topics/groups, including per-group dead-letter topics;
-   pre-create topics with infrastructure automation if runtime creation is denied.
+3. Provision both external Secrets in the release namespace before running
+   Helm. The hosted values specify the names and allow a separate Secret per
+   Job through `jobs.<name>.secretName`.
+
+   | Secret in the hosted profile        | Database keys and credentials                                                           |
+   | ----------------------------------- | --------------------------------------------------------------------------------------- |
+   | `commerce-<environment>-runtime`    | `DATABASE_URL`, `PAYMENT_DATABASE_URL`, `MONGO_URL` using application roles             |
+   | `commerce-<environment>-migrations` | The same keys using product/payment migration roles and the order index deployment role |
+
+   Product and payment also need the same random `INTERNAL_SERVICE_TOKEN`
+   (32+ characters) in the runtime Secret. Supply SCRAM/TLS Kafka credentials,
+   Clerk keys, Stripe keys, and the real webhook signing secret there. Configure
+   TLS-verified database connections and put secret values in the secret manager.
+4. Grant DDL and index creation to the hook roles. Give runtime roles access
+   to their own application data and the migration or index metadata needed for
+   readiness checks. Revoke public schema creation and grant the product
+   migration role the access needed to define inventory's Product foreign key.
+   Grant Kafka principals only their required topics and groups, including
+   per-group dead-letter topics. Pre-create topics if runtime creation is denied.
 5. Configure PITR for PostgreSQL and managed MongoDB backups, encrypted offsite
    retention, secret rotation and alert routing. Record recovery ownership and run
    the documented restore drill. Quarantine topics require monitored retention.
@@ -37,6 +44,10 @@ The provided network policy permits namespace service traffic, DNS, specified
 backend CIDRs and public TCP 443 for Stripe/Clerk. Tighten HTTPS with an egress
 proxy where required; L3/L4 policies cannot provide hostname-based allowlists.
 Verify proxy forwarding trust and add ingress/WAF rate limits before launch.
+
+After rotating a runtime Secret, roll the affected deployments and verify
+readiness before revoking the old credentials. Running containers read
+Secret-backed environment variables at startup.
 
 Proposed targets for agreement and staging measurement: 99.9% monthly API
 availability, catalog p95 below 300 ms at 50 requests/second, payment-to-order

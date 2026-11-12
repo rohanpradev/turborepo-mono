@@ -60,6 +60,19 @@ for (const app of apps) {
   let catalogEnabled = false;
   let available: number | null = 5;
   const stockGate = Promise.withResolvers<void>();
+  const product = {
+    id: 1,
+    name: "Upgrade streaming fixture",
+    shortDescription: "Streaming test product",
+    description: "Product details should arrive before the stock check.",
+    price: 1999,
+    sizes: ["m"],
+    colors: ["black"],
+    images: { black: "/products/1g.png" },
+    categorySlug: "test",
+    createdAt: "2026-10-10T00:00:00.000Z",
+    updatedAt: "2026-10-10T00:00:00.000Z",
+  };
   const fixture = Bun.serve({
     hostname: "127.0.0.1",
     port: 0,
@@ -69,21 +82,25 @@ for (const app of apps) {
         return new Response("Catalog unavailable", { status: 503 });
       if (pathname.endsWith("/product/get")) {
         return Response.json({
+          json: { success: true, data: product },
+        });
+      }
+      if (pathname.endsWith("/product/list")) {
+        const data = Array.from({ length: 12 }, (_, index) => ({
+          ...product,
+          id: index + 1,
+        }));
+        return Response.json({
           json: {
             success: true,
-            data: {
-              id: 1,
-              name: "Upgrade streaming fixture",
-              shortDescription: "Streaming test product",
-              description:
-                "Product details should arrive before the stock check.",
-              price: 1999,
-              sizes: ["m"],
-              colors: ["black"],
-              images: { black: "/products/1g.png" },
-              categorySlug: "test",
-              createdAt: "2026-10-10T00:00:00.000Z",
-              updatedAt: "2026-10-10T00:00:00.000Z",
+            data,
+            meta: {
+              page: 1,
+              pageSize: 100,
+              total: data.length,
+              totalPages: 1,
+              hasPreviousPage: false,
+              hasNextPage: false,
             },
           },
         });
@@ -191,6 +208,27 @@ for (const app of apps) {
       }
     }
     if (app.name === "client") {
+      for (const probe of [
+        { path: "/api/checkout", method: "POST", status: 415 },
+        { path: "/api/checkout/smoke-test", method: "OPTIONS", status: 204 },
+      ]) {
+        const response = await session.fetch(`${origin}${probe.path}`, {
+          method: probe.method,
+          headers: { "Accept-Encoding": "gzip" },
+          signal: AbortSignal.timeout(5000),
+        });
+        await response.arrayBuffer();
+        if (
+          response.status !== probe.status ||
+          response.headers.get("cache-control") !==
+            "private, no-store, no-transform" ||
+          response.headers.has("content-encoding")
+        ) {
+          throw new Error(
+            `Invalid checkout response policy for ${probe.path}.`,
+          );
+        }
+      }
       const response = await session.fetch(`${origin}/sitemap.xml`, {
         signal: AbortSignal.timeout(20_000),
       });
@@ -205,9 +243,23 @@ for (const app of apps) {
           "The sitemap must retain public routes during a catalog outage.",
         );
       }
+      catalogEnabled = true;
+      const sitemap = await session.fetch(`${origin}/sitemap.xml`, {
+        headers: { "Accept-Encoding": "gzip" },
+        signal: AbortSignal.timeout(20_000),
+      });
+      if (
+        !sitemap.ok ||
+        sitemap.headers.get("content-encoding") !== "gzip" ||
+        !(await sitemap.text()).includes("/products/12</loc>")
+      ) {
+        throw new Error("The public sitemap must recover with gzip support.");
+      }
+      console.log(
+        "client: private checkout headers and public sitemap gzip passed.",
+      );
     }
     if (app.name === "client") {
-      catalogEnabled = true;
       const response = await session.fetch(`${origin}/products/1`, {
         signal: AbortSignal.timeout(15_000),
       });

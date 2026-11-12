@@ -12,14 +12,8 @@ import {
 } from "lucide-react";
 import type { Route } from "next";
 import Image from "next/image";
-import { useRouter, useSearchParams } from "next/navigation";
-import {
-  Suspense,
-  type SyntheticEvent,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useRouter } from "next/navigation";
+import { type SyntheticEvent, useEffect, useRef, useState } from "react";
 import ShippingForm from "@/components/ShippingForm";
 import StripePaymentForm from "@/components/StripePaymentForm";
 import { Badge } from "@/components/ui/badge";
@@ -45,14 +39,13 @@ const stepHeadings = {
   3: "Secure payment",
 } as const;
 
-const CartContent = () => {
-  const searchParams = useSearchParams();
+export default function CartClient({ step }: { step: string | null }) {
   const router = useRouter();
   const [hasMounted, setHasMounted] = useState(false);
   const lastScrolledStep = useRef<number | null>(null);
   const { shippingForm, setShippingForm } = useCheckoutStore();
 
-  const requestedStep = normalizeCheckoutStep(searchParams.get("step"));
+  const requestedStep = normalizeCheckoutStep(step);
   const { cart, removeFromCart, setCartItemQuantity } = useCartStore();
   const subtotalCents = cart.reduce(
     (total, item) => total + item.price * item.quantity,
@@ -88,14 +81,13 @@ const CartContent = () => {
     }
 
     const canonicalHref = getCheckoutStepHref(activeStep);
-    const currentStep = searchParams.get("step");
     const isCanonical =
-      activeStep === 1 ? currentStep === null : currentStep === `${activeStep}`;
+      activeStep === 1 ? step === null : step === `${activeStep}`;
 
     if (!isCanonical) {
       router.replace(canonicalHref, { scroll: false });
     }
-  }, [activeStep, hasMounted, router, searchParams]);
+  }, [activeStep, hasMounted, router, step]);
 
   return (
     <div className="space-y-8 pb-10 pt-2">
@@ -418,19 +410,5 @@ const CartContent = () => {
         </aside>
       </div>
     </div>
-  );
-};
-
-export default function CartPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-[50vh] items-center justify-center bg-background">
-          <div className="size-10 animate-spin rounded-full border-2 border-border border-t-foreground" />
-        </div>
-      }
-    >
-      <CartContent />
-    </Suspense>
   );
 }

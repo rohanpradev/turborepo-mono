@@ -54,8 +54,8 @@ KUBECONFORM_IMAGE ?= ghcr.io/yannh/kubeconform:v0.8.0@sha256:faffaf43f95aa642530
 GATEWAY_API_VERSION ?= 1.6.3
 GATEWAY_API_MANIFEST_SHA256 ?= 356c2b8e286a964dc20995435659ad1095386329974793af10bbfe3eff977fe5
 TRAEFIK_CHART_VERSION ?= 42.1.3
-TRAEFIK_IMAGE_VERSION ?= v3.7.16
-TRAEFIK_IMAGE_DIGEST ?= sha256:c8a121e4bb1347e8fd52657fab12f2cb70b68f8a018895e2068f92c9e519b9c2
+TRAEFIK_IMAGE_VERSION ?= v3.7.18
+TRAEFIK_IMAGE_DIGEST ?= sha256:9c437ac4f09ce6f4980a8544902d3475fdf70a1a7c578729581d2535dfa7d635
 OBS_CHART_VERSION ?= 92.11.0
 HELM_CHART ?= charts/ecommerce
 HELM_RELEASE ?= ecommerce
@@ -100,8 +100,8 @@ export K8S_IMAGE_TAG
 K8S_IMAGE_SET_ARGS ?= --set-string services.product.image.tag=$(K8S_IMAGE_TAG) --set-string services.order.image.tag=$(K8S_IMAGE_TAG) --set-string services.payment.image.tag=$(K8S_IMAGE_TAG) --set-string services.client.image.tag=$(K8S_IMAGE_TAG) --set-string services.admin.image.tag=$(K8S_IMAGE_TAG)
 K8S_LOCAL_IMAGES ?= turborepo-monorepo-product-service:$(K8S_IMAGE_TAG) turborepo-monorepo-order-service:$(K8S_IMAGE_TAG) turborepo-monorepo-payment-service:$(K8S_IMAGE_TAG) turborepo-monorepo-client:$(K8S_IMAGE_TAG) turborepo-monorepo-admin:$(K8S_IMAGE_TAG)
 HELM_UPGRADE_ARGS ?= --rollback-on-failure --wait --timeout $(K8S_ROLLOUT_TIMEOUT)
-DHI_CHECK_IMAGES ?= dhi.io/postgres:18.6-debian13@sha256:1df173565ce7da8031d1c1ebfead27ff5e9c15055831f2ca0ff7f3b1a66f0aa7 dhi.io/kafka:4.3.1-debian13-native@sha256:e143e49a67f9aaef9a992896162731f7428f6e5af2aa68b9a99ee723a0e1fbed
-DHI_AMD64_CHECK_IMAGES ?= dhi.io/mongodb:8.3.13-debian13@sha256:0162625dc28370f5769327e7e8dae540f2ba4143fb215eb6eda3753d073064c6
+DHI_CHECK_IMAGES ?= dhi.io/postgres:18.6-debian13@sha256:1df173565ce7da8031d1c1ebfead27ff5e9c15055831f2ca0ff7f3b1a66f0aa7 dhi.io/kafka:4.4.0-debian13-native@sha256:cb54035a1849a336c801693efe16873b9b29fbbd177a072d17719abfddad859c
+DHI_AMD64_CHECK_IMAGES ?= dhi.io/mongodb:8.3.13-debian13@sha256:0b4b9d43df7de97c3f2f38576568982e65ef8c0c1b641b3fdb3a04e97a2bcc3b
 DOCKER_SMOKE_TIMEOUT ?= 10
 DOCKER_IMAGE_LOCK_FILE ?= docker/compose.images.lock.yml
 LOCAL_TLS_CERT_DIR ?= docker/certs

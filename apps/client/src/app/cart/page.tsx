@@ -1,9 +1,17 @@
 import { Suspense } from "react";
+import { getSingleSearchParam } from "@/lib/search-params";
 import CartClient from "./CartClient";
 
 export const instant = false;
 
-export default function CartPage() {
+async function CartWithStep({
+  searchParams,
+}: Pick<PageProps<"/cart">, "searchParams">) {
+  const { step } = await searchParams;
+  return <CartClient step={getSingleSearchParam(step) ?? null} />;
+}
+
+export default function CartPage({ searchParams }: PageProps<"/cart">) {
   return (
     <Suspense
       fallback={
@@ -16,7 +24,7 @@ export default function CartPage() {
         </div>
       }
     >
-      <CartClient />
+      <CartWithStep searchParams={searchParams} />
     </Suspense>
   );
 }
