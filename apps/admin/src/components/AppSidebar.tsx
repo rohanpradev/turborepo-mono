@@ -9,7 +9,6 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import BrandMark from "@/components/BrandMark";
 import {
@@ -24,6 +23,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarSeparator,
+  useSidebar,
 } from "@/components/ui/sidebar";
 
 type AppSidebarProps = {
@@ -53,8 +53,11 @@ const primaryLinks = [
   },
 ] as const;
 
+// Use document navigation for sidebar routes. Client transitions can show an
+// admin 404 on routes that render successfully on a full request.
 const AppSidebar = (_props: AppSidebarProps) => {
   const pathname = usePathname();
+  const { setOpenMobile } = useSidebar();
   const storefrontUrl =
     process.env.NEXT_PUBLIC_CLIENT_APP_URL ?? "http://localhost:3002";
 
@@ -72,7 +75,7 @@ const AppSidebar = (_props: AppSidebarProps) => {
               tooltip="Flagship Admin"
               className="h-13 rounded-xl hover:bg-sidebar-accent group-data-[collapsible=icon]:justify-center"
             >
-              <Link href="/">
+              <a href="/" onClick={() => setOpenMobile(false)}>
                 <BrandMark className="size-9 shrink-0 drop-shadow-lg group-data-[collapsible=icon]:size-8" />
                 <span className="grid flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
                   <span className="truncate text-sm font-bold">
@@ -82,7 +85,7 @@ const AppSidebar = (_props: AppSidebarProps) => {
                     Commerce OS
                   </span>
                 </span>
-              </Link>
+              </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -108,13 +111,14 @@ const AppSidebar = (_props: AppSidebarProps) => {
                       tooltip={item.label}
                       className="h-11 rounded-lg px-3 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground data-[active=true]:shadow-sm"
                     >
-                      <Link
+                      <a
                         href={item.href}
+                        onClick={() => setOpenMobile(false)}
                         aria-current={active ? "page" : undefined}
                       >
                         <item.icon aria-hidden="true" />
                         <span>{item.label}</span>
-                      </Link>
+                      </a>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
@@ -147,10 +151,14 @@ const AppSidebar = (_props: AppSidebarProps) => {
                   tooltip="Payment events"
                   className="h-10 rounded-xl px-3"
                 >
-                  <Link href="/payments#timeline">
+                  {/* biome-ignore lint/a11y/useValidAnchor: This link navigates to the payment timeline. The click handler only closes the mobile drawer. */}
+                  <a
+                    href="/payments#timeline"
+                    onClick={() => setOpenMobile(false)}
+                  >
                     <Activity aria-hidden="true" />
                     <span>Payment events</span>
-                  </Link>
+                  </a>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

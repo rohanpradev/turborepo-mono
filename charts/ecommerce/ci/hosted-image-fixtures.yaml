@@ -1,0 +1,17 @@
+# Synthetic digests for Helm lint and schema validation of commissioning templates.
+services:
+  product:
+    image:
+      digest: &fixture sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  order:
+    image:
+      digest: *fixture
+  payment:
+    image:
+      digest: *fixture
+  client:
+    image:
+      digest: *fixture
+  admin:
+    image:
+      digest: *fixture

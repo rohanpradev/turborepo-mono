@@ -80,7 +80,9 @@ test("failed image verification preserves the failure and collects logs before c
 
 test("CI loads and verifies the image before publishing with identical build inputs", async () => {
   const workflow = Bun.YAML.parse(
-    await Bun.file(path.join(root, ".github/workflows/ci.yml")).text(),
+    await Bun.file(
+      path.join(root, ".github/workflows/docker-images.yml"),
+    ).text(),
   ) as {
     jobs: Record<
       string,
@@ -94,16 +96,20 @@ test("CI loads and verifies the image before publishing with identical build inp
       }
     >;
   };
-  const steps = workflow.jobs["docker-images"]?.steps;
+  const steps = workflow.jobs.build?.steps;
   if (!steps) throw new Error("Docker image job is missing");
   const build = steps.findIndex((step) => step.with?.load === true);
   const verify = steps.findIndex((step) =>
     step.run?.includes("docker/test-image.sh"),
   );
+  const login = steps.findIndex(
+    (step) => step.name === "Log in to Container Registry",
+  );
   const publish = steps.findIndex((step) => step.with?.push === true);
   expect(build).toBeGreaterThan(-1);
   expect(verify).toBeGreaterThan(build);
-  expect(publish).toBeGreaterThan(verify);
+  expect(login).toBeGreaterThan(verify);
+  expect(publish).toBeGreaterThan(login);
   expect(steps[build]?.with?.push).toBe(false);
   expect(steps[publish]?.if).toBe("env.PUBLISH_IMAGES == 'true'");
   expect(steps[publish]?.with?.["build-args"]).toBe(
@@ -113,7 +119,63 @@ test("CI loads and verifies the image before publishing with identical build inp
   expect(steps[publish]?.with?.sbom).toBe(true);
 });
 
-test("disposable integration dependencies use the same exact database images as CI", async () => {
+test("only the publication workflow receives package write access and registry credentials", async () => {
+  const { jobs } = Bun.YAML.parse(
+    await Bun.file(path.join(root, ".github/workflows/ci.yml")).text(),
+  ) as { jobs: Record<string, unknown> };
+  const reusableWorkflow = "./.github/workflows/docker-images.yml";
+  expect(jobs["docker-images"]).toEqual(
+    expect.objectContaining({
+      uses: reusableWorkflow,
+      permissions: { contents: "read" },
+    }),
+  );
+  expect(jobs["docker-images"]).not.toHaveProperty("secrets");
+  expect(jobs["publish-images"]).toEqual(
+    expect.objectContaining({
+      uses: reusableWorkflow,
+      permissions: { contents: "read", packages: "write" },
+      with: { publish: true },
+      secrets: { GHCR_PAT: expect.stringContaining("secrets.GHCR_PAT") },
+    }),
+  );
+});
+
+test("CI uses the repository's Node and Bun version pins", async () => {
+  const workflow = Bun.YAML.parse(
+    await Bun.file(path.join(root, ".github/workflows/ci.yml")).text(),
+  ) as {
+    jobs: Record<
+      string,
+      { steps: { uses?: string; with?: Record<string, unknown> }[] }
+    >;
+  };
+  const version = (
+    await Bun.file(path.join(root, ".node-version")).text()
+  ).trim();
+  const { engines } = (await Bun.file(
+    path.join(root, "package.json"),
+  ).json()) as {
+    engines: { node: string };
+  };
+
+  expect(engines.node).toBe(`>=${version}`);
+  for (const name of ["validate", "database-integration"]) {
+    const steps = workflow.jobs[name]?.steps;
+    const nodeSetup = steps?.find((step) =>
+      step.uses?.startsWith("actions/setup-node@"),
+    )?.with;
+    const bunSetup = steps?.find((step) =>
+      step.uses?.startsWith("oven-sh/setup-bun@"),
+    )?.with;
+    expect(nodeSetup?.["node-version-file"]).toBe(".node-version");
+    expect(nodeSetup?.["node-version"]).toBeUndefined();
+    expect(bunSetup?.["bun-version-file"]).toBe("package.json");
+    expect(bunSetup?.["bun-version"]).toBeUndefined();
+  }
+});
+
+test("local integration and CI share dependency image pins and Kafka cluster ID", async () => {
   const compose = Bun.YAML.parse(
     await Bun.file(path.join(root, "compose.integration.yml")).text(),
   ) as {
@@ -130,13 +192,31 @@ test("disposable integration dependencies use the same exact database images as 
   const workflow = Bun.YAML.parse(
     await Bun.file(path.join(root, ".github/workflows/ci.yml")).text(),
   ) as {
-    jobs: Record<string, { services: Record<string, { image: string }> }>;
+    jobs: Record<
+      string,
+      {
+        services: Record<
+          string,
+          { image: string; env?: Record<string, string> }
+        >;
+      }
+    >;
   };
   const services = workflow.jobs["database-integration"]?.services;
   if (!services) throw new Error("Database integration job is missing");
   expect(compose.services.postgres?.image).toBe(services.postgres?.image);
   expect(compose.services.mongo?.image).toBe(services.mongodb?.image);
   expect(compose.services.kafka?.image).toBe(services.kafka?.image);
+  expect(compose.services.kafka?.environment.CLUSTER_ID).toBe(
+    "gNtGMiY7RJqk7wdUNktAvg",
+  );
+  expect(services.kafka?.env?.CLUSTER_ID).toBe(
+    compose.services.kafka?.environment.CLUSTER_ID,
+  );
+  expect(
+    compose.services.kafka?.environment.KAFKA_AUTO_CREATE_TOPICS_ENABLE,
+  ).toBe("false");
+  expect(services.kafka?.env?.KAFKA_AUTO_CREATE_TOPICS_ENABLE).toBe("false");
   // An open socket alone does not establish that Kafka can answer metadata requests.
   expect(compose.services.kafka?.healthcheck.test).toContain(
     "/opt/kafka/bin/kafka-topics.sh",
@@ -149,19 +229,4 @@ test("disposable integration dependencies use the same exact database images as 
     compose.services.kafka?.environment.KAFKA_INTER_BROKER_LISTENER_NAME,
   ).toBe("INTERNAL");
   expect(compose.services.kafka?.ports).toEqual(["127.0.0.1:59092:9094"]);
-});
-
-test("MongoDB integration selects the compatible runner without changing other CI jobs", async () => {
-  const workflow = Bun.YAML.parse(
-    await Bun.file(path.join(root, ".github/workflows/ci.yml")).text(),
-  ) as {
-    jobs: Record<string, { "runs-on": string }>;
-  };
-  // Ubuntu 24.04 and 26.04 currently share the kernel MongoDB 8.3.13 rejects.
-  // Remove this temporary pin only after the upstream fix passes hosted CI.
-  expect(workflow.jobs["database-integration"]?.["runs-on"]).toBe(
-    "ubuntu-22.04",
-  );
-  expect(workflow.jobs.validate?.["runs-on"]).toBe("ubuntu-latest");
-  expect(workflow.jobs["docker-images"]?.["runs-on"]).toBe("ubuntu-latest");
 });

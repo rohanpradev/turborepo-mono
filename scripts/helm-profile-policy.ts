@@ -4,7 +4,7 @@ type HelmProfile = {
   forbiddenKind: string;
   name: string;
   requiredKind: string;
-  valuesFile: string;
+  valuesFiles: string[];
 };
 
 type ImageReference = {
@@ -19,28 +19,37 @@ type KubernetesResource = Record<string, unknown> & {
 const profiles: Array<HelmProfile> = [
   {
     name: "ingress",
-    valuesFile: "charts/ecommerce/ci/ingress-values.yaml",
+    valuesFiles: ["charts/ecommerce/ci/ingress-values.yaml"],
     requiredKind: "Ingress",
     forbiddenKind: "HTTPRoute",
   },
   {
     name: "gateway",
-    valuesFile: "charts/ecommerce/ci/gateway-values.yaml",
+    valuesFiles: ["charts/ecommerce/ci/gateway-values.yaml"],
     requiredKind: "HTTPRoute",
     forbiddenKind: "Ingress",
   },
   {
     name: "local",
-    valuesFile: "deploy/environments/local/ecommerce.values.yaml",
+    valuesFiles: ["deploy/environments/local/ecommerce.values.yaml"],
     requiredKind: "Ingress",
     forbiddenKind: "HTTPRoute",
   },
   {
     name: "local-full",
-    valuesFile: "deploy/environments/local/ecommerce-full.values.yaml",
+    valuesFiles: ["deploy/environments/local/ecommerce-full.values.yaml"],
     requiredKind: "Ingress",
     forbiddenKind: "HTTPRoute",
   },
+  ...["staging", "production"].map((name) => ({
+    name,
+    valuesFiles: [
+      `deploy/environments/${name}/ecommerce.values.yaml`,
+      "charts/ecommerce/ci/hosted-image-fixtures.yaml",
+    ],
+    requiredKind: "Ingress",
+    forbiddenKind: "HTTPRoute",
+  })),
 ];
 
 const decoder = new TextDecoder();
@@ -218,8 +227,7 @@ const renderProfile = (profile: HelmProfile, kubernetesVersion: string) => {
       "ecommerce",
       "--kube-version",
       kubernetesVersion,
-      "--values",
-      profile.valuesFile,
+      ...profile.valuesFiles.flatMap((file) => ["--values", file]),
     ],
     {
       cwd,

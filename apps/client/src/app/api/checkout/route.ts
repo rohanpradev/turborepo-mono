@@ -68,9 +68,7 @@ export async function POST(request: Request) {
       token,
     );
 
-    return Response.json(checkout, {
-      headers: { "Cache-Control": "no-store" },
-    });
+    return Response.json(checkout);
   } catch (error) {
     const status = error instanceof ApiClientError ? error.status : 502;
     const message =

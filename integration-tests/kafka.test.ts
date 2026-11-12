@@ -1,12 +1,14 @@
 import { expect, test } from "bun:test";
 import {
+  buildTopicConfigs,
   createConsumer,
   createKafkaClient,
-  ensureTopics,
+  readKafkaTopicDefaults,
   Topics,
 } from "../packages/kafka/src";
 
 const brokers = process.env.INTEGRATION_KAFKA_BROKERS;
+const integrationClusterId = "gNtGMiY7RJqk7wdUNktAvg";
 const eventually = async (predicate: () => boolean) => {
   const end = Date.now() + 30000;
   while (!predicate()) {
@@ -30,14 +32,33 @@ test.skipIf(!brokers)(
     const group = `audit-${crypto.randomUUID()}`;
     const topic = Topics.PRODUCT_DELETED;
     const deadLetter = `${topic}.${group}.dead-letter`;
+    const admin = kafka.admin();
     const consumer = createConsumer(kafka, group);
-    const producer = kafka.producer();
-    const observer = kafka.consumer({ groupId: `${group}-observer` });
+    const producer = kafka.producer({ allowAutoTopicCreation: false });
+    const observer = kafka.consumer({
+      groupId: `${group}-observer`,
+      allowAutoTopicCreation: false,
+    });
+    const createdTopics: string[] = [];
     const ids: string[] = [];
     const quarantined: unknown[] = [];
     let attempts = 0;
     try {
-      await ensureTopics(kafka, [topic, deadLetter]);
+      await admin.connect();
+      const { clusterId } = await admin.describeCluster();
+      if (clusterId !== integrationClusterId)
+        throw new Error("Use the Kafka broker from compose.integration.yml.");
+
+      const topics = buildTopicConfigs(
+        [topic, deadLetter],
+        readKafkaTopicDefaults(),
+      );
+      for (const config of topics) {
+        if (!(await admin.createTopics({ topics: [config] }))) {
+          throw new Error(`Kafka test topic already exists: ${config.topic}.`);
+        }
+        createdTopics.push(config.topic);
+      }
       await producer.connect();
       const message = { id: group, deletedAt: new Date().toISOString() };
       await producer.send({
@@ -88,10 +109,10 @@ test.skipIf(!brokers)(
         observer.disconnect(),
         producer.disconnect(),
       ]);
-      const admin = kafka.admin();
-      await admin.connect();
       try {
-        await admin.deleteTopics({ topics: [topic, deadLetter] });
+        if (createdTopics.length > 0) {
+          await admin.deleteTopics({ topics: createdTopics });
+        }
       } finally {
         await admin.disconnect();
       }

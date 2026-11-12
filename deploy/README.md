@@ -18,14 +18,19 @@ Chart-only validation fixtures live under `charts/ecommerce/ci`. The existing
 `environments/staging` and `environments/production` profiles are commissioning
 templates with placeholder hosts, registries, and network ranges. Follow the
 [environment commissioning guide](environments/README.md) before using them.
+The Helm lint and kubeconform matrices cover both hosted templates using
+synthetic image digests from `charts/ecommerce/ci/hosted-image-fixtures.yaml`.
 
 ## Verify application images before publication
 
 CI follows Docker's [test-before-push workflow](https://docs.docker.com/build/ci/github-actions/test-before-push/):
 it loads an AMD64 image, verifies that artifact, then publishes the cached
 AMD64/ARM64 build with provenance and an SBOM. A failed runtime check prevents
-publication. ARM64 is build-checked; this gate does not establish ARM64 runtime
-qualification or authenticated commerce behavior against live services.
+publication for that image. Verification-only CI runs use a read-only repository
+token. The publication job receives package write permission, logs in after the
+runtime check, and records each published image's digest in the job summary.
+ARM64 receives build coverage. Staging qualification includes runtime checks on
+the target architecture and authenticated commerce smoke tests.
 
 Run the same check against a locally built image:
 

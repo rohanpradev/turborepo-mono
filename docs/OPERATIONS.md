@@ -106,6 +106,14 @@ broker credentials. The tool validates topic, version and payload, and preserves
 the original business identity. It re-publishes once and leaves quarantine intact
 for audit. Never replay an entire topic without assessing each business effect.
 
+### Kafka 4.4 image rollout
+
+For an existing KRaft cluster, preserve the broker volumes and cluster ID when
+switching images. Follow the [Kafka upgrade guide](https://kafka.apache.org/44/getting-started/upgrade/)
+before changing cluster feature levels. Confirm that the quorum is healthy and
+that producers and consumers work on the new binaries before finalizing the
+metadata version.
+
 ## Backups, restore and promotion
 
 Configure managed PostgreSQL PITR for product/inventory and payment, MongoDB
@@ -134,8 +142,13 @@ ending in `_test`. It generates and validates the product contract, applies
 product/payment migrations, and deploys order indexes before testing. Use these
 databases only for the test run: index enforcement and migration state change
 during the suite. Supplying `INTEGRATION_KAFKA_BROKERS` also runs the broker-backed
-transport cases; database tests use real persistence and controlled transport
-fixtures.
+transport cases against the dedicated Kafka cluster in `compose.integration.yml`.
+The Kafka test checks the cluster ID, explicitly creates its topics, and
+requires an unused source topic. Start with a fresh disposable Kafka container
+if an earlier version of the stack is still running. Database tests use real
+persistence and controlled transport fixtures. The local and hosted integration
+stacks use MongoDB's Community Server 8.3.17 image, which includes the Ubuntu
+kernel fix tracked in [SERVER-131779](https://jira.mongodb.org/browse/SERVER-131779).
 
 ```sh
 docker compose -f compose.integration.yml up -d --wait

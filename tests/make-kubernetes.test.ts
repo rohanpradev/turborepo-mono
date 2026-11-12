@@ -49,7 +49,7 @@ test("manifest validation stops when Helm rendering fails", () => {
 
 for (const scenario of [
   { target: "k8s-validate", render: 0, validation: 0, count: 1 },
-  { target: "helm-validate-supported", render: 0, validation: 0, count: 4 },
+  { target: "helm-validate-supported", render: 0, validation: 0, count: 6 },
   { target: "helm-validate-supported", render: 42, validation: 0, count: 0 },
   { target: "helm-validate-supported", render: 0, validation: 42, count: 1 },
 ]) {

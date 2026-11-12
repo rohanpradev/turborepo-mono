@@ -11,6 +11,17 @@ KUBECONFORM_PROJECT_SCHEMAS = /project-schemas
 endif
 KUBECONFORM_SCHEMA_ARGS = -schema-location '$(KUBECONFORM_PROJECT_SCHEMAS)/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' -schema-location default
 
+HELM_MATRIX_PROFILES = ingress gateway local local-full staging production
+define HELM_MATRIX_PROFILE_ARGS
+case "$$profile" in \
+	ingress|gateway) set -- --values "$(HELM_CHART)/ci/$$profile-values.yaml" ;; \
+	local) set -- --values "$(HELM_VALUES)" ;; \
+	local-full) set -- --values "$(HELM_FULL_VALUES)" ;; \
+	staging|production) set -- --values "deploy/environments/$$profile/ecommerce.values.yaml" \
+		--values "$(HELM_CHART)/ci/hosted-image-fixtures.yaml" ;; \
+esac
+endef
+
 ##@ Kubernetes / Helm
 
 .PHONY: k8s-install-kubectl
@@ -36,17 +47,12 @@ helm-lint: ## Lint the ecommerce Helm chart
 	$(HELM) lint $(HELM_CHART) --kube-version $(K8S_TARGET_VERSION)
 	@echo "$(GREEN)Helm chart lint passed$(NC)"
 
-helm-lint-supported: ## Lint every deployable chart profile against supported Kubernetes minors
+helm-lint-supported: ## Lint local profiles and hosted templates against supported Kubernetes minors
 	@for kubernetes_version in $(K8S_SUPPORTED_VERSIONS); do \
-		for profile in ingress gateway local local-full; do \
+		for profile in $(HELM_MATRIX_PROFILES); do \
 			echo "$(BLUE)Linting $$profile for $(K8S_VERSION_TIER) Kubernetes $$kubernetes_version...$(NC)"; \
-			case "$$profile" in \
-				ingress) profile_args="--values $(HELM_CHART)/ci/ingress-values.yaml" ;; \
-				gateway) profile_args="--values $(HELM_CHART)/ci/gateway-values.yaml" ;; \
-				local) profile_args="--values $(HELM_VALUES)" ;; \
-				local-full) profile_args="--values $(HELM_FULL_VALUES)" ;; \
-			esac; \
-			$(HELM) lint $(HELM_CHART) --kube-version "$$kubernetes_version" $$profile_args || exit 1; \
+			$(HELM_MATRIX_PROFILE_ARGS); \
+			$(HELM) lint $(HELM_CHART) --kube-version "$$kubernetes_version" "$$@" || exit 1; \
 		done; \
 	done
 	@echo "$(GREEN)Helm profiles passed the $(K8S_VERSION_TIER) lint matrix: $(K8S_SUPPORTED_VERSIONS)$(NC)"
@@ -54,19 +60,14 @@ helm-lint-supported: ## Lint every deployable chart profile against supported Ku
 helm-lint-experimental: ## Render-lint every chart profile against experimental Kubernetes minors
 	@$(MAKE) --no-print-directory helm-lint-supported K8S_SUPPORTED_VERSIONS="$(K8S_EXPERIMENTAL_VERSIONS)" K8S_VERSION_TIER=experimental
 
-helm-validate-supported: helm-lint-supported ## Schema-validate every real profile against supported Kubernetes minors
+helm-validate-supported: helm-lint-supported ## Schema-validate local profiles and hosted templates against supported Kubernetes minors
 	@mkdir -p "$(RUNTIME_DIR)/kubeconform-cache"
 	@rendered_manifest="$$(mktemp)"; trap 'rm -f "$$rendered_manifest"' EXIT HUP INT TERM; \
 	for kubernetes_version in $(K8S_SUPPORTED_VERSIONS); do \
-		for profile in ingress gateway local local-full; do \
+		for profile in $(HELM_MATRIX_PROFILES); do \
 			echo "$(BLUE)Validating $$profile for $(K8S_VERSION_TIER) Kubernetes $$kubernetes_version...$(NC)"; \
-			case "$$profile" in \
-				ingress) profile_args="--values $(HELM_CHART)/ci/ingress-values.yaml" ;; \
-				gateway) profile_args="--values $(HELM_CHART)/ci/gateway-values.yaml" ;; \
-				local) profile_args="--values $(HELM_VALUES)" ;; \
-				local-full) profile_args="--values $(HELM_FULL_VALUES)" ;; \
-			esac; \
-			$(HELM) template $(HELM_RELEASE) $(HELM_CHART) --namespace $(HELM_NAMESPACE) --kube-version "$$kubernetes_version" $$profile_args > "$$rendered_manifest" || exit 1; \
+			$(HELM_MATRIX_PROFILE_ARGS); \
+			$(HELM) template $(HELM_RELEASE) $(HELM_CHART) --namespace $(HELM_NAMESPACE) --kube-version "$$kubernetes_version" "$$@" > "$$rendered_manifest" || exit 1; \
 			$(KUBECONFORM_RUN) -strict -summary $(KUBECONFORM_SCHEMA_ARGS) -kubernetes-version "$$kubernetes_version" - < "$$rendered_manifest" || exit 1; \
 		done; \
 	done

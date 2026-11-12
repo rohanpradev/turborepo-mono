@@ -76,7 +76,7 @@ services:
 
   traefik:
     <<: *runtime-security
-    image: traefik:v3.7.16@sha256:c8a121e4bb1347e8fd52657fab12f2cb70b68f8a018895e2068f92c9e519b9c2
+    image: traefik:v3.7.18@sha256:9c437ac4f09ce6f4980a8544902d3475fdf70a1a7c578729581d2535dfa7d635
     read_only: true
     tmpfs:
       - /tmp:size=32m,mode=1777
@@ -165,7 +165,7 @@ services:
 
   mongodb:
     <<: *runtime-security
-    image: dhi.io/mongodb:8.3.13-debian13@sha256:0162625dc28370f5769327e7e8dae540f2ba4143fb215eb6eda3753d073064c6
+    image: dhi.io/mongodb:8.3.13-debian13@sha256:0b4b9d43df7de97c3f2f38576568982e65ef8c0c1b641b3fdb3a04e97a2bcc3b
     platform: linux/amd64
     command:
       - "--bind_ip_all"
@@ -269,7 +269,7 @@ services:
 
   kafka-broker-1:
     <<: *runtime-security
-    image: dhi.io/kafka:4.3.1-debian13-native@sha256:e143e49a67f9aaef9a992896162731f7428f6e5af2aa68b9a99ee723a0e1fbed
+    image: dhi.io/kafka:4.4.0-debian13-native@sha256:cb54035a1849a336c801693efe16873b9b29fbbd177a072d17719abfddad859c
     environment:
       <<: *kafka-broker-env
       KAFKA_NODE_ID: 1
@@ -293,7 +293,7 @@ services:
 
   kafka-broker-2:
     <<: *runtime-security
-    image: dhi.io/kafka:4.3.1-debian13-native@sha256:e143e49a67f9aaef9a992896162731f7428f6e5af2aa68b9a99ee723a0e1fbed
+    image: dhi.io/kafka:4.4.0-debian13-native@sha256:cb54035a1849a336c801693efe16873b9b29fbbd177a072d17719abfddad859c
     environment:
       <<: *kafka-broker-env
       KAFKA_NODE_ID: 2
@@ -317,7 +317,7 @@ services:
 
   kafka-broker-3:
     <<: *runtime-security
-    image: dhi.io/kafka:4.3.1-debian13-native@sha256:e143e49a67f9aaef9a992896162731f7428f6e5af2aa68b9a99ee723a0e1fbed
+    image: dhi.io/kafka:4.4.0-debian13-native@sha256:cb54035a1849a336c801693efe16873b9b29fbbd177a072d17719abfddad859c
     environment:
       <<: *kafka-broker-env
       KAFKA_NODE_ID: 3
@@ -350,8 +350,6 @@ services:
     expose:
       - "8080"
     depends_on:
-      payment-db-migrate:
-        condition: service_completed_successfully
       kafka-broker-1:
         condition: service_healthy
       kafka-broker-2:
@@ -522,6 +520,8 @@ services:
     volumes:
       - stripe_runtime:/var/run/stripe:ro
     depends_on:
+      payment-db-migrate:
+        condition: service_completed_successfully
       kafka-broker-1:
         condition: service_healthy
       kafka-broker-2:
@@ -560,7 +560,7 @@ services:
 
   stripe-cli:
     <<: *app-service
-    image: stripe/stripe-cli:v1.55.1@sha256:abb51eab2607fc16375ce79da40edfc3ae92f2a7ac100e44889ba1b291b41c83
+    image: stripe/stripe-cli:v1.55.8@sha256:c8e5a48108fb4c1e83583912c85810e9ac3bc8db91070da3f915ac369ceecf31
     environment:
       STRIPE_API_KEY: ${STRIPE_API_KEY:-}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}

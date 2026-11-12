@@ -44,34 +44,6 @@ type ShippingFormInputs = BaseShippingFormInputs & {
   country?: string;
 };
 
-const createCheckoutRequest = async (
-  payload: unknown,
-  abortController: AbortController,
-) => {
-  let timedOut = false;
-  const timeoutId = setTimeout(() => {
-    timedOut = true;
-    abortController.abort();
-  }, 20_000);
-
-  try {
-    return await fetch("/api/checkout", {
-      body: JSON.stringify(payload),
-      headers: { "content-type": "application/json" },
-      method: "POST",
-      signal: abortController.signal,
-    });
-  } catch (error) {
-    if (timedOut) {
-      throw new Error("Checkout is taking too long. Please try again.");
-    }
-
-    throw error;
-  } finally {
-    clearTimeout(timeoutId);
-  }
-};
-
 const readCheckoutResponse = async (response: Response) => {
   const contentType = response.headers.get("content-type") ?? "";
   const body = await response.text();
@@ -90,6 +62,27 @@ const readCheckoutResponse = async (response: Response) => {
       | { data: { clientSecret: string; sessionId: string } };
   } catch {
     throw new Error("Checkout returned an invalid response. Please try again.");
+  }
+};
+
+const createCheckoutRequest = async (payload: unknown, signal: AbortSignal) => {
+  const timeout = AbortSignal.timeout(20_000);
+
+  try {
+    const response = await fetch("/api/checkout", {
+      body: JSON.stringify(payload),
+      cache: "no-store",
+      headers: { "content-type": "application/json" },
+      method: "POST",
+      signal: AbortSignal.any([signal, timeout]),
+    });
+    return { ok: response.ok, body: await readCheckoutResponse(response) };
+  } catch (error) {
+    if (timeout.aborted && !signal.aborted) {
+      throw new Error("Checkout is taking too long. Please try again.");
+    }
+
+    throw error;
   }
 };
 
@@ -197,14 +190,13 @@ const AuthenticatedStripePaymentForm = ({
             selectedSize,
           })),
         };
-        const response = await createCheckoutRequest(
+        const { ok, body: responseBody } = await createCheckoutRequest(
           checkoutPayload,
-          abortController,
+          abortController.signal,
         );
+        if (!isActive) return;
 
-        const responseBody = await readCheckoutResponse(response);
-
-        if (!response.ok || !("data" in responseBody)) {
+        if (!ok || !("data" in responseBody)) {
           throw new Error(
             "message" in responseBody
               ? responseBody.message
@@ -218,9 +210,7 @@ const AuthenticatedStripePaymentForm = ({
           userId,
           cart,
         );
-        if (isActive) {
-          setClientSecret(responseBody.data.clientSecret);
-        }
+        setClientSecret(responseBody.data.clientSecret);
       } catch (caughtError) {
         if (isActive) {
           setError(

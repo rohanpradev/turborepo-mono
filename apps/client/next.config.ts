@@ -95,6 +95,16 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
+        source: "/api/checkout/:path*",
+        headers: [
+          {
+            // Checkout can return a Stripe client secret or account-specific data.
+            key: "Cache-Control",
+            value: "private, no-store, no-transform",
+          },
+        ],
+      },
     ];
   },
   images: {

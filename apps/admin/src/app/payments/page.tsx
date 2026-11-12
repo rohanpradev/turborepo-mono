@@ -8,6 +8,7 @@ import { getPaymentServiceServerUrl } from "@repo/api-client/server";
 import { formatUsdFromCents } from "@repo/types";
 import type { Metadata } from "next";
 import { Badge } from "@/components/ui/badge";
+import { formatCustomerLabel, formatTimestamp } from "@/lib/admin-data";
 import { requireAdminAccess } from "@/lib/auth";
 
 export const metadata: Metadata = {
@@ -69,7 +70,7 @@ const PaymentsPage = async () => {
     listPaymentActivities(paymentServiceUrl, {
       fetchOptions: liveFetchOptions,
       token,
-    }).catch(() => null),
+    }).catch(() => ({ error: true as const })),
   ]);
 
   const eventPayload = "data" in paymentEvents ? paymentEvents.data : null;
@@ -83,7 +84,8 @@ const PaymentsPage = async () => {
         event.source === "webhook",
     ),
   );
-  const checkoutSessions = storedActivities?.data ?? [];
+  const activitiesAvailable = "data" in storedActivities;
+  const checkoutSessions = activitiesAvailable ? storedActivities.data : [];
   const successfulPayments = checkoutSessions.filter(
     (activity) => activity.status === "paid",
   );
@@ -131,7 +133,7 @@ const PaymentsPage = async () => {
             Verified Payments
           </p>
           <p className="mt-3 text-3xl font-semibold">
-            {storedActivities ? successfulPayments.length : "Unavailable"}
+            {activitiesAvailable ? successfulPayments.length : "Unavailable"}
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
             Verified payments among the latest 100 stored checkouts.
@@ -142,7 +144,7 @@ const PaymentsPage = async () => {
             Recent Revenue
           </p>
           <p className="mt-3 text-3xl font-semibold">
-            {storedActivities
+            {activitiesAvailable
               ? formatUsdFromCents(recentRevenueCents)
               : "Unavailable"}
           </p>
@@ -156,7 +158,7 @@ const PaymentsPage = async () => {
             Checkout Sessions
           </p>
           <p className="mt-3 text-3xl font-semibold">
-            {storedActivities ? checkoutSessions.length : "Unavailable"}
+            {activitiesAvailable ? checkoutSessions.length : "Unavailable"}
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
             The latest 100 checkouts, retained across service restarts.
@@ -178,6 +180,66 @@ const PaymentsPage = async () => {
           </p>
         </article>
       </div>
+
+      <section className="rounded-2xl border bg-card p-5 shadow-sm">
+        <h2 className="text-lg font-semibold">Recent checkouts</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          The latest 100 stored checkouts and their payment status.
+        </p>
+        {!activitiesAvailable ? (
+          <div
+            role="alert"
+            className="mt-4 rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-700"
+          >
+            Unable to load checkout records. Check the payment service and your
+            admin access, then refresh this page.
+          </div>
+        ) : checkoutSessions.length === 0 ? (
+          <p className="mt-4 rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+            No stored checkouts were found.
+          </p>
+        ) : (
+          <div className="mt-4 space-y-3">
+            {checkoutSessions.map((checkout) => (
+              <article
+                key={checkout.sessionId}
+                className="rounded-xl border p-4"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="font-medium">
+                      {formatUsdFromCents(checkout.amountCents)}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {formatCustomerLabel(checkout.userId)} ·{" "}
+                      {checkout.itemCount} items
+                    </p>
+                  </div>
+                  <Badge
+                    variant={checkout.status === "paid" ? "success" : "warning"}
+                  >
+                    {checkout.status === "paid" ? "Paid" : "Pending"}
+                  </Badge>
+                </div>
+                <div className="mt-3 space-y-1 text-xs text-muted-foreground">
+                  <p>Checkout: {formatTimestamp(checkout.checkoutTimestamp)}</p>
+                  {checkout.completedTimestamp && (
+                    <p>
+                      Completed: {formatTimestamp(checkout.completedTimestamp)}
+                    </p>
+                  )}
+                  <p className="break-all">Session: {checkout.sessionId}</p>
+                  {checkout.paymentIntentId && (
+                    <p className="break-all">
+                      Payment intent: {checkout.paymentIntentId}
+                    </p>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
 
       <div className="grid gap-4 xl:grid-cols-[1fr_1.4fr]">
         <section

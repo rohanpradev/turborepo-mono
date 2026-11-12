@@ -82,7 +82,7 @@ For current dependency decisions, API migrations, and verification results, see 
 | Layer    | Technology                                                                                             |
 | -------- | ------------------------------------------------------------------------------------------------------ |
 | Monorepo | Turborepo, Bun workspaces, Bun catalogs                                                                |
-| Frontend | Next.js 16.4.3, React 19.3.1, Tailwind CSS 4, Radix UI, Lucide                                         |
+| Frontend | Next.js 16.4.6, React 19.3.1, Tailwind CSS 4, Radix UI, Lucide                                         |
 | APIs     | Hono 4.13, Zod, OpenAPI, Scalar API Reference                                                          |
 | Auth     | Clerk for frontend sessions and service bearer auth                                                    |
 | Payments | Stripe Checkout and webhooks                                                                           |
@@ -112,7 +112,7 @@ Workspace checks use `bun check`; service watch mode and tests check types befor
 ## Prerequisites
 
 - `Bun >= 1.4.4`
-- `Node >= 24.22.1` (the project selects the patched Node 24 LTS release)
+- `Node >= 24.22.2` (CI and local version managers share the Node 24 LTS pin in `.node-version`)
 - Docker with Compose
 - `mkcert` for locally trusted `*.localhost` TLS certificates
 - `docker login dhi.io` if you want the full Docker Hardened Images path
@@ -327,18 +327,18 @@ The Docker path uses the digest-pinned official Bun 1.4.4 image for application 
 
 | Compose service       | Image / Build                                  | Purpose                                             |
 | --------------------- | ---------------------------------------------- | --------------------------------------------------- |
-| `traefik`             | `traefik:v3.7.16`                              | TLS router, API gateway, dashboard                  |
+| `traefik`             | `traefik:v3.7.18`                              | TLS router, API gateway, dashboard                  |
 | `docker-socket-proxy` | `ghcr.io/tecnativa/docker-socket-proxy:v0.5.0` | Restricted Docker API surface for Traefik discovery |
 | `postgres`            | `dhi.io/postgres:18.6-debian13`                | Product catalog database                            |
 | `mongodb`             | `dhi.io/mongodb:8.3.13-debian13`               | Order read-model database                           |
-| `kafka-broker-1..3`   | `dhi.io/kafka:4.3.1-debian13-native`           | Three-broker Kafka cluster                          |
+| `kafka-broker-1..3`   | `dhi.io/kafka:4.4.0-debian13-native`           | Three-broker Kafka cluster                          |
 | `kafka-ui`            | `ghcr.io/kafbat/kafka-ui:v1.5.0`               | Kafka topic, consumer, and message visibility       |
 | `product-service`     | `docker/Dockerfile.product-service`            | Catalog API, Prisma writes, product events          |
 | `payment-service`     | `docker/Dockerfile.payment-service`            | Stripe checkout, webhooks, payment events           |
 | `order-service`       | `docker/Dockerfile.order-service`              | Order API and MongoDB read model                    |
 | `client`              | `docker/Dockerfile.client`                     | Customer storefront                                 |
 | `admin`               | `docker/Dockerfile.admin`                      | Admin operations dashboard                          |
-| `stripe-cli`          | `stripe/stripe-cli:v1.55.1`                    | Local webhook forwarding                            |
+| `stripe-cli`          | `stripe/stripe-cli:v1.55.8`                    | Local webhook forwarding                            |
 
 The five application Dockerfiles use Turbo pruning, Bun frozen installs, and separate runtime stages. Frontend images build standalone Next.js output, while service images copy only runtime code, generated clients, shared packages, and production dependencies.
 

@@ -63,6 +63,12 @@ observability:
   prometheusRule:
     enabled: true
 jobs:
+  migrate-product-db:
+    secretName: commerce-staging-migrations
+  migrate-payment-db:
+    secretName: commerce-staging-migrations
+  index-order-db:
+    secretName: commerce-staging-migrations
   seed-product-db:
     enabled: false
 services:

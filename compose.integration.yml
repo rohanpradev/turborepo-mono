@@ -13,7 +13,7 @@ services:
       timeout: 3s
       retries: 30
   mongo:
-    image: mongo:8.3.13@sha256:e16e606f792ea89d2b4907b54e5e31eb86a7a23e27231dce3a982cc8f2d73cd2
+    image: mongodb/mongodb-community-server:8.3.17-ubuntu2204-slim-20261111T065308Z@sha256:66a8943ca696bc5a5adc4e04014814bb0bc6fd412222fda85caadcaf08c1d56c
     ports: ["127.0.0.1:57017:27017"]
     healthcheck:
       test: [CMD, mongosh, --quiet, --eval, "db.adminCommand({ping:1})"]
@@ -21,9 +21,10 @@ services:
       timeout: 5s
       retries: 30
   kafka:
-    image: apache/kafka:4.3.1@sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837
+    image: apache/kafka:4.4.0@sha256:833b867a9585a141da455dc2b57431c65cbccb27f11c91f694444cca9f777e0f
     ports: ["127.0.0.1:59092:9094"]
     environment:
+      CLUSTER_ID: gNtGMiY7RJqk7wdUNktAvg
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_LISTENERS: INTERNAL://:9092,EXTERNAL://:9094,CONTROLLER://:9093
@@ -36,6 +37,7 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
     healthcheck:
       test:
         [
